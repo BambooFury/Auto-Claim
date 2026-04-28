@@ -16,7 +16,7 @@
 	"version": "1.0.0",
 	"description": "Automatically detects 100% discounted games on Steam and adds them to your library.",
 	"main": "./frontend/index.tsx",
-	"author": "",
+	"author": "BambooFury",
 	"license": "MIT",
 	"dependencies": {
 		"@steambrew/api": "^5.5.3",
