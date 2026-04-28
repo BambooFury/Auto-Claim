@@ -2,6 +2,7 @@ node_modules/
 .millennium/
 dist/
 .vscode/
+.github/
 
 steam_cookies.json
 grabbed.json
