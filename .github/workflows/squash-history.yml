@@ -1,0 +1,31 @@
+name: Squash History
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  squash:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check if already single commit
+        id: check
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "count=$COMMIT_COUNT" >> "$GITHUB_OUTPUT"
+      - name: Squash entire history to one commit
+        if: steps.check.outputs.count != '1'
+        run: |
+          git checkout --orphan temp
+          git add -A
+          git commit -m "Initial commit"
+          git branch -M temp main
+          git push --force origin main
+        env:
+          GIT_AUTHOR_NAME: SteamClientHomebrew[bot]
+          GIT_AUTHOR_EMAIL: millennium[bot]@noreply.steambrew.app
+          GIT_COMMITTER_NAME: SteamClientHomebrew[bot]
+          GIT_COMMITTER_EMAIL: millennium[bot]@noreply.steambrew.app

@@ -1,0 +1,11 @@
+node_modules/
+.millennium/
+dist/
+.vscode/
+
+steam_cookies.json
+grabbed.json
+free_games_cache.json
+claim_pending.json
+settings.json
+widget_settings.json
