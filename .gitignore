@@ -4,6 +4,8 @@ dist/
 .vscode/
 .github/
 
+*.zip
+
 steam_cookies.json
 grabbed.json
 free_games_cache.json
