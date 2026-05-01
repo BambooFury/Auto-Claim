@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/BambooFury/Auto-Claim/compare/v1.1.1...v1.1.2) (2026-05-01)
+
+
+### Bug Fixes
+
+* skip already grabbed games on startup to prevent duplicate notifications ([dcd0b54](https://github.com/BambooFury/Auto-Claim/commit/dcd0b543b89898cd48464be1877ffd6e04b7b8d1))
+
 ## [1.1.1](https://github.com/BambooFury/Auto-Claim/compare/v1.1.0...v1.1.1) (2026-05-01)
 
 
