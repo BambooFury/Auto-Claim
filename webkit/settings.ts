@@ -8,6 +8,7 @@ const LS_KEY = 'fgg_store_settings';
 
 export interface PluginConfig {
   tabColor: string;
+  accentColor: string;
   showOverlay: boolean;
   panelSide: PanelSide;
   tabStyle: TabStyle;
@@ -18,6 +19,7 @@ export interface PluginConfig {
 
 export const cfg: PluginConfig = {
   tabColor: 'gray',
+  accentColor: 'rgba(255,255,255,0.5)',
   showOverlay: false,
   panelSide: 'left',
   tabStyle: 'large',
@@ -38,6 +40,7 @@ function applyInto(target: PluginConfig, src: any): void {
   if (!src || typeof src !== 'object') return;
 
   if (typeof src.tabColor    === 'string')  target.tabColor    = src.tabColor;
+  if (typeof src.accentColor === 'string')  target.accentColor = src.accentColor;
   if (typeof src.showOverlay === 'boolean') target.showOverlay = src.showOverlay;
   if (isPanelSide(src.panelSide))           target.panelSide   = src.panelSide;
   if (isTabStyle(src.tabStyle))             target.tabStyle    = src.tabStyle;
@@ -71,6 +74,7 @@ function snapshotForLocalStorage() {
 function widgetOnlyPayload() {
   return {
     tabColor:    cfg.tabColor,
+    accentColor: cfg.accentColor,
     showOverlay: cfg.showOverlay,
     panelSide:   cfg.panelSide,
     tabStyle:    cfg.tabStyle,

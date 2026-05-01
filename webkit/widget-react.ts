@@ -89,6 +89,7 @@ export function injectReactWidget(): void {
   const FreeGameWidget = () => {
     const [opened,        setOpened]        = react.useState(false);
     const [tabColor,      setTabColor]      = react.useState(cfg.tabColor);
+    const [_accentColor,  setAccentColor]   = react.useState(cfg.accentColor || 'rgba(255,255,255,0.5)');
     const [showOverlay,   setShowOverlay]   = react.useState(cfg.showOverlay);
     const [panelSide,     setPanelSide]     = react.useState<PanelSide>(cfg.panelSide);
     const [tabStyle,      setTabStyle]      = react.useState<TabStyle>(cfg.tabStyle);
@@ -114,6 +115,10 @@ export function injectReactWidget(): void {
         if (w.tabColor) {
           cfg.tabColor = w.tabColor;
           setTabColor(w.tabColor);
+        }
+        if (w.accentColor) {
+          cfg.accentColor = w.accentColor;
+          setAccentColor(w.accentColor);
         }
         if (w.showOverlay !== undefined) {
           cfg.showOverlay = w.showOverlay;
@@ -255,7 +260,7 @@ export function injectReactWidget(): void {
           cursor: 'pointer', zIndex: 2147483000,
           background: opened ? tc.bgHover : tc.bg,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 6px 20px rgba(0,0,0,0.45)',
+          boxShadow: 'none',
           transition: `${isLeft ? 'left' : 'right'} 0.25s ${SMOOTH}, background 0.15s`,
         },
       },

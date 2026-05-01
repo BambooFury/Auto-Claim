@@ -60,6 +60,7 @@ const DEFAULTS: Settings = {
 const defaultWidget = (): WidgetSettings => ({
   panelSide:   'left',
   tabColor:    'gray',
+  accentColor: 'rgba(255,255,255,0.5)',
   showOverlay: false,
   tabStyle:    'large',
 });
@@ -71,6 +72,7 @@ function syncStoreSettings(s: Settings, w: WidgetSettings): void {
     notifyOnGrab:    s.notifyOnGrab,
     pollIntervalMin: s.pollIntervalMin,
     tabColor:        w.tabColor,
+    accentColor:     w.accentColor,
     showOverlay:     w.showOverlay,
     panelSide:       w.panelSide,
     tabStyle:        w.tabStyle,
@@ -426,7 +428,7 @@ export default definePlugin(() => {
   void startPolling();
   return {
     title: 'Auto Claim',
-    icon:  React.createElement('span', { style: { fontSize: '16px' } }, '🎁'),
+    icon:  React.createElement('span', { style: { display: 'none' } }),
     content: React.createElement(SettingsPanel),
   };
 });
