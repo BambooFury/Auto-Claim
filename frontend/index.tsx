@@ -114,11 +114,11 @@ function hideStorePage(): void {
   const sc  = (window as any).SteamClient;
   const mgr = sc?.MainWindowBrowserManager || (window as any).MainWindowBrowserManager;
 
-  try { mgr?.LoadURL?.('steam://nav/library'); return; } catch {}
-  try { mgr?.SetCurrentBrowserView?.(0); return; }       catch {}
   try { sc?.URL?.ExecuteSteamURL?.('steam://nav/library'); return; } catch {}
   try { sc?.URL?.ExecuteSteamURL?.('steam://open/library'); return; } catch {}
-  try { sc?.Library?.ShowLibrary?.(); return; }          catch {}
+  try { mgr?.LoadURL?.('steam://nav/library'); return; } catch {}
+  try { sc?.Library?.ShowLibrary?.(); return; } catch {}
+  try { (window as any).SteamClient?.Window?.NavigateToLibrary?.(); return; } catch {}
 }
 
 async function addViaShowStore(appid: number): Promise<boolean> {
@@ -147,6 +147,7 @@ async function addViaShowStore(appid: number): Promise<boolean> {
     await new Promise((r) => setTimeout(r, 500));
     if (isAlreadyInLibrary(appid)) {
       log(`[${appid}] detected in library after ${(i + 1) * 0.5}s`);
+      await new Promise((r) => setTimeout(r, 1000));
       hideStorePage();
       return true;
     }
