@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/BambooFury/Auto-Claim/compare/v1.1.0...v1.1.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* add GamerPower source and DLC filter for free games scan ([7fef284](https://github.com/BambooFury/Auto-Claim/commit/7fef28493223fe5f8c7f14af40c070a7361146f3))
+
 ## [1.1.0](https://github.com/BambooFury/Auto-Claim/compare/1.0.1...v1.1.0) (2026-05-01)
 
 
