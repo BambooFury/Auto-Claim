@@ -86,7 +86,7 @@ export function injectVanillaWidget(): void {
     width: geom.w + 'px', height: geom.h + 'px',
     border: 'none', borderRadius: tabRadius(cfg.tabStyle, isLeft),
     background: palette.bg,
-    boxShadow: cfg.tabStyle === 'floating' ? '0 6px 20px rgba(0,0,0,0.45)' : 'none',
+    boxShadow: 'none',
     cursor: 'pointer', pointerEvents: 'all',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     transition: (isLeft ? 'left' : 'right') + ` 0.25s ${SMOOTH}, background 0.15s`,
@@ -260,6 +260,7 @@ export function injectVanillaWidget(): void {
           try {
             const w = JSON.parse(raw || '{}');
             if (w.tabColor)                                  cfg.tabColor    = w.tabColor;
+            if (w.accentColor)                               cfg.accentColor = w.accentColor;
             if (w.showOverlay !== undefined)                 cfg.showOverlay = w.showOverlay;
             if (w.panelSide === 'left' || w.panelSide === 'right') cfg.panelSide = w.panelSide;
             if (w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') {
@@ -298,13 +299,15 @@ export function injectVanillaWidget(): void {
     geom    = tabSize(cfg.tabStyle);
     pOff    = cfg.tabStyle === 'floating' ? geom.off + geom.w + 4 : geom.w;
 
+    const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
+    panel.style.setProperty('--fgg-tab-accent', accent);
+    panel.style.setProperty('--fgg-tab-accent-glow', accent.replace(')', ',0.3)').replace('rgba', 'rgba').replace('rgb(', 'rgba(').replace(',0.3)', ',0.3)'));
+
     tabBtn.style.width        = geom.w + 'px';
     tabBtn.style.height       = geom.h + 'px';
     tabBtn.style.borderRadius = tabRadius(cfg.tabStyle, isLeft);
     tabBtn.style.background   = opened ? palette.bgHover : palette.bg;
-    tabBtn.style.boxShadow    = cfg.tabStyle === 'floating'
-      ? '0 6px 20px rgba(0,0,0,0.45)'
-      : 'none';
+    tabBtn.style.boxShadow    = 'none';
     tabBtn.style.transition   = `left 0.3s ${SMOOTH}, right 0.3s ${SMOOTH}, background 0.15s`;
 
     const slideOff = opened ? pOff + PANEL_RIGHT_OFFSET_WHEN_OPEN : geom.off;
@@ -357,6 +360,9 @@ export function injectVanillaWidget(): void {
 
           if (w.tabColor && w.tabColor !== cfg.tabColor) {
             cfg.tabColor = w.tabColor; changed = true;
+          }
+          if (w.accentColor && w.accentColor !== cfg.accentColor) {
+            cfg.accentColor = w.accentColor; changed = true;
           }
           if (w.showOverlay !== undefined && w.showOverlay !== cfg.showOverlay) {
             cfg.showOverlay = w.showOverlay; changed = true;
@@ -676,8 +682,8 @@ const PANEL_CSS = `
   .fgg-tab-indicator {
     position: absolute; bottom: -1px; left: 0;
     width: 50%; height: 2px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0.5));
-    box-shadow: 0 0 8px rgba(255,255,255,0.25);
+    background: var(--fgg-tab-accent, rgba(255,255,255,0.95));
+    box-shadow: 0 0 8px var(--fgg-tab-accent-glow, rgba(255,255,255,0.25));
     transition: left 0.25s ${SMOOTH};
   }
 
@@ -730,7 +736,7 @@ function panelMarkup(): string {
         <div class="fgg-icon-box">${SVG_GIFT}</div>
         <div>
           <div class="fgg-title">Auto Claim</div>
-          <div class="fgg-subtitle">Silent auto-claim · 100% off</div>
+          <div class="fgg-subtitle">Auto-claims free Steam games</div>
         </div>
       </div>
       <button id="fgg-close" class="fgg-close">✕</button>
