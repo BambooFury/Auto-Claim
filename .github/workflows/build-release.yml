@@ -31,7 +31,6 @@ jobs:
           cp plugin.json _release/auto-claim/
           cp README.md _release/auto-claim/
           cp LICENSE _release/auto-claim/
-          [ -f example.png ] && cp example.png _release/auto-claim/ || true
           cp -r backend _release/auto-claim/
           cp -r .millennium _release/auto-claim/
 
