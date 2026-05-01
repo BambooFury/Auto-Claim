@@ -349,6 +349,11 @@ async function startPolling(): Promise<void> {
 
   async function processGame(game: FreeGame): Promise<void> {
     try {
+      if (grabbedSet.has(game.appid)) {
+        log(`${game.name} — already grabbed, skipping`);
+        return;
+      }
+
       if (isAlreadyInLibrary(game.appid)) {
         log(`${game.name} — already in library, skipping`);
         grabbedSet.add(game.appid);
