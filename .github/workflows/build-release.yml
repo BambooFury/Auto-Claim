@@ -1,0 +1,47 @@
+name: Build & Attach Release Asset
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Stage release files
+        run: |
+          mkdir -p _release/auto-claim
+          cp plugin.json _release/auto-claim/
+          cp README.md _release/auto-claim/
+          cp LICENSE _release/auto-claim/
+          [ -f example.png ] && cp example.png _release/auto-claim/ || true
+          cp -r backend _release/auto-claim/
+          cp -r .millennium _release/auto-claim/
+
+      - name: Create zip archive
+        run: |
+          cd _release
+          zip -r "../auto-claim-${{ github.event.release.tag_name }}.zip" auto-claim
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: auto-claim-*.zip
+          token: ${{ secrets.GITHUB_TOKEN }}

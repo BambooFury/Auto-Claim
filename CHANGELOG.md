@@ -1,0 +1,29 @@
+# Changelog
+
+## [1.0.1](https://github.com/BambooFury/Auto-Claim/compare/1.0.0...v1.0.1)
+
+### Features
+
+- Toast notification when widget silently claims a game (IPC bridge webkit→backend→frontend)
+- Active Millennium logger forwarding all `[AutoClaim]` plugin messages to Millennium logs
+- Setting-change traces for scan interval, auto-add and notify-on-grab toggles
+
+### Bug Fixes
+
+- Free-games cache no longer keeps expired promotions (e.g. games stuck in widget after promo ended)
+- Logger prefix consistently uses `[AutoClaim]` (was still `[FreeGameGrabber]` in one place)
+
+### Refactoring
+
+- Removed manual **Scan** button and skeleton loading UI from widget
+- Replaced gift placeholder in empty state with animated radar icon
+- Updated scan intervals from `15 / 30 / 60 min` to `30 / 60 / 120 min` with auto-migration
+
+### Documentation
+
+- README updated for the new scan interval values
+- Welcome modal text now matches new defaults
+
+## [1.0.0](https://github.com/BambooFury/Auto-Claim/releases/tag/1.0.0)
+
+Initial release.
