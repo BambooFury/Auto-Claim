@@ -12,7 +12,9 @@ local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
 local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
 
 local STORE_HOST     = "https://store.steampowered.com"
-local SEARCH_URL     = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&cc=us&l=english"
+local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
+local SEARCH_REGIONS = { "us", "ua", "ru", "de", "gb", "tr" }
+local GAMERPOWER_URL = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
 local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
 local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
 local CLAIM_URL      = STORE_HOST .. "/checkout/addfreelicense"
@@ -216,7 +218,7 @@ end
 local function fetch_subid_for_appid(appid)
     local url = APPDETAILS_URL
         .. "?appids=" .. appid
-        .. "&filters=packages,package_groups,price_overview&cc=us"
+        .. "&filters=packages,package_groups,price_overview&cc=ua"
 
     local res = http.get(url, { timeout = 15 })
     if not res or res.status ~= 200 then return nil end
@@ -288,32 +290,57 @@ function fetch_free_games_backend()
     local fetch_ok  = false
 
     do
-        local res = http.get(SEARCH_URL, { timeout = 25 })
-        if res and res.status == 200 then
-            fetch_ok = true
-            local names, logos = {}, {}
-            for n in res.body:gmatch('"name"%s*:%s*"(.-)"') do
-                names[#names + 1] = n
-            end
-            for u in res.body:gmatch('"logo"%s*:%s*"(.-)"') do
-                logos[#logos + 1] = u
-            end
-
-            for i, logo_url in ipairs(logos) do
-                logo_url = logo_url:gsub("\\/", "/")
-                local appid_str = logo_url:match("/apps/(%d+)/")
-                if appid_str then
-                    local id = tonumber(appid_str)
-                    if id and id > 0 and not seen[id] then
-                        seen[id] = true
-                        found[#found + 1] = {
-                            appid = id,
-                            name  = names[i] or ("AppID " .. appid_str),
-                        }
+        for _, cc in ipairs(SEARCH_REGIONS) do
+            local url = SEARCH_BASE .. "&cc=" .. cc
+            local res = http.get(url, { timeout = 25 })
+            if res and res.status == 200 then
+                fetch_ok = true
+                local names, logos = {}, {}
+                for n in res.body:gmatch('"name"%s*:%s*"(.-)"') do
+                    names[#names + 1] = n
+                end
+                for u in res.body:gmatch('"logo"%s*:%s*"(.-)"') do
+                    logos[#logos + 1] = u
+                end
+                for i, logo_url in ipairs(logos) do
+                    logo_url = logo_url:gsub("\\/", "/")
+                    local appid_str = logo_url:match("/apps/(%d+)/")
+                    if appid_str then
+                        local id = tonumber(appid_str)
+                        if id and id > 0 and not seen[id] then
+                            seen[id] = true
+                            found[#found + 1] = {
+                                appid = id,
+                                name  = names[i] or ("AppID " .. appid_str),
+                            }
+                        end
                     end
                 end
             end
         end
+
+    do
+        local res = http.get(GAMERPOWER_URL, { timeout = 15 })
+        if res and res.status == 200 then
+            for title in res.body:gmatch('"title"%s*:%s*"(.-) %(Steam%) Giveaway"') do
+                local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
+                    title:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
+                local sres = http.get(search_url, { timeout = 10 })
+                if sres and sres.status == 200 then
+                    local appid_str = sres.body:match('"id"%s*:%s*(%d+)')
+                    if appid_str then
+                        local id = tonumber(appid_str)
+                        if id and id > 0 and not seen[id] then
+                            local name = sres.body:match('"name"%s*:%s*"(.-)"') or title
+                            seen[id] = true
+                            found[#found + 1] = { appid = id, name = name, from_gamerpower = true }
+                            logger:info("[AutoClaim] GamerPower found: " .. id .. " - " .. name)
+                        end
+                    end
+                end
+            end
+        end
+    end
     end
 
     if not fetch_ok then
@@ -322,15 +349,18 @@ function fetch_free_games_backend()
 
     local games_only = {}
     for _, g in ipairs(found) do
-        local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=us",
-                              { timeout = 10 })
-        if dres and dres.status == 200 then
-            local app_type = dres.body:match('"type"%s*:%s*"([^"]+)"')
-            if app_type == "game" then
+        if g.from_gamerpower then
+            games_only[#games_only + 1] = g
+        else
+            local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=us", { timeout = 10 })
+            if dres and dres.status == 200 then
+                local app_type = dres.body:match('"type"%s*:%s*"([^"]+)"')
+                if app_type == "game" then
+                    games_only[#games_only + 1] = g
+                end
+            else
                 games_only[#games_only + 1] = g
             end
-        else
-            games_only[#games_only + 1] = g
         end
     end
 
