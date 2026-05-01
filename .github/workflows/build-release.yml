@@ -2,7 +2,7 @@ name: Build & Attach Release Asset
 
 on:
   release:
-    types: [published, created]
+    types: [published, created, edited]
 
 permissions:
   contents: write
