@@ -1,5 +1,5 @@
 import { silentClaim } from './claim';
-import { loadFreeGamesCacheIPC, loadWidgetSettingsIPC } from './ipc';
+import { loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
 import { getTabColor } from './tab-colors';
@@ -40,19 +40,19 @@ const SVG_GIFT = `
   </svg>
 `;
 
+const SVG_RADAR = `
+  <svg class="fgg-radar" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="24" cy="24" r="4" fill="none" stroke="currentColor" stroke-width="1.5" class="fgg-radar-pulse"/>
+    <circle cx="24" cy="24" r="4" fill="none" stroke="currentColor" stroke-width="1.5" class="fgg-radar-pulse fgg-radar-pulse-2"/>
+    <circle cx="24" cy="24" r="9" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3"/>
+    <circle cx="24" cy="24" r="3.2" fill="currentColor" class="fgg-radar-dot"/>
+  </svg>
+`;
+
 const SVG_GEAR = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051 2.34 2.34 0 0 0 9.67 4.136"></path>
     <circle cx="12" cy="12" r="3"></circle>
-  </svg>
-`;
-
-const SVG_REFRESH = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-    <path d="M21 3v5h-5"/>
-    <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-    <path d="M3 21v-5h5"/>
   </svg>
 `;
 
@@ -127,7 +127,6 @@ export function injectVanillaWidget(): void {
   let opened = false;
   let activeTab: 'games' | 'settings' = 'games';
   let games: FreeGame[] = [];
-  let busyScan  = false;
   let busyClaim = false;
   let claimingAppid = 0;
   let claimDone  = 0;
@@ -140,19 +139,12 @@ export function injectVanillaWidget(): void {
   const footerEl     = $<HTMLElement>('#fgg-footer')!;
   const footerDot    = $<HTMLElement>('#fgg-footer-dot')!;
   const tabIndicator = $<HTMLElement>('#fgg-tab-indicator')!;
-  const scanBtn      = $<HTMLButtonElement>('#fgg-scan-now')!;
   const bodyEl       = $<HTMLElement>('#fgg-body')!;
   const gamesTabBtn  = $<HTMLButtonElement>('#fgg-tab-games')!;
   const setsTabBtn   = $<HTMLButtonElement>('#fgg-tab-settings')!;
   const arrowEl      = tabBtn.querySelector<SVGPolylineElement>('#fgg-arrow')!;
 
   function refreshFooter() {
-    if (busyScan) {
-      footerEl.textContent = 'Scanning Steam Store…';
-      footerDot.style.background = 'rgba(255,255,255,0.85)';
-      footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
-      return;
-    }
     if (busyClaim) {
       footerEl.textContent = `Claiming ${claimDone + 1}/${claimTotal}…`;
       footerDot.style.background = 'rgba(255,255,255,0.85)';
@@ -186,6 +178,11 @@ export function injectVanillaWidget(): void {
       const result = await silentClaim(g.appid);
       if (result.ok) {
         ownedSet.add(g.appid);
+        if (cfg.notifyOnGrab) {
+          const safe = g.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          pushToastIPC({ payload: `{"appid":${g.appid},"name":"${safe}"}` })
+            .catch(() => {});
+        }
       } else if (result.reason === 'session expired' || result.reason === 'no sessionid') {
         break;
       }
@@ -202,12 +199,7 @@ export function injectVanillaWidget(): void {
     render();
   }
 
-  async function fullScan(autoClaim = true) {
-    if (busyScan) return;
-    busyScan = true;
-    refreshFooter();
-    render();
-
+  async function loadFromCache(autoClaim = true) {
     try {
       const raw = await loadFreeGamesCacheIPC();
       games = JSON.parse(raw || '[]');
@@ -217,8 +209,6 @@ export function injectVanillaWidget(): void {
       try { ownedSet = await checkLibraryAsync(games.map((g) => g.appid)); } catch {}
     }
 
-    busyScan = false;
-    refreshFooter();
     render();
 
     if (autoClaim && cfg.autoAdd && games.length > 0) {
@@ -227,7 +217,7 @@ export function injectVanillaWidget(): void {
   }
 
   async function softRefresh() {
-    if (busyScan || busyClaim) return;
+    if (busyClaim) return;
     try {
       const raw = await loadFreeGamesCacheIPC();
       const next: FreeGame[] = JSON.parse(raw || '[]');
@@ -252,28 +242,12 @@ export function injectVanillaWidget(): void {
     setsTabBtn .classList.toggle('active', activeTab === 'settings');
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
 
-    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyScan, busyClaim, claimingAppid);
+    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
     else                       renderSettings(bodyEl, render, persistAndRefresh);
   }
 
   gamesTabBtn.addEventListener('click', () => { activeTab = 'games';    render(); });
   setsTabBtn.addEventListener('click',  () => { activeTab = 'settings'; render(); });
-
-  scanBtn.addEventListener('click', () => {
-    if (busyScan || busyClaim) return;
-    activeTab = 'games';
-    render();
-    void fullScan();
-  });
-  scanBtn.addEventListener('mouseenter', () => {
-    if (busyScan || busyClaim) return;
-    scanBtn.style.background = 'rgba(255,255,255,0.10)';
-    scanBtn.style.color      = 'rgba(255,255,255,0.95)';
-  });
-  scanBtn.addEventListener('mouseleave', () => {
-    scanBtn.style.background = 'rgba(255,255,255,0.06)';
-    scanBtn.style.color      = 'rgba(255,255,255,0.75)';
-  });
 
   let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -315,7 +289,7 @@ export function injectVanillaWidget(): void {
 
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
 
-    if (next && !busyScan) void fullScan();
+    if (next) void loadFromCache();
   }
 
   function applyChrome() {
@@ -417,57 +391,12 @@ function sleep(ms: number): Promise<void> {
 
 const PANEL_CSS = `
   @keyframes fgg-spin    { to { transform: rotate(360deg); } }
-  @keyframes fgg-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
   @keyframes fgg-fade-in { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
   @keyframes fgg-pulse   { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
   @keyframes fgg-glow    { 0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.3); }
                            50%      { box-shadow: 0 0 14px rgba(255,255,255,0.5); } }
 
   .fgg-card { animation: fgg-fade-in .25s ease both; }
-  .fgg-skel {
-    background: linear-gradient(90deg,
-                  rgba(255,255,255,0.04) 0%,
-                  rgba(255,255,255,0.10) 50%,
-                  rgba(255,255,255,0.04) 100%);
-    background-size: 200% 100%;
-    animation: fgg-shimmer 1.4s ease-in-out infinite;
-    border-radius: 12px;
-    height: 68px;
-  }
-
-  .fgg-skel-card {
-    position: relative;
-    overflow: hidden;
-    height: 68px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: #0f0f0f;
-    margin-bottom: 8px;
-  }
-  .fgg-skel-accent {
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: rgba(255,255,255,0.12);
-  }
-  .fgg-skel-content {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 14px 0 16px;
-  }
-  .fgg-skel-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-  .fgg-skel-thumb { width: 64px; height: 30px; border-radius: 6px;  flex-shrink: 0; }
-  .fgg-skel-line1 { height: 11px; width: 72%; border-radius: 4px;   }
-  .fgg-skel-line2 { height: 9px;  width: 48%; border-radius: 4px;   }
-  .fgg-skel-btn   { width: 50px;  height: 24px; border-radius: 20px; flex-shrink: 0; }
 
   .fgg-empty {
     display: flex;
@@ -488,9 +417,27 @@ const PANEL_CSS = `
     justify-content: center;
     color: rgba(255,255,255,0.4);
   }
-  .fgg-empty-icon svg  { width: 26px; height: 26px; }
-  .fgg-empty-title     { color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 600; }
-  .fgg-empty-desc      { color: rgba(255,255,255,0.35); font-size: 11px; line-height: 1.5; }
+  .fgg-empty-icon svg           { width: 26px; height: 26px; }
+  .fgg-empty-icon svg.fgg-radar { width: 44px; height: 44px; overflow: visible; }
+  .fgg-empty-title              { color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 600; }
+  .fgg-empty-desc               { color: rgba(255,255,255,0.35); font-size: 11px; line-height: 1.5; }
+
+  .fgg-radar-pulse {
+    opacity: 0;
+    animation: fgg-radar-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  .fgg-radar-pulse-2 { animation-delay: 1.1s; }
+  .fgg-radar-dot     { animation: fgg-radar-blink 1.8s ease-in-out infinite; }
+
+  @keyframes fgg-radar-ping {
+    0%   { r: 3;  opacity: 0.85; }
+    70%  { r: 19; opacity: 0.15; }
+    100% { r: 22; opacity: 0;    }
+  }
+  @keyframes fgg-radar-blink {
+    0%, 100% { opacity: 1;    }
+    50%      { opacity: 0.45; }
+  }
 
   .fgg-card {
     position: relative;
@@ -772,19 +719,6 @@ const PANEL_CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  #fgg-scan-now {
-    padding: 5px 10px;
-    border-radius: 6px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.75);
-    font-size: 10px; font-weight: 600;
-    letter-spacing: .03em;
-    cursor: pointer;
-    display: flex; align-items: center; gap: 5px;
-    flex-shrink: 0;
-  }
-  #fgg-scan-now svg { width: 11px; height: 11px; }
 `;
 
 function panelMarkup(): string {
@@ -815,7 +749,6 @@ function panelMarkup(): string {
         <div id="fgg-footer-dot"></div>
         <span id="fgg-footer">Active · every ${cfg.pollIntervalMin} min</span>
       </div>
-      <button id="fgg-scan-now">${SVG_REFRESH}Scan</button>
     </div>
   `;
 }
@@ -824,32 +757,13 @@ function renderGames(
   bodyEl: HTMLElement,
   games: FreeGame[],
   ownedSet: Set<number>,
-  scanning: boolean,
   claiming: boolean,
   claimingAppid: number,
 ): void {
-  if (scanning) {
-    const skelCard = (op: number) => `
-      <div class="fgg-skel-card" style="opacity:${op}">
-        <div class="fgg-skel-accent"></div>
-        <div class="fgg-skel-content">
-          <div class="fgg-skel fgg-skel-thumb"></div>
-          <div class="fgg-skel-text">
-            <div class="fgg-skel fgg-skel-line1"></div>
-            <div class="fgg-skel fgg-skel-line2"></div>
-          </div>
-          <div class="fgg-skel fgg-skel-btn"></div>
-        </div>
-      </div>
-    `;
-    bodyEl.innerHTML = skelCard(1) + skelCard(0.75) + skelCard(0.5);
-    return;
-  }
-
   if (games.length === 0) {
     bodyEl.innerHTML = `
       <div class="fgg-empty">
-        <div class="fgg-empty-icon">${SVG_GIFT}</div>
+        <div class="fgg-empty-icon">${SVG_RADAR}</div>
         <div class="fgg-empty-title">All caught up</div>
         <div class="fgg-empty-desc">No free games detected right now.<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
       </div>
@@ -950,7 +864,7 @@ function renderSettings(
       <span class="fgg-toggle-knob"></span>
     </button>`;
 
-  const intervals = [15, 30, 60];
+  const intervals = [30, 60, 120];
   const intervalsHtml = intervals.map((m) => {
     const active = cfg.pollIntervalMin === m ? ' active' : '';
     return `<button class="fgg-int-btn${active}" data-interval="${m}">${m} min</button>`;
@@ -996,20 +910,25 @@ function renderSettings(
     cfg.autoAdd = !cfg.autoAdd;
     animateToggle(e.currentTarget as HTMLButtonElement, cfg.autoAdd);
     persistAndRefresh();
+    logIPC({ payload: `Auto-add toggled: ${cfg.autoAdd ? 'ON' : 'OFF'}` }).catch(() => {});
   });
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-notifygrab')?.addEventListener('click', (e) => {
     cfg.notifyOnGrab = !cfg.notifyOnGrab;
     animateToggle(e.currentTarget as HTMLButtonElement, cfg.notifyOnGrab);
     persistAndRefresh();
+    logIPC({ payload: `Notify on grab toggled: ${cfg.notifyOnGrab ? 'ON' : 'OFF'}` }).catch(() => {});
   });
 
   bodyEl.querySelectorAll<HTMLButtonElement>('[data-interval]').forEach((el) => {
     el.addEventListener('click', () => {
       const next = parseInt(el.getAttribute('data-interval') || '30', 10);
+      if (next === cfg.pollIntervalMin) return;
+      const prev = cfg.pollIntervalMin;
       cfg.pollIntervalMin = next;
       persistAndRefresh();
       rerender();
+      logIPC({ payload: `Scan interval changed: ${prev} min -> ${next} min` }).catch(() => {});
     });
   });
 }

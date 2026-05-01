@@ -9,6 +9,7 @@ local WIDGETS_FILE   = PLUGIN_DIR .. "\\widget_settings.json"
 local CACHE_FILE     = PLUGIN_DIR .. "\\free_games_cache.json"
 local COOKIES_FILE   = PLUGIN_DIR .. "\\steam_cookies.json"
 local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
+local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
 
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_URL     = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&cc=us&l=english"
@@ -104,6 +105,30 @@ function clear_pending_claim_ipc()
     return 1
 end
 
+function push_toast_ipc(data)
+    local payload = extract_payload(data)
+    if not payload or payload == "" then return 0 end
+
+    local raw  = read_file(TOASTS_FILE) or "[]"
+    local trim = raw:gsub("%s+$", "")
+
+    local combined
+    if trim == "" or trim == "[]" then
+        combined = "[" .. payload .. "]"
+    else
+        combined = trim:sub(1, -2) .. "," .. payload .. "]"
+    end
+
+    write_file(TOASTS_FILE, combined)
+    return 1
+end
+
+function pop_toasts_ipc()
+    local raw = read_file(TOASTS_FILE) or "[]"
+    os.remove(TOASTS_FILE)
+    return raw
+end
+
 local function load_cookie_header()
     local raw = read_file(COOKIES_FILE)
     if not raw then return "", "" end
@@ -121,7 +146,11 @@ local function load_cookie_header()
     return table.concat(pairs_list, "; "), sid
 end
 
-function log_plugin(_data)
+function log_plugin(data)
+    local payload = extract_payload(data)
+    if payload and payload ~= "" then
+        logger:info("[AutoClaim] " .. tostring(payload))
+    end
     return 1
 end
 
@@ -254,12 +283,14 @@ function claim_free_game_backend(data)
 end
 
 function fetch_free_games_backend()
-    local found = {}
-    local seen  = {}
+    local found     = {}
+    local seen      = {}
+    local fetch_ok  = false
 
     do
         local res = http.get(SEARCH_URL, { timeout = 25 })
         if res and res.status == 200 then
+            fetch_ok = true
             local names, logos = {}, {}
             for n in res.body:gmatch('"name"%s*:%s*"(.-)"') do
                 names[#names + 1] = n
@@ -285,6 +316,10 @@ function fetch_free_games_backend()
         end
     end
 
+    if not fetch_ok then
+        return read_file(CACHE_FILE) or "[]"
+    end
+
     local games_only = {}
     for _, g in ipairs(found) do
         local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=us",
@@ -305,14 +340,12 @@ function fetch_free_games_backend()
         chunks[#chunks + 1] = '{"appid":' .. g.appid .. ',"name":"' .. safe .. '"}'
     end
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
-    if #games_only > 0 then
-        write_file(CACHE_FILE, json_out)
-    end
+    write_file(CACHE_FILE, json_out)
     return json_out
 end
 
 local function on_load()
-    logger:info("[FreeGameGrabber] Loaded, Millennium " .. millennium.version())
+    logger:info("[AutoClaim] Loaded, Millennium " .. millennium.version())
     millennium.ready()
 end
 

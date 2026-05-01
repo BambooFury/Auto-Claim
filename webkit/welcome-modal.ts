@@ -266,7 +266,7 @@ function build() {
 
     <div class="fgg-welcome-rows">
       ${row(ico.search,   'Watches the Steam Store',
-        'Every 15 minutes the plugin checks for games at 100% off.')}
+        'Every 30 minutes the plugin checks for games at 100% off.')}
       ${row(ico.sparkles, 'Adds them silently',
         "Most of the time you won't see anything &mdash; just a small toast saying the game was added.")}
       ${row(ico.eye,      'First time only &mdash; a quick flash',

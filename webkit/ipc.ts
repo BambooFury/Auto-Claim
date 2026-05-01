@@ -14,3 +14,7 @@ export const saveCookiesIPC = callable<StrIn, number>('save_cookies_ipc');
 
 export const getPendingClaimIPC   = callable<Empty, string>('get_pending_claim_ipc');
 export const clearPendingClaimIPC = callable<Empty, number>('clear_pending_claim_ipc');
+
+export const pushToastIPC = callable<StrIn, number>('push_toast_ipc');
+
+export const logIPC = callable<StrIn, number>('log_plugin');

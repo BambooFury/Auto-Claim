@@ -14,6 +14,7 @@ const claimFreeGameLua  = callable<StrIn, string>('claim_free_game_backend');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const setPendingClaim   = callable<StrIn, number>('set_pending_claim_ipc');
+const popToasts         = callable<Empty, string>('pop_toasts_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
@@ -280,8 +281,23 @@ async function waitForSteamReady(): Promise<void> {
   await new Promise((r) => setTimeout(r, 20000));
 }
 
+async function drainPendingToasts(): Promise<void> {
+  try {
+    const raw = await withTimeout(popToasts(), 3000, '[]');
+    const items: FreeGame[] = JSON.parse(raw || '[]');
+    for (const g of items) {
+      if (!g || typeof g.appid !== 'number') continue;
+      showFreeGameNotification(g, () => {
+        (window as any).SteamClient?.Apps?.ShowStore?.(g.appid, 0);
+      });
+    }
+  } catch {}
+}
+
 async function startPolling(): Promise<void> {
   await waitForSteamReady();
+
+  setInterval(() => { void drainPendingToasts(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
   let grabbedSet = new Set<number>();

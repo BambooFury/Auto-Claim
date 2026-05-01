@@ -13,7 +13,7 @@ The plugin adds a **side-tab button** on the Steam storefront, vertically center
 - Toast notification for every successful grab
 - Skips DLCs, soundtracks and skin packs automatically
 - Survives account switches — auto-detects stale cookies and re-captures them
-- Configurable scan interval — 15, 30, or 60 minutes
+- Configurable scan interval — 30, 60, or 120 minutes
 - Auto-add or notify-only mode
 - Enabled by default, no setup required
 

@@ -22,7 +22,7 @@ export const cfg: PluginConfig = {
   panelSide: 'left',
   tabStyle: 'large',
   autoAdd: true,
-  pollIntervalMin: 15,
+  pollIntervalMin: 30,
   notifyOnGrab: true,
 };
 
@@ -42,7 +42,9 @@ function applyInto(target: PluginConfig, src: any): void {
   if (isPanelSide(src.panelSide))           target.panelSide   = src.panelSide;
   if (isTabStyle(src.tabStyle))             target.tabStyle    = src.tabStyle;
   if (typeof src.autoAdd     === 'boolean') target.autoAdd     = src.autoAdd;
-  if (typeof src.pollIntervalMin === 'number') target.pollIntervalMin = src.pollIntervalMin;
+  if (typeof src.pollIntervalMin === 'number') {
+    target.pollIntervalMin = src.pollIntervalMin < 30 ? 30 : src.pollIntervalMin;
+  }
   if (typeof src.notifyOnGrab === 'boolean') target.notifyOnGrab = src.notifyOnGrab;
 }
 
