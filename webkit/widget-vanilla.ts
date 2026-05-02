@@ -68,6 +68,52 @@ const SVG_CHECK = `
 export function injectVanillaWidget(): void {
   if (document.getElementById(ROOT_ID)) return;
 
+  function isMinimalDark(): boolean {
+    try {
+      const bg = getComputedStyle(document.body).backgroundColor;
+      return bg === 'rgb(18, 18, 18)';
+    } catch {
+      return false;
+    }
+  }
+
+  function injectMinimalDarkPatch(): void {
+    if (!isMinimalDark()) return;
+    if (document.getElementById('fgg-md-patch')) return;
+    const s = document.createElement('style');
+    s.id = 'fgg-md-patch';
+    s.textContent = `
+      /* Minimal Dark theme patch — active tab underline */
+      #fgg-tab-indicator {
+        background: rgba(255,255,255,0.9) !important;
+        box-shadow: 0 0 6px rgba(255,255,255,0.2) !important;
+      }
+      /* Active tab text */
+      .fgg-tab.active { color: #fff !important; }
+
+      /* Owned card — green left accent stripe */
+      .fgg-card.owned .fgg-card-accent {
+        background: rgba(85,204,85,0.8) !important;
+      }
+      /* Owned card — subtle green bg tint */
+      .fgg-card.owned {
+        background: rgba(85,204,85,0.06) !important;
+        border-color: rgba(85,204,85,0.18) !important;
+      }
+
+      /* Toggle — green when ON */
+      .fgg-toggle.on {
+        background: linear-gradient(135deg, #55cc55, #2a8a2a) !important;
+      }
+
+      /* Welcome modal — green hero background */
+      .fgg-welcome-hero {
+        background: radial-gradient(ellipse at top, rgba(85,204,85,0.12) 0%, transparent 60%) !important;
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
   let palette  = getTabColor(cfg.tabColor);
   let isLeft   = cfg.panelSide === 'left';
   let geom     = tabSize(cfg.tabStyle);
@@ -96,6 +142,19 @@ export function injectVanillaWidget(): void {
   } as Partial<CSSStyleDeclaration>);
   if (isLeft) tabBtn.style.left = geom.off + 'px';
   else        tabBtn.style.right = geom.off + 'px';
+
+  const DEAD_W  = 32;
+  const DEAD_H  = 120;
+  const deadZone = document.createElement('div');
+  Object.assign(deadZone.style, {
+    position: 'fixed', top: '65%',
+    transform: 'translateY(-50%)',
+    width: DEAD_W + 'px', height: DEAD_H + 'px',
+    pointerEvents: 'all', cursor: 'default',
+    zIndex: '2147482998',
+    background: 'transparent',
+  } as Partial<CSSStyleDeclaration>);
+  deadZone.addEventListener('click', (e) => e.stopPropagation());
 
   tabBtn.innerHTML =
     '<svg width="10" height="14" viewBox="0 0 10 14" fill="none">' +
@@ -229,8 +288,31 @@ export function injectVanillaWidget(): void {
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
     bodyEl.classList.toggle('is-settings', activeTab === 'settings');
 
+    const badge = $<HTMLElement>('#fgg-games-badge');
+    if (badge) {
+      if (games.length > 0) {
+        badge.textContent = String(games.length);
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
     if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
-    else                       renderSettings(bodyEl, render, persistAndRefresh);
+    else                       renderSettings(bodyEl, render, persistAndRefresh, isMinimalDark());
+
+    if (isMinimalDark()) {
+      const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
+      tabIndicator.style.setProperty('background', accent, 'important');
+      tabIndicator.style.setProperty('box-shadow', `0 0 8px ${accent}`, 'important');
+
+      panel.querySelectorAll<HTMLElement>('.fgg-toggle.on').forEach((el) => {
+        el.style.setProperty('background', 'linear-gradient(135deg,#55cc55,#2a8a2a)', 'important');
+      });
+      panel.querySelectorAll<HTMLElement>('.fgg-toggle:not(.on)').forEach((el) => {
+        el.style.setProperty('background', 'rgba(255,255,255,0.12)', 'important');
+      });
+    }
   }
 
   gamesTabBtn.addEventListener('click', () => { activeTab = 'games';    render(); });
@@ -275,6 +357,9 @@ export function injectVanillaWidget(): void {
     if (isLeft) tabBtn.style.left  = slideOffset + 'px';
     else        tabBtn.style.right = slideOffset + 'px';
 
+    if (isLeft) deadZone.style.left  = (slideOffset + geom.w) + 'px';
+    else        deadZone.style.right = (slideOffset + geom.w) + 'px';
+
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
 
     if (next) void softRefresh();
@@ -301,9 +386,13 @@ export function injectVanillaWidget(): void {
     if (isLeft) {
       tabBtn.style.right = '';
       tabBtn.style.left  = slideOff + 'px';
+      deadZone.style.right = '';
+      deadZone.style.left  = (slideOff + geom.w) + 'px';
     } else {
       tabBtn.style.left  = '';
       tabBtn.style.right = slideOff + 'px';
+      deadZone.style.left  = '';
+      deadZone.style.right = (slideOff + geom.w) + 'px';
     }
 
     panel.style.borderRadius = panelRadius(cfg.tabStyle, isLeft);
@@ -331,8 +420,11 @@ export function injectVanillaWidget(): void {
 
   root.appendChild(dim);
   root.appendChild(panel);
+  root.appendChild(deadZone);
   root.appendChild(tabBtn);
   document.body.appendChild(root);
+
+  injectMinimalDarkPatch();
 
   let lastWidgetJson = initialWidgetRaw;
   const settingsPoll = setInterval(() => {
@@ -759,7 +851,7 @@ function panelMarkup(): string {
     </div>
 
     <div class="fgg-tabs">
-      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span></button>
+      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span><span id="fgg-games-badge" style="display:none;margin-left:5px;min-width:14px;height:14px;border-radius:7px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:9px;font-weight:600;line-height:14px;text-align:center;padding:0 4px;vertical-align:middle;flex-shrink:0;"></span></button>
       <button id="fgg-tab-settings" class="fgg-tab">${SVG_GEAR}<span>SETTINGS</span></button>
       <div id="fgg-tab-indicator" class="fgg-tab-indicator"></div>
     </div>
@@ -880,9 +972,10 @@ function renderSettings(
   bodyEl: HTMLElement,
   rerender: () => void,
   persistAndRefresh: () => void,
+  minimalDark = false,
 ): void {
   const toggleHtml = (id: string, value: boolean) =>
-    `<button id="${id}" class="fgg-toggle${value ? ' on' : ''}">
+    `<button id="${id}" class="fgg-toggle${value ? ' on' : ''}" data-fgg-on="${value ? '1' : '0'}">
       <span class="fgg-toggle-knob"></span>
     </button>`;
 
@@ -935,6 +1028,12 @@ function renderSettings(
 
   function animateToggle(btn: HTMLButtonElement, on: boolean) {
     btn.classList.toggle('on', on);
+    btn.setAttribute('data-fgg-on', on ? '1' : '0');
+    if (minimalDark) {
+      btn.style.setProperty('background',
+        on ? 'linear-gradient(135deg,#55cc55,#2a8a2a)' : 'rgba(255,255,255,0.12)',
+        'important');
+    }
   }
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-autoadd')?.addEventListener('click', (e) => {
