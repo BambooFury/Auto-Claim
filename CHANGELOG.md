@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.0](https://github.com/BambooFury/Auto-Claim/compare/v1.1.2...v1.2.0) (2026-05-02)
+
+
+### Features
+
+* add Scan Now button and manual scan trigger IPC ([db5321e](https://github.com/BambooFury/Auto-Claim/commit/db5321ef13df27b4047ef5fa276df0631931a0df))
+
+
+### Bug Fixes
+
+* **backend:** broaden GamerPower title regex to match all giveaway formats ([198f949](https://github.com/BambooFury/Auto-Claim/commit/198f94910404a4a61da2a0331e1871c2de084459))
+* **frontend:** navigate back to previous store page after claim instead of redirecting to library ([6402ee5](https://github.com/BambooFury/Auto-Claim/commit/6402ee50f47291ee9b91daee23a25dcd958d175e))
+
+
+### Performance
+
+* **widget:** faster UI refresh and drop auto-claim on widget open ([bc20f31](https://github.com/BambooFury/Auto-Claim/commit/bc20f31b89cbfa96a3dcd1d1d2b2da3ef1cec597))
+
 ## [1.1.2](https://github.com/BambooFury/Auto-Claim/compare/v1.1.1...v1.1.2) (2026-05-01)
 
 
