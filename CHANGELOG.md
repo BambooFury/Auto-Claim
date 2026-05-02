@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/BambooFury/Auto-Claim/compare/v1.2.0...v1.2.1) (2026-05-02)
+
+
+### Documentation
+
+* update example.png screenshot ([218da02](https://github.com/BambooFury/Auto-Claim/commit/218da02257d6e5b9205aacab85bd3021872222bd))
+
 ## [1.2.0](https://github.com/BambooFury/Auto-Claim/compare/v1.1.2...v1.2.0) (2026-05-02)
 
 
