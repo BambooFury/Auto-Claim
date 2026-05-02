@@ -322,25 +322,34 @@ function fetch_free_games_backend()
     do
         local res = http.get(GAMERPOWER_URL, { timeout = 15 })
         if res and res.status == 200 then
-            for title in res.body:gmatch('"title"%s*:%s*"(.-) %(Steam%) Giveaway"') do
-                local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
-                    title:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
-                local sres = http.get(search_url, { timeout = 10 })
-                if sres and sres.status == 200 then
-                    local appid_str = sres.body:match('"id"%s*:%s*(%d+)')
-                    if appid_str then
-                        local id = tonumber(appid_str)
-                        if id and id > 0 and not seen[id] then
-                            local name = sres.body:match('"name"%s*:%s*"(.-)"') or title
-                            seen[id] = true
-                            found[#found + 1] = { appid = id, name = name, from_gamerpower = true }
-                            logger:info("[AutoClaim] GamerPower found: " .. id .. " - " .. name)
+            local body = res.body
+            for raw_title in body:gmatch('"title"%s*:%s*"(.-)"') do
+                local clean = raw_title
+                    :gsub(" %(Steam%) [%w%s]+ Giveaway$", "")
+                    :gsub(" %(Steam%) Giveaway$", "")
+                    :gsub(" %(Steam%)$", "")
+                    :gsub(" Giveaway$", "")
+                if clean and clean ~= "" then
+                    local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
+                        clean:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
+                    local sres = http.get(search_url, { timeout = 10 })
+                    if sres and sres.status == 200 then
+                        local appid_str = sres.body:match('"id"%s*:%s*(%d+)')
+                        if appid_str then
+                            local id = tonumber(appid_str)
+                            if id and id > 0 and not seen[id] then
+                                local name = sres.body:match('"name"%s*:%s*"(.-)"') or clean
+                                seen[id] = true
+                                found[#found + 1] = { appid = id, name = name, from_gamerpower = true }
+                                logger:info("[AutoClaim] GamerPower found: " .. id .. " - " .. name)
+                            end
                         end
                     end
                 end
             end
         end
     end
+
     end
 
     if not fetch_ok then
