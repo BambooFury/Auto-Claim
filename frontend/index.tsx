@@ -111,19 +111,42 @@ function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
   });
 }
 
-function hideStorePage(): void {
+function getCurrentStoreUrl(): string {
+  const sc  = (window as any).SteamClient;
+  const mgr = sc?.MainWindowBrowserManager || (window as any).MainWindowBrowserManager;
+  try { return mgr?.m_browser?.GetURL?.() || mgr?.GetCurrentURL?.() || mgr?.m_lastLocation || ''; } catch { return ''; }
+}
+
+function navigateBack(prevUrl: string): void {
   const sc  = (window as any).SteamClient;
   const mgr = sc?.MainWindowBrowserManager || (window as any).MainWindowBrowserManager;
 
-  try { sc?.URL?.ExecuteSteamURL?.('steam://nav/library'); return; } catch {}
-  try { sc?.URL?.ExecuteSteamURL?.('steam://open/library'); return; } catch {}
-  try { mgr?.LoadURL?.('steam://nav/library'); return; } catch {}
-  try { sc?.Library?.ShowLibrary?.(); return; } catch {}
-  try { (window as any).SteamClient?.Window?.NavigateToLibrary?.(); return; } catch {}
+  const isCheckoutPage = (u: string) =>
+    !!u && (u.indexOf('/checkout/') !== -1 || u.indexOf('/addfreelicense') !== -1);
+
+  const usable = prevUrl && !isCheckoutPage(prevUrl) ? prevUrl : '';
+
+  if (usable) {
+    log(`navigateBack -> ${usable}`);
+    let ok = false;
+    try { mgr?.LoadURL?.(usable); ok = true; } catch (e) { log(`LoadURL failed: ${String(e)}`); }
+    if (!ok) {
+      try { mgr?.m_browser?.LoadURL?.(usable); ok = true; } catch (e) { log(`m_browser.LoadURL failed: ${String(e)}`); }
+    }
+    if (ok) return;
+  }
+
+  log('navigateBack -> fallback steam://nav/library');
+  try { sc?.URL?.ExecuteSteamURL?.('steam://nav/library'); return; } catch (e) { log(`ExecuteSteamURL nav failed: ${String(e)}`); }
+  try { sc?.URL?.ExecuteSteamURL?.('steam://open/library'); return; } catch (e) { log(`ExecuteSteamURL open failed: ${String(e)}`); }
+  try { mgr?.LoadURL?.('steam://nav/library'); return; } catch (e) { log(`mgr.LoadURL nav failed: ${String(e)}`); }
 }
 
 async function addViaShowStore(appid: number): Promise<boolean> {
   const sc = (window as any).SteamClient;
+
+  const prevUrl = getCurrentStoreUrl();
+  if (prevUrl) log(`[${appid}] saved prevUrl: ${prevUrl}`);
 
   try { await setPendingClaim({ payload: String(appid) }); } catch {}
 
@@ -148,12 +171,13 @@ async function addViaShowStore(appid: number): Promise<boolean> {
     await new Promise((r) => setTimeout(r, 500));
     if (isAlreadyInLibrary(appid)) {
       log(`[${appid}] detected in library after ${(i + 1) * 0.5}s`);
-      await new Promise((r) => setTimeout(r, 1000));
-      hideStorePage();
+      await new Promise((r) => setTimeout(r, 1500));
+      navigateBack(prevUrl);
       return true;
     }
   }
   log(`[${appid}] ShowStore fallback timed out`);
+  navigateBack(prevUrl);
   return false;
 }
 
