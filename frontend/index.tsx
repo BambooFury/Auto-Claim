@@ -299,27 +299,17 @@ const SCAN_NAME_BLOCKLIST = [
 ];
 
 async function waitForSteamReady(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    const check = () => {
-      if ((window as any).appStore) resolve();
-      else setTimeout(check, 1000);
-    };
-    check();
-  });
-  await new Promise((r) => setTimeout(r, 20000));
-}
-
-async function waitForWelcomeDismissed(): Promise<void> {
-  const SEEN_FLAG = 'fgg_welcomed_v2';
-  if (localStorage.getItem(SEEN_FLAG) === '1') return;
-  await new Promise<void>((resolve) => {
-    const id = setInterval(() => {
-      if (localStorage.getItem(SEEN_FLAG) === '1') {
-        clearInterval(id);
-        resolve();
-      }
-    }, 500);
-  });
+  await Promise.race([
+    new Promise<void>((resolve) => {
+      const check = () => {
+        if ((window as any).appStore) resolve();
+        else setTimeout(check, 1000);
+      };
+      check();
+    }),
+    new Promise<void>((resolve) => setTimeout(resolve, 30000)),
+  ]);
+  await new Promise((r) => setTimeout(r, 3000));
 }
 
 async function drainPendingToasts(): Promise<void> {
@@ -336,7 +326,6 @@ async function drainPendingToasts(): Promise<void> {
 }
 
 async function startPolling(): Promise<void> {
-  await waitForWelcomeDismissed();
   await waitForSteamReady();
 
   setInterval(() => { void drainPendingToasts(); }, 5000);
