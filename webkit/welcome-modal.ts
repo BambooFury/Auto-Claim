@@ -46,6 +46,14 @@ function markSeen() {
   try { localStorage.setItem(SEEN_FLAG, '1'); } catch {}
 }
 
+let _welcomeResolve: (() => void) | null = null;
+const _welcomePromise = new Promise<void>((res) => { _welcomeResolve = res; });
+
+export function waitForWelcomeDismissed(): Promise<void> {
+  if (alreadySeen()) return Promise.resolve();
+  return _welcomePromise;
+}
+
 export function showWelcomeIfFirstTime(): void {
   if (alreadySeen()) return;
 
@@ -65,6 +73,7 @@ export function showWelcomeIfFirstTime(): void {
 
 function dismiss(root: HTMLDivElement, dlg: HTMLDivElement, dim: HTMLDivElement) {
   markSeen();
+  if (_welcomeResolve) { _welcomeResolve(); _welcomeResolve = null; }
   dlg.style.animation = 'fgg-welcome-out 0.18s ease-in forwards';
   dim.style.animation = 'fgg-welcome-fade-out 0.18s ease-in forwards';
   setTimeout(() => { try { root.remove(); } catch (_e) {} }, 220);
