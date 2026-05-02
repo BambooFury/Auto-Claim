@@ -1,5 +1,8 @@
 import { silentClaim } from './claim';
-import { loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC } from './ipc';
+import {
+  loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
+  requestScanIPC,
+} from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
 import { getTabColor } from './tab-colors';
@@ -241,6 +244,7 @@ export function injectVanillaWidget(): void {
     gamesTabBtn.classList.toggle('active', activeTab === 'games');
     setsTabBtn .classList.toggle('active', activeTab === 'settings');
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
+    bodyEl.classList.toggle('is-settings', activeTab === 'settings');
 
     if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
     else                       renderSettings(bodyEl, render, persistAndRefresh);
@@ -632,6 +636,31 @@ const PANEL_CSS = `
     color: #fff;
   }
 
+  .fgg-action-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.85);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
+  }
+  .fgg-action-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .fgg-action-btn:disabled { opacity: 0.55; cursor: progress; }
+  .fgg-action-icon {
+    display: inline-block;
+    font-size: 14px;
+    transition: transform 0.4s ease;
+  }
+  .fgg-action-btn.busy .fgg-action-icon {
+    animation: fgg-spin 1s linear infinite;
+  }
+  @keyframes fgg-spin {
+    to { transform: rotate(360deg); }
+  }
   .fgg-header {
     padding: 14px 16px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -694,6 +723,10 @@ const PANEL_CSS = `
     overflow-y: auto; overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.12) transparent;
+  }
+  #fgg-body.is-settings {
+    max-height: none;
+    overflow-y: visible;
   }
   #fgg-body::-webkit-scrollbar             { width: 6px; }
   #fgg-body::-webkit-scrollbar-track       { background: transparent; margin: 6px 0; }
@@ -906,6 +939,15 @@ function renderSettings(
       <div class="fgg-set-desc">How often to check for free games</div>
       <div class="fgg-int-btns">${intervalsHtml}</div>
     </div>
+
+    <div class="fgg-set-row column">
+      <div class="fgg-set-title">Manual scan</div>
+      <div class="fgg-set-desc">Run a free games check immediately</div>
+      <button id="fgg-scan-now" class="fgg-action-btn">
+        <span class="fgg-action-icon">⟳</span>
+        <span>Scan now</span>
+      </button>
+    </div>
   `;
 
   function animateToggle(btn: HTMLButtonElement, on: boolean) {
@@ -913,10 +955,15 @@ function renderSettings(
   }
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-autoadd')?.addEventListener('click', (e) => {
+    const wasOff = !cfg.autoAdd;
     cfg.autoAdd = !cfg.autoAdd;
     animateToggle(e.currentTarget as HTMLButtonElement, cfg.autoAdd);
     persistAndRefresh();
     logIPC({ payload: `Auto-add toggled: ${cfg.autoAdd ? 'ON' : 'OFF'}` }).catch(() => {});
+    if (wasOff && cfg.autoAdd) {
+      requestScanIPC().catch(() => {});
+      logIPC({ payload: 'Auto-add turned ON — requesting immediate scan' }).catch(() => {});
+    }
   });
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-notifygrab')?.addEventListener('click', (e) => {
@@ -937,4 +984,20 @@ function renderSettings(
       logIPC({ payload: `Scan interval changed: ${prev} min -> ${next} min` }).catch(() => {});
     });
   });
+
+  const scanBtn = bodyEl.querySelector<HTMLButtonElement>('#fgg-scan-now');
+  scanBtn?.addEventListener('click', async () => {
+    if (scanBtn.disabled) return;
+    scanBtn.disabled = true;
+    scanBtn.classList.add('busy');
+    try {
+      await requestScanIPC();
+      logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
+    } catch {}
+    setTimeout(() => {
+      scanBtn.disabled = false;
+      scanBtn.classList.remove('busy');
+    }, 8000);
+  });
+
 }

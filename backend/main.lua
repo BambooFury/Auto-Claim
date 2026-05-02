@@ -11,6 +11,8 @@ local COOKIES_FILE   = PLUGIN_DIR .. "\\steam_cookies.json"
 local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
 local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
 
+_G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
+
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
 local SEARCH_REGIONS = { "us", "ua", "ru", "de", "gb", "tr" }
@@ -129,6 +131,15 @@ function pop_toasts_ipc()
     local raw = read_file(TOASTS_FILE) or "[]"
     os.remove(TOASTS_FILE)
     return raw
+end
+
+function request_scan_ipc()
+    _G.__autoclaim_scan_seq = (_G.__autoclaim_scan_seq or 0) + 1
+    return 1
+end
+
+function pop_scan_request_ipc()
+    return tostring(_G.__autoclaim_scan_seq or 0)
 end
 
 local function load_cookie_header()

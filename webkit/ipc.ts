@@ -18,3 +18,5 @@ export const clearPendingClaimIPC = callable<Empty, number>('clear_pending_claim
 export const pushToastIPC = callable<StrIn, number>('push_toast_ipc');
 
 export const logIPC = callable<StrIn, number>('log_plugin');
+
+export const requestScanIPC = callable<Empty, number>('request_scan_ipc');

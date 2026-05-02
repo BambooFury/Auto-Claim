@@ -15,6 +15,7 @@ const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const setPendingClaim   = callable<StrIn, number>('set_pending_claim_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
+const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
@@ -422,9 +423,36 @@ async function startPolling(): Promise<void> {
 
   await runOneScan();
 
+  let scanInProgress = false;
+  const triggerScan = async (reason: string) => {
+    if (scanInProgress) return;
+    scanInProgress = true;
+    try {
+      log(`Manual scan triggered: ${reason}`);
+      await runOneScan();
+    } finally {
+      scanInProgress = false;
+    }
+  };
+
+  let lastScanSeq = '';
+  try {
+    lastScanSeq = await withTimeout(popScanRequest(), 2000, '0');
+  } catch { lastScanSeq = '0'; }
+
+  setInterval(async () => {
+    try {
+      const seq = await withTimeout(popScanRequest(), 2000, lastScanSeq);
+      if (seq && seq !== lastScanSeq) {
+        lastScanSeq = seq;
+        void triggerScan('user requested');
+      }
+    } catch {}
+  }, 3000);
+
   const scheduleNext = () => {
     const interval = (settings.pollIntervalMin || 30) * 60 * 1000;
-    setTimeout(async () => { await runOneScan(); scheduleNext(); }, interval);
+    setTimeout(async () => { await triggerScan('scheduled'); scheduleNext(); }, interval);
     log(`Next scan in ${settings.pollIntervalMin} min`);
   };
   scheduleNext();
