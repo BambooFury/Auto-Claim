@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.2](https://github.com/BambooFury/Auto-Claim/compare/v1.2.1...v1.2.2) (2026-05-02)
+
+
+### Bug Fixes
+
+* restore tab accent, card highlight and toggle colors for Minimal Dark theme ([00e0e3f](https://github.com/BambooFury/Auto-Claim/commit/00e0e3f0b0eec1f932e0bdd742f0e82c177722a4))
+
+
+### Maintenance
+
+* minor ui and startup flow improvements ([79c4880](https://github.com/BambooFury/Auto-Claim/commit/79c4880b8a5b35e0b31130883209f214f633c26c))
+
 ## [1.2.1](https://github.com/BambooFury/Auto-Claim/compare/v1.2.0...v1.2.1) (2026-05-02)
 
 
