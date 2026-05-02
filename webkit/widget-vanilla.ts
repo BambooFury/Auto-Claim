@@ -202,23 +202,6 @@ export function injectVanillaWidget(): void {
     render();
   }
 
-  async function loadFromCache(autoClaim = true) {
-    try {
-      const raw = await loadFreeGamesCacheIPC();
-      games = JSON.parse(raw || '[]');
-    } catch {}
-
-    if (games.length > 0) {
-      try { ownedSet = await checkLibraryAsync(games.map((g) => g.appid)); } catch {}
-    }
-
-    render();
-
-    if (autoClaim && cfg.autoAdd && games.length > 0) {
-      void runAutoClaim();
-    }
-  }
-
   async function softRefresh() {
     if (busyClaim) return;
     try {
@@ -294,7 +277,7 @@ export function injectVanillaWidget(): void {
 
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
 
-    if (next) void loadFromCache();
+    if (next) void softRefresh();
   }
 
   function applyChrome() {
@@ -386,7 +369,7 @@ export function injectVanillaWidget(): void {
   }, 2000);
 
   void softRefresh();
-  const cachePoll = setInterval(() => { void softRefresh(); }, 30000);
+  const cachePoll = setInterval(() => { void softRefresh(); }, 5000);
 
   window.addEventListener('beforeunload', () => {
     clearInterval(settingsPoll);
