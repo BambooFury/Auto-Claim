@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.3](https://github.com/BambooFury/Auto-Claim/compare/v1.2.2...v1.2.3) (2026-05-02)
+
+
+### Bug Fixes
+
+* startPolling no longer hangs when appStore is unavailable in client context ([0a64988](https://github.com/BambooFury/Auto-Claim/commit/0a64988842f818c95c41f7041a14d1bac27bbd9b))
+
 ## [1.2.2](https://github.com/BambooFury/Auto-Claim/compare/v1.2.1...v1.2.2) (2026-05-02)
 
 
