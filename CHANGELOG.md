@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.6](https://github.com/BambooFury/Auto-Claim/compare/v1.2.5...v1.2.6) (2026-05-03)
+
+
+### Bug Fixes
+
+* graceful cjson fallback to prevent crash when module is unavailable ([37a05c8](https://github.com/BambooFury/Auto-Claim/commit/37a05c8d1418e755461b68dcf7ccdbf08757d7a6))
+
 ## [1.2.5](https://github.com/BambooFury/Auto-Claim/compare/v1.2.4...v1.2.5) (2026-05-03)
 
 
