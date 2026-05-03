@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.7](https://github.com/BambooFury/Auto-Claim/compare/v1.2.6...v1.2.7) (2026-05-03)
+
+
+### Bug Fixes
+
+* Windows atomic file writes and pure-Lua JSON fallback ([a3a0293](https://github.com/BambooFury/Auto-Claim/commit/a3a0293fcaee14983ef97cf2ffae31ff37fbc500))
+* Windows atomic file writes and pure-Lua JSON fallback ([dfcaef7](https://github.com/BambooFury/Auto-Claim/commit/dfcaef7a636b864ce98a06e726588223be7b6db7))
+
 ## [1.2.6](https://github.com/BambooFury/Auto-Claim/compare/v1.2.5...v1.2.6) (2026-05-03)
 
 
