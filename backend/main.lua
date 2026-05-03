@@ -1,6 +1,7 @@
 local logger     = require("logger")
 local millennium = require("millennium")
 local http       = require("http")
+local cjson      = require("cjson")
 local PLUGIN_DIR = debug.getinfo(1, "S").source:match("^@(.+)\\backend\\") or "."
 
 local GRABBED_FILE   = PLUGIN_DIR .. "\\grabbed.json"
@@ -11,7 +12,8 @@ local COOKIES_FILE   = PLUGIN_DIR .. "\\steam_cookies.json"
 local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
 local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
 
-_G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
+_G.__autoclaim_scan_seq   = _G.__autoclaim_scan_seq   or 0
+_G.__autoclaim_toast_lock = _G.__autoclaim_toast_lock or false
 
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
@@ -30,10 +32,17 @@ local function read_file(path)
 end
 
 local function write_file(path, content)
-    local f = io.open(path, "w")
+    local tmp = path .. ".tmp"
+    local f = io.open(tmp, "w")
     if not f then return false end
     f:write(content)
+    f:flush()
     f:close()
+    local ok, err = os.rename(tmp, path)
+    if not ok then
+        os.remove(tmp)
+        return false
+    end
     return true
 end
 
@@ -113,17 +122,23 @@ function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not payload or payload == "" then return 0 end
 
+    local waited = 0
+    while _G.__autoclaim_toast_lock and waited < 20 do
+        waited = waited + 1
+    end
+    _G.__autoclaim_toast_lock = true
+
     local raw  = read_file(TOASTS_FILE) or "[]"
     local trim = raw:gsub("%s+$", "")
-
     local combined
     if trim == "" or trim == "[]" then
         combined = "[" .. payload .. "]"
     else
         combined = trim:sub(1, -2) .. "," .. payload .. "]"
     end
-
     write_file(TOASTS_FILE, combined)
+
+    _G.__autoclaim_toast_lock = false
     return 1
 end
 
@@ -146,11 +161,13 @@ local function load_cookie_header()
     local raw = read_file(COOKIES_FILE)
     if not raw then return "", "" end
 
+    local ok, data = pcall(cjson.decode, raw)
+    if not ok or type(data) ~= "table" then return "", "" end
+
     local pairs_list = {}
     local sid = ""
-
-    for k, v in raw:gmatch('"([^"]+)"%s*:%s*"([^"]*)"') do
-        if v ~= "" then
+    for k, v in pairs(data) do
+        if type(k) == "string" and type(v) == "string" and v ~= "" then
             pairs_list[#pairs_list + 1] = k .. "=" .. v
             if k == "sessionid" then sid = v end
         end
@@ -306,24 +323,22 @@ function fetch_free_games_backend()
             local res = http.get(url, { timeout = 25 })
             if res and res.status == 200 then
                 fetch_ok = true
-                local names, logos = {}, {}
-                for n in res.body:gmatch('"name"%s*:%s*"(.-)"') do
-                    names[#names + 1] = n
-                end
-                for u in res.body:gmatch('"logo"%s*:%s*"(.-)"') do
-                    logos[#logos + 1] = u
-                end
-                for i, logo_url in ipairs(logos) do
-                    logo_url = logo_url:gsub("\\/", "/")
-                    local appid_str = logo_url:match("/apps/(%d+)/")
-                    if appid_str then
-                        local id = tonumber(appid_str)
-                        if id and id > 0 and not seen[id] then
-                            seen[id] = true
-                            found[#found + 1] = {
-                                appid = id,
-                                name  = names[i] or ("AppID " .. appid_str),
-                            }
+                local ok, data = pcall(cjson.decode, res.body)
+                if ok and type(data) == "table" and type(data.items) == "table" then
+                    for _, item in ipairs(data.items) do
+                        local logo_url = type(item.logo) == "string" and item.logo or ""
+                        logo_url = logo_url:gsub("\\/", "/")
+                        local appid_str = logo_url:match("/apps/(%d+)/")
+                        if appid_str then
+                            local id = tonumber(appid_str)
+                            if id and id > 0 and not seen[id] then
+                                seen[id] = true
+                                found[#found + 1] = {
+                                    appid = id,
+                                    name  = type(item.name) == "string" and item.name or ("AppID " .. appid_str),
+                                    cc    = cc,
+                                }
+                            end
                         end
                     end
                 end
@@ -333,26 +348,30 @@ function fetch_free_games_backend()
     do
         local res = http.get(GAMERPOWER_URL, { timeout = 15 })
         if res and res.status == 200 then
-            local body = res.body
-            for raw_title in body:gmatch('"title"%s*:%s*"(.-)"') do
-                local clean = raw_title
-                    :gsub(" %(Steam%) [%w%s]+ Giveaway$", "")
-                    :gsub(" %(Steam%) Giveaway$", "")
-                    :gsub(" %(Steam%)$", "")
-                    :gsub(" Giveaway$", "")
-                if clean and clean ~= "" then
-                    local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
-                        clean:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
-                    local sres = http.get(search_url, { timeout = 10 })
-                    if sres and sres.status == 200 then
-                        local appid_str = sres.body:match('"id"%s*:%s*(%d+)')
-                        if appid_str then
-                            local id = tonumber(appid_str)
-                            if id and id > 0 and not seen[id] then
-                                local name = sres.body:match('"name"%s*:%s*"(.-)"') or clean
-                                seen[id] = true
-                                found[#found + 1] = { appid = id, name = name, from_gamerpower = true }
-                                logger:info("[AutoClaim] GamerPower found: " .. id .. " - " .. name)
+            local ok, data = pcall(cjson.decode, res.body)
+            if ok and type(data) == "table" then
+                for _, entry in ipairs(data) do
+                    local raw_title = type(entry.title) == "string" and entry.title or ""
+                    local clean = raw_title
+                        :gsub(" %(Steam%) [%w%s]+ Giveaway$", "")
+                        :gsub(" %(Steam%) Giveaway$", "")
+                        :gsub(" %(Steam%)$", "")
+                        :gsub(" Giveaway$", "")
+                    if clean and clean ~= "" then
+                        local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
+                            clean:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
+                        local sres = http.get(search_url, { timeout = 10 })
+                        if sres and sres.status == 200 then
+                            local sok, sdata = pcall(cjson.decode, sres.body)
+                            if sok and type(sdata) == "table" and type(sdata.items) == "table" and sdata.items[1] then
+                                local item = sdata.items[1]
+                                local id = tonumber(item.id)
+                                local name = type(item.name) == "string" and item.name or clean
+                                if id and id > 0 and not seen[id] then
+                                    seen[id] = true
+                                    found[#found + 1] = { appid = id, name = name, from_gamerpower = true }
+                                    logger:info("[AutoClaim] GamerPower found: " .. id .. " - " .. name)
+                                end
                             end
                         end
                     end
@@ -372,9 +391,17 @@ function fetch_free_games_backend()
         if g.from_gamerpower then
             games_only[#games_only + 1] = g
         else
-            local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=us", { timeout = 10 })
+            local verify_cc = g.cc or "us"
+            local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
             if dres and dres.status == 200 then
-                local app_type = dres.body:match('"type"%s*:%s*"([^"]+)"')
+                local dok, ddata = pcall(cjson.decode, dres.body)
+                local app_type = nil
+                if dok and type(ddata) == "table" then
+                    local entry = ddata[tostring(g.appid)]
+                    if entry and entry.data then
+                        app_type = entry.data.type
+                    end
+                end
                 if app_type == "game" then
                     games_only[#games_only + 1] = g
                 end
