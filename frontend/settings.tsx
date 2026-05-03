@@ -6,7 +6,6 @@ const h = React.createElement;
 export interface PluginSettings {
   autoAdd: boolean;
   pollIntervalMin: number;
-  notifyOnly: boolean;
   notifyOnGrab: boolean;
 }
 

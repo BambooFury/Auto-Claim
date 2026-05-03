@@ -45,7 +45,6 @@ interface GrabbedEntry {
 interface Settings {
   autoAdd:         boolean;
   pollIntervalMin: number;
-  notifyOnly:      boolean;
   notifyOnGrab:    boolean;
 }
 
@@ -54,7 +53,6 @@ interface StoreSettingsSnapshot extends Settings, WidgetSettings {}
 const DEFAULTS: Settings = {
   autoAdd:         true,
   pollIntervalMin: 30,
-  notifyOnly:      false,
   notifyOnGrab:    true,
 };
 
@@ -69,7 +67,6 @@ const defaultWidget = (): WidgetSettings => ({
 function syncStoreSettings(s: Settings, w: WidgetSettings): void {
   const snap: StoreSettingsSnapshot = {
     autoAdd:         s.autoAdd,
-    notifyOnly:      s.notifyOnly,
     notifyOnGrab:    s.notifyOnGrab,
     pollIntervalMin: s.pollIntervalMin,
     tabColor:        w.tabColor,
@@ -396,13 +393,6 @@ async function startPolling(): Promise<void> {
 
       log(`Free game detected: ${game.name} (${game.appid})`);
 
-      if (settings.notifyOnly) {
-        showFreeGameNotification(game, () => {
-          (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
-        });
-        return;
-      }
-
       if (settings.autoAdd) {
         const added = await addGameToLibrary(game.appid);
         if (added) {
@@ -430,7 +420,7 @@ async function startPolling(): Promise<void> {
     }
   }
 
-  async function runOneScan(): Promise<void> {
+  async function runOneScan(): Promise<boolean> {
     await reloadState();
     log('Scanning Steam Store for 100% discounts...');
 
@@ -443,20 +433,22 @@ async function startPolling(): Promise<void> {
         await processGame(game);
         await new Promise((r) => setTimeout(r, 1500));
       }
+      return true;
     } catch (e) {
       log(`Scan error: ${String(e)}`);
+      return false;
     }
   }
 
   await runOneScan();
 
   let scanInProgress = false;
-  const triggerScan = async (reason: string) => {
-    if (scanInProgress) return;
+  const triggerScan = async (reason: string): Promise<boolean> => {
+    if (scanInProgress) return false;
     scanInProgress = true;
     try {
       log(`Manual scan triggered: ${reason}`);
-      await runOneScan();
+      return await runOneScan();
     } finally {
       scanInProgress = false;
     }
@@ -477,10 +469,22 @@ async function startPolling(): Promise<void> {
     } catch {}
   }, 3000);
 
-  const scheduleNext = () => {
-    const interval = (settings.pollIntervalMin || 30) * 60 * 1000;
-    setTimeout(async () => { await triggerScan('scheduled'); scheduleNext(); }, interval);
-    log(`Next scan in ${settings.pollIntervalMin} min`);
+  const scheduleNext = (retryDelay?: number) => {
+    const interval = retryDelay ?? (settings.pollIntervalMin || 30) * 60 * 1000;
+    if (retryDelay) {
+      log(`Scan failed — retrying in ${Math.round(interval / 1000)}s`);
+    } else {
+      log(`Next scan in ${settings.pollIntervalMin} min`);
+    }
+    setTimeout(async () => {
+      const ok = await triggerScan(retryDelay ? 'retry after failure' : 'scheduled');
+      if (!ok) {
+        const next = Math.min((retryDelay ?? 60000) * 2.5, (settings.pollIntervalMin || 30) * 60 * 1000);
+        scheduleNext(next);
+      } else {
+        scheduleNext();
+      }
+    }, interval);
   };
   scheduleNext();
 }
