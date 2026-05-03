@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.5](https://github.com/BambooFury/Auto-Claim/compare/v1.2.4...v1.2.5) (2026-05-03)
+
+
+### Bug Fixes
+
+* remove dead notifyOnly setting and add retry with backoff on failed scan ([db8cc42](https://github.com/BambooFury/Auto-Claim/commit/db8cc429e9b7a27433754e4e3d89dc3a92364856))
+* remove widget-react.ts duplicate, fix setInterval memory leak on hot-reload ([f53a61d](https://github.com/BambooFury/Auto-Claim/commit/f53a61df5d3cfc638f431c7b1ea1f8134731f75a))
+* replace regex JSON parsing with cjson, atomic file writes, region-aware cache and toast mutex ([dc596d0](https://github.com/BambooFury/Auto-Claim/commit/dc596d08d29ce456dbd091291974b865bca84f31))
+
 ## [1.2.4](https://github.com/BambooFury/Auto-Claim/compare/v1.2.3...v1.2.4) (2026-05-03)
 
 
