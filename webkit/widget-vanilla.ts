@@ -13,6 +13,8 @@ const PANEL_W  = 340;
 const PANEL_RIGHT_OFFSET_WHEN_OPEN = 341;
 const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
+const _fggIntervals: ReturnType<typeof setInterval>[] = [];
+
 function tabSize(style: string): { w: number; h: number; off: number } {
   if (style === 'slim')     return { w: 20, h: 48, off: 0 };
   if (style === 'floating') return { w: 26, h: 56, off: 8 };
@@ -67,6 +69,8 @@ const SVG_CHECK = `
 
 export function injectVanillaWidget(): void {
   if (document.getElementById(ROOT_ID)) return;
+
+  while (_fggIntervals.length) clearInterval(_fggIntervals.pop()!);
 
   function isMinimalDark(): boolean {
     try {
@@ -479,10 +483,10 @@ export function injectVanillaWidget(): void {
 
   void softRefresh();
   const cachePoll = setInterval(() => { void softRefresh(); }, 5000);
+  _fggIntervals.push(settingsPoll, cachePoll);
 
   window.addEventListener('beforeunload', () => {
-    clearInterval(settingsPoll);
-    clearInterval(cachePoll);
+    while (_fggIntervals.length) clearInterval(_fggIntervals.pop()!);
     if (hideTimer) clearTimeout(hideTimer);
   }, { once: true });
 }

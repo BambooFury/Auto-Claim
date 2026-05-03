@@ -3,9 +3,7 @@ import { clearPendingClaimIPC, getPendingClaimIPC } from './ipc';
 import { initSettingsFromLua } from './settings';
 import { handleAgeCheck, tryClickButton } from './store-actions';
 import { showWelcomeIfFirstTime } from './welcome-modal';
-import { injectReactWidget } from './widget-react';
 import { injectVanillaWidget } from './widget-vanilla';
-
 const STORE_HOST = 'store.steampowered.com';
 const APP_PAGE_RE = /\/(?:app|agecheck\/app)\/(\d+)/;
 
@@ -48,12 +46,7 @@ async function handleAppPage(appid: string): Promise<void> {
 async function injectWidget(): Promise<void> {
   if (document.getElementById('fgg-widget-root')) return;
   await initSettingsFromLua();
-
-  if ((window as any).SP_REACT) {
-    injectReactWidget();
-  } else {
-    injectVanillaWidget();
-  }
+  injectVanillaWidget();
 }
 
 async function handleStorefront(): Promise<void> {
