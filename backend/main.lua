@@ -1,7 +1,13 @@
 local logger     = require("logger")
 local millennium = require("millennium")
 local http       = require("http")
-local cjson      = require("cjson")
+local cjson = (function()
+    local ok, mod = pcall(require, "cjson.safe")
+    if ok and mod then return mod end
+    local ok2, mod2 = pcall(require, "cjson")
+    if ok2 and mod2 then return mod2 end
+    return { decode = function() return nil end, encode = function(v) return tostring(v) end }
+end)()
 local PLUGIN_DIR = debug.getinfo(1, "S").source:match("^@(.+)\\backend\\") or "."
 
 local GRABBED_FILE   = PLUGIN_DIR .. "\\grabbed.json"
