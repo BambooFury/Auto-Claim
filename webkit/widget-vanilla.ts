@@ -93,17 +93,34 @@ export function injectVanillaWidget(): void {
 
       /* Owned card — green left accent stripe */
       .fgg-card.owned .fgg-card-accent {
-        background: rgba(85,204,85,0.8) !important;
+        background: rgba(85,204,85,0.25) !important;
       }
       /* Owned card — subtle green bg tint */
       .fgg-card.owned {
-        background: rgba(85,204,85,0.06) !important;
-        border-color: rgba(85,204,85,0.18) !important;
+        background: rgba(85,204,85,0.03) !important;
+        border-color: rgba(85,204,85,0.10) !important;
       }
 
-      /* Toggle — green when ON */
-      .fgg-toggle.on {
-        background: linear-gradient(135deg, #55cc55, #2a8a2a) !important;
+      /* Toggle — fix knob centering and size */
+      .fgg-toggle {
+        width: 44px !important;
+        height: 24px !important;
+        border-radius: 12px !important;
+        position: relative !important;
+      }
+      .fgg-toggle-knob {
+        position: absolute !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 16px !important;
+        height: 16px !important;
+        border-radius: 4px !important;
+        background: white !important;
+        left: 4px !important;
+        transition: left 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+      }
+      .fgg-toggle.on .fgg-toggle-knob {
+        left: 24px !important;
       }
 
       /* Welcome modal — green hero background */
@@ -298,8 +315,8 @@ export function injectVanillaWidget(): void {
       }
     }
 
-    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
-    else                       renderSettings(bodyEl, render, persistAndRefresh, isMinimalDark());
+    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid, isMinimalDark());
+    else                       renderSettings(bodyEl, render, persistAndRefresh, isMinimalDark(), games);
 
     if (isMinimalDark()) {
       const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
@@ -873,6 +890,7 @@ function renderGames(
   ownedSet: Set<number>,
   claiming: boolean,
   claimingAppid: number,
+  minimalDark = false,
 ): void {
   if (games.length === 0) {
     bodyEl.innerHTML = `
@@ -888,15 +906,26 @@ function renderGames(
   bodyEl.innerHTML = games.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
 
   bodyEl.querySelectorAll<HTMLElement>('.fgg-card').forEach((card) => {
+    const owned = card.classList.contains('owned');
     card.addEventListener('mouseenter', () => {
-      card.style.transform   = 'translateY(-1px)';
-      card.style.borderColor = 'rgba(255,255,255,0.18)';
-      card.style.boxShadow   = '0 6px 18px rgba(0,0,0,0.4)';
+      card.style.transform = 'translateY(-1px)';
+      if (minimalDark) {
+        card.style.setProperty('border-color', owned ? 'rgba(85,204,85,0.22)' : 'rgba(255,255,255,0.22)', 'important');
+        card.style.setProperty('box-shadow', owned ? '0 4px 14px rgba(85,204,85,0.08)' : '0 6px 18px rgba(0,0,0,0.4)', 'important');
+      } else {
+        card.style.borderColor = 'rgba(255,255,255,0.18)';
+        card.style.boxShadow   = '0 6px 18px rgba(0,0,0,0.4)';
+      }
     });
     card.addEventListener('mouseleave', () => {
-      card.style.transform   = '';
-      card.style.borderColor = 'rgba(255,255,255,0.08)';
-      card.style.boxShadow   = '';
+      card.style.transform = '';
+      if (minimalDark) {
+        card.style.setProperty('border-color', owned ? 'rgba(85,204,85,0.10)' : 'rgba(255,255,255,0.08)', 'important');
+        card.style.removeProperty('box-shadow');
+      } else {
+        card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'rgba(255,255,255,0.08)';
+        card.style.boxShadow   = '';
+      }
     });
   });
 
@@ -973,6 +1002,7 @@ function renderSettings(
   rerender: () => void,
   persistAndRefresh: () => void,
   minimalDark = false,
+  lastGames: FreeGame[] = [],
 ): void {
   const toggleHtml = (id: string, value: boolean) =>
     `<button id="${id}" class="fgg-toggle${value ? ' on' : ''}" data-fgg-on="${value ? '1' : '0'}">
@@ -1023,6 +1053,7 @@ function renderSettings(
         <span class="fgg-action-icon">⟳</span>
         <span>Scan now</span>
       </button>
+      <div id="fgg-scan-result" style="display:none;margin-top:6px;font-size:11px;line-height:1.4;"></div>
     </div>
   `;
 
@@ -1068,17 +1099,42 @@ function renderSettings(
   });
 
   const scanBtn = bodyEl.querySelector<HTMLButtonElement>('#fgg-scan-now');
+  const scanResult = bodyEl.querySelector<HTMLElement>('#fgg-scan-result');
   scanBtn?.addEventListener('click', async () => {
     if (scanBtn.disabled) return;
     scanBtn.disabled = true;
     scanBtn.classList.add('busy');
+    if (scanResult) {
+      scanResult.style.color = 'rgba(255,255,255,0.35)';
+      scanResult.style.display = 'block';
+      scanResult.textContent = 'Scanning…';
+    }
     try {
       await requestScanIPC();
       logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
     } catch {}
-    setTimeout(() => {
+    setTimeout(async () => {
       scanBtn.disabled = false;
       scanBtn.classList.remove('busy');
+      if (scanResult) {
+        try {
+          const raw = await loadFreeGamesCacheIPC();
+          const found: FreeGame[] = JSON.parse(raw || '[]');
+          const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
+          if (newGames.length > 0) {
+            scanResult.style.color = '#55cc55';
+            scanResult.style.display = 'block';
+            scanResult.innerHTML = newGames.map(g => `• ${g.name}`).join('<br>');
+          } else {
+            scanResult.style.color = 'rgba(255,255,255,0.35)';
+            scanResult.style.display = 'block';
+            scanResult.textContent = 'No new free games found.';
+          }
+        } catch {
+          scanResult.style.color = 'rgba(255,255,255,0.35)';
+          scanResult.textContent = 'Could not load scan results.';
+        }
+      }
     }, 8000);
   });
 
