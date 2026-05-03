@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/BambooFury/Auto-Claim/compare/v1.2.3...v1.2.4) (2026-05-03)
+
+
+### Bug Fixes
+
+* Minimal Dark theme compatibility and scan result display under scan button ([3ca0f96](https://github.com/BambooFury/Auto-Claim/commit/3ca0f9626f52bdcf52dbfeed5cce52eca11b27f2))
+
 ## [1.2.3](https://github.com/BambooFury/Auto-Claim/compare/v1.2.2...v1.2.3) (2026-05-02)
 
 
