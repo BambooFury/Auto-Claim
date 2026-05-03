@@ -1,12 +1,162 @@
 local logger     = require("logger")
 local millennium = require("millennium")
 local http       = require("http")
+local function _pure_lua_json_decode(src)
+    if type(src) ~= "string" then return nil end
+    local pos, len = 1, #src
+
+    local function skip_ws()
+        while pos <= len do
+            local c = src:byte(pos)
+            if c == 32 or c == 9 or c == 10 or c == 13 then pos = pos + 1
+            else return end
+        end
+    end
+
+    local parse_value
+
+    local function parse_string()
+        if src:byte(pos) ~= 34 then error("expected string at " .. pos) end
+        pos = pos + 1
+        local out = {}
+        while pos <= len do
+            local c = src:byte(pos)
+            if c == 34 then pos = pos + 1; return table.concat(out)
+            elseif c == 92 then
+                local esc = src:byte(pos + 1)
+                if     esc == 34  then out[#out+1] = '"';  pos = pos + 2
+                elseif esc == 92  then out[#out+1] = '\\'; pos = pos + 2
+                elseif esc == 47  then out[#out+1] = '/';  pos = pos + 2
+                elseif esc == 98  then out[#out+1] = '\b'; pos = pos + 2
+                elseif esc == 102 then out[#out+1] = '\f'; pos = pos + 2
+                elseif esc == 110 then out[#out+1] = '\n'; pos = pos + 2
+                elseif esc == 114 then out[#out+1] = '\r'; pos = pos + 2
+                elseif esc == 116 then out[#out+1] = '\t'; pos = pos + 2
+                elseif esc == 117 then
+                    local code = tonumber(src:sub(pos + 2, pos + 5), 16) or 0
+                    if code < 0x80 then
+                        out[#out+1] = string.char(code)
+                    elseif code < 0x800 then
+                        out[#out+1] = string.char(0xC0 + math.floor(code/0x40), 0x80 + (code%0x40))
+                    else
+                        out[#out+1] = string.char(
+                            0xE0 + math.floor(code/0x1000),
+                            0x80 + (math.floor(code/0x40) % 0x40),
+                            0x80 + (code % 0x40))
+                    end
+                    pos = pos + 6
+                else
+                    out[#out+1] = string.char(esc); pos = pos + 2
+                end
+            else
+                out[#out+1] = string.char(c); pos = pos + 1
+            end
+        end
+        error("unterminated string")
+    end
+
+    local function parse_number()
+        local start = pos
+        while pos <= len do
+            local c = src:byte(pos)
+            if (c >= 48 and c <= 57) or c == 45 or c == 43 or c == 46 or c == 101 or c == 69 then
+                pos = pos + 1
+            else break end
+        end
+        return tonumber(src:sub(start, pos - 1))
+    end
+
+    local function parse_literal(word, value)
+        if src:sub(pos, pos + #word - 1) == word then
+            pos = pos + #word
+            return value
+        end
+        error("unknown literal at " .. pos)
+    end
+
+    local function parse_array()
+        pos = pos + 1
+        local arr = {}
+        skip_ws()
+        if src:byte(pos) == 93 then pos = pos + 1; return arr end
+        while pos <= len do
+            skip_ws()
+            arr[#arr + 1] = parse_value()
+            skip_ws()
+            local c = src:byte(pos)
+            if c == 44 then pos = pos + 1
+            elseif c == 93 then pos = pos + 1; return arr
+            else error("expected , or ] at " .. pos) end
+        end
+        error("unterminated array")
+    end
+
+    local function parse_object()
+        pos = pos + 1
+        local obj = {}
+        skip_ws()
+        if src:byte(pos) == 125 then pos = pos + 1; return obj end
+        while pos <= len do
+            skip_ws()
+            local key = parse_string()
+            skip_ws()
+            if src:byte(pos) ~= 58 then error("expected : at " .. pos) end
+            pos = pos + 1
+            skip_ws()
+            obj[key] = parse_value()
+            skip_ws()
+            local c = src:byte(pos)
+            if c == 44 then pos = pos + 1
+            elseif c == 125 then pos = pos + 1; return obj
+            else error("expected , or } at " .. pos) end
+        end
+        error("unterminated object")
+    end
+
+    parse_value = function()
+        skip_ws()
+        local c = src:byte(pos)
+        if c == 123 then return parse_object()
+        elseif c == 91 then return parse_array()
+        elseif c == 34 then return parse_string()
+        elseif c == 116 then return parse_literal("true",  true)
+        elseif c == 102 then return parse_literal("false", false)
+        elseif c == 110 then return parse_literal("null",  nil)
+        elseif c == 45 or (c >= 48 and c <= 57) then return parse_number()
+        else error("unexpected char at " .. pos) end
+    end
+
+    local ok, result = pcall(parse_value)
+    if not ok then return nil end
+    return result
+end
+
+local _pure_lua_json = {
+    decode = _pure_lua_json_decode,
+    encode = function(v)
+        if v == nil then return "null"
+        elseif type(v) == "boolean" then return v and "true" or "false"
+        elseif type(v) == "number" then return tostring(v)
+        elseif type(v) == "string" then
+            return '"' .. v:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n') .. '"'
+        end
+        return "null"
+    end,
+}
+
 local cjson = (function()
     local ok, mod = pcall(require, "cjson.safe")
-    if ok and mod then return mod end
+    if ok and mod and type(mod.decode) == "function" then
+        logger:info("[AutoClaim] JSON backend: cjson.safe (native)")
+        return mod
+    end
     local ok2, mod2 = pcall(require, "cjson")
-    if ok2 and mod2 then return mod2 end
-    return { decode = function() return nil end, encode = function(v) return tostring(v) end }
+    if ok2 and mod2 and type(mod2.decode) == "function" then
+        logger:info("[AutoClaim] JSON backend: cjson (native)")
+        return mod2
+    end
+    logger:warn("[AutoClaim] cjson module unavailable, using pure-Lua JSON fallback")
+    return _pure_lua_json
 end)()
 local PLUGIN_DIR = debug.getinfo(1, "S").source:match("^@(.+)\\backend\\") or "."
 
@@ -44,10 +194,17 @@ local function write_file(path, content)
     f:write(content)
     f:flush()
     f:close()
-    local ok, err = os.rename(tmp, path)
+    os.remove(path)
+    local ok = os.rename(tmp, path)
     if not ok then
+        local f2 = io.open(path, "w")
+        if not f2 then
+            os.remove(tmp)
+            return false
+        end
+        f2:write(content)
+        f2:close()
         os.remove(tmp)
-        return false
     end
     return true
 end
