@@ -204,16 +204,19 @@ async function addViaShowStore(appid: number): Promise<boolean> {
     return false;
   }
 
-  for (let i = 0; i < 120; i++) {
-    await new Promise((r) => setTimeout(r, 500));
+  const SHOWSTORE_TIMEOUT_S = 25;
+  const POLL_MS = 500;
+  const polls = Math.floor((SHOWSTORE_TIMEOUT_S * 1000) / POLL_MS);
+  for (let i = 0; i < polls; i++) {
+    await new Promise((r) => setTimeout(r, POLL_MS));
     if (isAlreadyInLibrary(appid)) {
-      log(`[${appid}] detected in library after ${(i + 1) * 0.5}s`);
+      log(`[${appid}] detected in library after ${(i + 1) * POLL_MS / 1000}s`);
       await new Promise((r) => setTimeout(r, 1500));
       navigateBack(prevUrl);
       return true;
     }
   }
-  log(`[${appid}] ShowStore fallback timed out`);
+  log(`[${appid}] ShowStore fallback timed out after ${SHOWSTORE_TIMEOUT_S}s`);
   navigateBack(prevUrl);
   return false;
 }
