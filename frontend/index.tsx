@@ -76,6 +76,15 @@ const DEFAULTS: Settings = {
   notifyOnGrab:    true,
 };
 
+const MIN_POLL_INTERVAL_MIN = 30;
+
+function normalizeSettings(s: Settings): Settings {
+  const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
+    ? s.pollIntervalMin
+    : MIN_POLL_INTERVAL_MIN;
+  return { ...s, pollIntervalMin: poll };
+}
+
 const defaultWidget = (): WidgetSettings => ({
   panelSide:   'left',
   tabColor:    'gray',
@@ -257,7 +266,7 @@ const SettingsPanel: React.FC = () => {
     const boot = async () => {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
       let s: Settings = { ...DEFAULTS };
-      try { s = { ...DEFAULTS, ...JSON.parse(sRaw || '{}') }; } catch {}
+      try { s = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
       setSettings(s);
 
       let w: WidgetSettings = defaultWidget();
@@ -359,7 +368,7 @@ async function startPolling(): Promise<void> {
       withTimeout(loadSettings(), 3000, '{}'),
       withTimeout(loadGrabbed(),  3000, '[]'),
     ]);
-    try { settings = { ...DEFAULTS, ...JSON.parse(sRaw || '{}') }; } catch {}
+    try { settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
     try {
       const list: GrabbedEntry[] = JSON.parse(gRaw || '[]');
       grabbedSet = new Set(list.filter((e) => e.added !== false).map((e) => e.appid));
@@ -510,7 +519,7 @@ async function startPolling(): Promise<void> {
   _trackInterval(async () => {
     try {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
-      settings = { ...DEFAULTS, ...JSON.parse(sRaw || '{}') };
+      settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
     } catch {}
   }, 30000);
 
