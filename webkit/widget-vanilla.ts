@@ -1210,7 +1210,7 @@ function renderSettings(
           const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
           if (newGames.length > 0) {
             scanResult.style.color = '#55cc55';
-            scanResult.innerHTML = newGames.map(g => `• ${g.name}`).join('<br>');
+            scanResult.innerHTML = newGames.map(g => `• ${escapeHtml(g.name)}`).join('<br>');
           } else {
             scanResult.style.color = 'rgba(255,255,255,0.35)';
             scanResult.textContent = 'No new free games found.';
