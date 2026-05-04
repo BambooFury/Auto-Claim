@@ -15,6 +15,7 @@ interface PluginConfig {
   autoAdd: boolean;
   pollIntervalMin: number;
   notifyOnGrab: boolean;
+  hideOwned: boolean;
 }
 
 export const cfg: PluginConfig = {
@@ -26,6 +27,7 @@ export const cfg: PluginConfig = {
   autoAdd: true,
   pollIntervalMin: 30,
   notifyOnGrab: true,
+  hideOwned: false,
 };
 
 export let initialWidgetRaw = '';
@@ -49,6 +51,7 @@ function applyInto(target: PluginConfig, src: any): void {
     target.pollIntervalMin = src.pollIntervalMin < 30 ? 30 : src.pollIntervalMin;
   }
   if (typeof src.notifyOnGrab === 'boolean') target.notifyOnGrab = src.notifyOnGrab;
+  if (typeof src.hideOwned   === 'boolean') target.hideOwned    = src.hideOwned;
 }
 
 function loadFromLocalStorage(): void {
@@ -69,6 +72,7 @@ function snapshotForLocalStorage() {
     autoAdd:         cfg.autoAdd,
     pollIntervalMin: cfg.pollIntervalMin,
     notifyOnGrab:    cfg.notifyOnGrab,
+    hideOwned:       cfg.hideOwned,
   };
 }
 
@@ -87,6 +91,7 @@ function pluginOnlyPayload() {
     autoAdd:         cfg.autoAdd,
     pollIntervalMin: cfg.pollIntervalMin,
     notifyOnGrab:    cfg.notifyOnGrab,
+    hideOwned:       cfg.hideOwned,
   };
 }
 
