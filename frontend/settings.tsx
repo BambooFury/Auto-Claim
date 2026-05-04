@@ -229,8 +229,10 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange }) => {
     transition: 'transform 0.15s, box-shadow 0.15s',
   };
 
-  const ring = (_active: boolean): React.CSSProperties => ({
-    boxShadow: '0 0 0 1px rgba(255,255,255,0.15)',
+  const ring = (active: boolean): React.CSSProperties => ({
+    boxShadow: active
+      ? '0 0 0 2px rgba(255,255,255,0.45)'
+      : '0 0 0 1px rgba(255,255,255,0.15)',
   });
 
   const selectedPreset = COLOR_SWATCHES.find((s) => s.id === value);

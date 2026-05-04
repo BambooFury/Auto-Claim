@@ -76,6 +76,15 @@ const DEFAULTS: Settings = {
   notifyOnGrab:    true,
 };
 
+const MIN_POLL_INTERVAL_MIN = 30;
+
+function normalizeSettings(s: Settings): Settings {
+  const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
+    ? s.pollIntervalMin
+    : MIN_POLL_INTERVAL_MIN;
+  return { ...s, pollIntervalMin: poll };
+}
+
 const defaultWidget = (): WidgetSettings => ({
   panelSide:   'left',
   tabColor:    'gray',
@@ -257,7 +266,7 @@ const SettingsPanel: React.FC = () => {
     const boot = async () => {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
       let s: Settings = { ...DEFAULTS };
-      try { s = { ...DEFAULTS, ...JSON.parse(sRaw || '{}') }; } catch {}
+      try { s = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
       setSettings(s);
 
       let w: WidgetSettings = defaultWidget();
@@ -299,10 +308,17 @@ const SettingsPanel: React.FC = () => {
   );
 };
 
-const SCAN_NAME_BLOCKLIST = [
-  'skin pack', 'dlc', 'soundtrack', 'ost',
-  'bundle', 'pack', 'costume', 'outfit',
-  'weapon skin', 'character skin',
+const SCAN_NAME_BLOCKLIST: RegExp[] = [
+  /\bskin pack\b/,
+  /\bdlc\b/,
+  /\bsoundtrack\b/,
+  /\bost\b/,
+  /\bbundle\b/,
+  /\bpack\b/,
+  /\bcostume\b/,
+  /\boutfit\b/,
+  /\bweapon skin\b/,
+  /\bcharacter skin\b/,
 ];
 
 async function waitForSteamReady(): Promise<void> {
@@ -345,13 +361,14 @@ async function startPolling(): Promise<void> {
 
   let settings: Settings = { ...DEFAULTS };
   let grabbedSet = new Set<number>();
+  const skipLogged = new Set<number>();
 
   async function reloadState(): Promise<void> {
     const [sRaw, gRaw] = await Promise.all([
       withTimeout(loadSettings(), 3000, '{}'),
       withTimeout(loadGrabbed(),  3000, '[]'),
     ]);
-    try { settings = { ...DEFAULTS, ...JSON.parse(sRaw || '{}') }; } catch {}
+    try { settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
     try {
       const list: GrabbedEntry[] = JSON.parse(gRaw || '[]');
       grabbedSet = new Set(list.filter((e) => e.added !== false).map((e) => e.appid));
@@ -385,24 +402,33 @@ async function startPolling(): Promise<void> {
 
   function shouldSkipByName(name: string): boolean {
     const lower = name.toLowerCase();
-    return SCAN_NAME_BLOCKLIST.some((kw) => lower.includes(kw));
+    return SCAN_NAME_BLOCKLIST.some((re) => re.test(lower));
   }
 
   async function processGame(game: FreeGame): Promise<void> {
     try {
       if (grabbedSet.has(game.appid)) {
-        log(`${game.name} — already grabbed, skipping`);
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — already grabbed, skipping`);
+        }
         return;
       }
 
       if (isAlreadyInLibrary(game.appid)) {
-        log(`${game.name} — already in library, skipping`);
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — already in library, skipping`);
+        }
         grabbedSet.add(game.appid);
         return;
       }
 
       if (shouldSkipByName(game.name)) {
-        log(`${game.name} — skipping (DLC/pack detected by name)`);
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — skipping (DLC/pack detected by name)`);
+        }
         grabbedSet.add(game.appid);
         return;
       }
@@ -470,20 +496,32 @@ async function startPolling(): Promise<void> {
     }
   };
 
-  let lastScanSeq = '';
+  let lastScanSeq = 0;
   try {
-    lastScanSeq = await withTimeout(popScanRequest(), 2000, '0');
-  } catch { lastScanSeq = '0'; }
+    lastScanSeq = parseInt(await withTimeout(popScanRequest(), 2000, '0'), 10) || 0;
+  } catch { lastScanSeq = 0; }
 
   _trackInterval(async () => {
     try {
-      const seq = await withTimeout(popScanRequest(), 2000, lastScanSeq);
-      if (seq && seq !== lastScanSeq) {
-        lastScanSeq = seq;
+      const raw = await withTimeout(popScanRequest(), 2000, String(lastScanSeq));
+      const cur = parseInt(raw, 10) || 0;
+      if (cur < lastScanSeq) {
+        lastScanSeq = cur;
+        return;
+      }
+      if (cur > lastScanSeq) {
+        lastScanSeq = cur;
         void triggerScan('user requested');
       }
     } catch {}
   }, 3000);
+
+  _trackInterval(async () => {
+    try {
+      const sRaw = await withTimeout(loadSettings(), 3000, '{}');
+      settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
+    } catch {}
+  }, 30000);
 
   const scheduleNext = (retryDelay?: number) => {
     const interval = retryDelay ?? (settings.pollIntervalMin || 30) * 60 * 1000;

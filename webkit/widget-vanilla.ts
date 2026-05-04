@@ -15,6 +15,14 @@ const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+}
+
 function colorWithAlpha(color: string, alpha: number): string {
   const m = color.match(/^rgba?\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/i);
   if (m) return `rgba(${m[1]},${m[2]},${m[3]},${alpha})`;
@@ -229,6 +237,7 @@ export function injectVanillaWidget(): void {
   let claimDone  = 0;
   let claimTotal = 0;
   let ownedSet  = new Set<number>();
+  let refreshing = false;
 
   const $ = <T extends Element = HTMLElement>(sel: string) =>
     panel.querySelector(sel) as T | null;
@@ -276,8 +285,7 @@ export function injectVanillaWidget(): void {
       if (result.ok) {
         ownedSet.add(g.appid);
         if (cfg.notifyOnGrab) {
-          const safe = g.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-          pushToastIPC({ payload: `{"appid":${g.appid},"name":"${safe}"}` })
+          pushToastIPC({ payload: JSON.stringify({ appid: g.appid, name: g.name }) })
             .catch(() => {});
         }
       } else if (result.reason === 'session expired' || result.reason === 'no sessionid') {
@@ -297,7 +305,8 @@ export function injectVanillaWidget(): void {
   }
 
   async function softRefresh() {
-    if (busyClaim) return;
+    if (busyClaim || refreshing) return;
+    refreshing = true;
     try {
       const raw = await loadFreeGamesCacheIPC();
       const next: FreeGame[] = JSON.parse(raw || '[]');
@@ -314,10 +323,13 @@ export function injectVanillaWidget(): void {
 
       if (opened && activeTab === 'games') render();
       if (cfg.autoAdd && next.length > 0) void runAutoClaim();
-    } catch {}
+    } catch {} finally {
+      refreshing = false;
+    }
   }
 
   function render() {
+    const minimalDark = isMinimalDark();
     gamesTabBtn.classList.toggle('active', activeTab === 'games');
     setsTabBtn .classList.toggle('active', activeTab === 'settings');
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
@@ -351,10 +363,10 @@ export function injectVanillaWidget(): void {
       }
     }
 
-    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid, isMinimalDark());
-    else                       renderSettings(bodyEl, render, persistAndRefresh, isMinimalDark(), games);
+    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid, minimalDark);
+    else                       renderSettings(bodyEl, render, persistAndRefresh, minimalDark, games);
 
-    if (isMinimalDark()) {
+    if (minimalDark) {
       const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
       tabIndicator.style.setProperty('background', accent, 'important');
       tabIndicator.style.setProperty('box-shadow', `0 0 8px ${accent}`, 'important');
@@ -493,6 +505,7 @@ export function injectVanillaWidget(): void {
 
   let lastWidgetJson = initialWidgetRaw;
   const settingsPoll = setInterval(() => {
+    if (!opened) return;
     loadWidgetSettingsIPC()
       .then((raw) => {
         if (raw === lastWidgetJson) return;
@@ -798,9 +811,6 @@ const PANEL_CSS = `
   .fgg-action-btn.busy .fgg-action-icon {
     animation: fgg-spin 1s linear infinite;
   }
-  @keyframes fgg-spin {
-    to { transform: rotate(360deg); }
-  }
   .fgg-header {
     padding: 14px 16px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -968,7 +978,11 @@ function renderGames(
     return;
   }
 
-  bodyEl.innerHTML = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
+  const cardsHtml = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
+  const overflowHtml = visibleGames.length > 8
+    ? `<div class="fgg-empty-desc" style="text-align:center;padding:6px 0 2px;">+${visibleGames.length - 8} more not shown</div>`
+    : '';
+  bodyEl.innerHTML = cardsHtml + overflowHtml;
 
   bodyEl.querySelectorAll<HTMLElement>('.fgg-card').forEach((card) => {
     const owned = card.classList.contains('owned');
@@ -999,6 +1013,14 @@ function renderGames(
       const id = el.getAttribute('data-open-app');
       if (id) location.href = `https://store.steampowered.com/app/${id}/`;
     });
+  });
+
+  bodyEl.querySelectorAll<HTMLImageElement>('img[data-fallback-src]').forEach((img) => {
+    img.addEventListener('error', () => {
+      const fb = img.getAttribute('data-fallback-src');
+      img.removeAttribute('data-fallback-src');
+      if (fb) img.src = fb;
+    }, { once: true });
   });
 }
 
@@ -1043,13 +1065,13 @@ function buildCard(
   return `
     <div class="${cls}" data-owned="${owned ? 1 : 0}" data-claiming="${isClaim ? 1 : 0}" style="${vars.join(';')}">
       <div class="fgg-card-frame">
-        <img class="fgg-card-bg" src="${heroSrc}" onerror="this.onerror=null;this.src='${heroBack}'"/>
+        <img class="fgg-card-bg" src="${heroSrc}" data-fallback-src="${heroBack}"/>
         <div class="fgg-card-overlay"></div>
         <div class="fgg-card-accent"></div>
         <div class="fgg-card-content">
           <img class="fgg-card-thumb" src="${headerSrc}"/>
           <div class="fgg-card-text">
-            <div class="fgg-card-name">${g.name}</div>
+            <div class="fgg-card-name">${escapeHtml(g.name)}</div>
             <div class="fgg-card-status">
               <span class="fgg-card-dot"></span>
               ${status}
@@ -1202,7 +1224,7 @@ function renderSettings(
           const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
           if (newGames.length > 0) {
             scanResult.style.color = '#55cc55';
-            scanResult.innerHTML = newGames.map(g => `• ${g.name}`).join('<br>');
+            scanResult.innerHTML = newGames.map(g => `• ${escapeHtml(g.name)}`).join('<br>');
           } else {
             scanResult.style.color = 'rgba(255,255,255,0.35)';
             scanResult.textContent = 'No new free games found.';

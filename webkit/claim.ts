@@ -3,7 +3,6 @@ const SUBID_PATTERNS: RegExp[] = [
   /id="add_to_cart_submit_(\d+)"/,
   /name="subid"\s+value="(\d+)"/,
   /data-ds-packageid="(\d+)"[^>]*>[^<]*Free/i,
-  /data-ds-packageid="(\d+)"/,
 ];
 
 export interface ClaimResult {

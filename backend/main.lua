@@ -3,6 +3,25 @@ local millennium = require("millennium")
 local http       = require("http")
 local _PURE_LUA_JSON_NULL = {}
 
+local function _cp_to_utf8(code)
+    if code < 0x80 then
+        return string.char(code)
+    elseif code < 0x800 then
+        return string.char(0xC0 + math.floor(code/0x40), 0x80 + (code%0x40))
+    elseif code < 0x10000 then
+        return string.char(
+            0xE0 + math.floor(code/0x1000),
+            0x80 + (math.floor(code/0x40) % 0x40),
+            0x80 + (code % 0x40))
+    else
+        return string.char(
+            0xF0 + math.floor(code/0x40000),
+            0x80 + (math.floor(code/0x1000) % 0x40),
+            0x80 + (math.floor(code/0x40) % 0x40),
+            0x80 + (code % 0x40))
+    end
+end
+
 local function _pure_lua_json_decode(src)
     if type(src) ~= "string" then return nil end
     local pos, len = 1, #src
@@ -36,17 +55,16 @@ local function _pure_lua_json_decode(src)
                 elseif esc == 116 then out[#out+1] = '\t'; pos = pos + 2
                 elseif esc == 117 then
                     local code = tonumber(src:sub(pos + 2, pos + 5), 16) or 0
-                    if code < 0x80 then
-                        out[#out+1] = string.char(code)
-                    elseif code < 0x800 then
-                        out[#out+1] = string.char(0xC0 + math.floor(code/0x40), 0x80 + (code%0x40))
-                    else
-                        out[#out+1] = string.char(
-                            0xE0 + math.floor(code/0x1000),
-                            0x80 + (math.floor(code/0x40) % 0x40),
-                            0x80 + (code % 0x40))
-                    end
                     pos = pos + 6
+                    if code >= 0xD800 and code <= 0xDBFF
+                        and src:byte(pos) == 92 and src:byte(pos + 1) == 117 then
+                        local low = tonumber(src:sub(pos + 2, pos + 5), 16) or 0
+                        if low >= 0xDC00 and low <= 0xDFFF then
+                            code = (code - 0xD800) * 0x400 + (low - 0xDC00) + 0x10000
+                            pos = pos + 6
+                        end
+                    end
+                    out[#out+1] = _cp_to_utf8(code)
                 else
                     out[#out+1] = string.char(esc); pos = pos + 2
                 end
@@ -172,6 +190,25 @@ local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
 local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
 local CLAIM_URL      = STORE_HOST .. "/checkout/addfreelicense"
 
+local function _urlencode(s)
+    return (s:gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", c:byte())
+    end))
+end
+
+local function _json_escape_string(s)
+    s = s:gsub('\\', '\\\\')
+         :gsub('"', '\\"')
+         :gsub('\n', '\\n')
+         :gsub('\r', '\\r')
+         :gsub('\t', '\\t')
+         :gsub('\b', '\\b')
+         :gsub('\f', '\\f')
+    return (s:gsub('[%z\1-\31]', function(c)
+        return string.format('\\u%04x', c:byte())
+    end))
+end
+
 local function read_file(path)
     local f = io.open(path, "r")
     if not f then return nil end
@@ -187,24 +224,33 @@ local function write_file(path, content)
     f:write(content)
     f:flush()
     f:close()
+
+    if os.rename(tmp, path) then return true end
+
     os.remove(path)
-    local ok = os.rename(tmp, path)
-    if not ok then
-        local f2 = io.open(path, "w")
-        if not f2 then
-            os.remove(tmp)
-            return false
-        end
-        f2:write(content)
-        f2:close()
-        os.remove(tmp)
+    if os.rename(tmp, path) then return true end
+
+    local f2 = io.open(path, "w")
+    if not f2 then
+        return false
     end
+    f2:write(content)
+    f2:close()
+    os.remove(tmp)
     return true
 end
 
+local _MAX_IPC_PAYLOAD = 2 * 1024 * 1024
+
 local function extract_payload(data)
-    if type(data) == "table" then return data.payload end
-    return data
+    local payload
+    if type(data) == "table" then payload = data.payload
+    else payload = data end
+    if type(payload) == "string" and #payload > _MAX_IPC_PAYLOAD then
+        logger:info("[AutoClaim] dropped oversized IPC payload (" .. #payload .. " bytes)")
+        return nil
+    end
+    return payload
 end
 
 function load_grabbed_ipc()
@@ -247,6 +293,8 @@ end
 function save_cookies_ipc(data)
     local payload = extract_payload(data)
     if not payload or payload == "" then return 0 end
+    local ok, parsed = pcall(cjson.decode, payload)
+    if not ok or type(parsed) ~= "table" then return 0 end
     write_file(COOKIES_FILE, payload)
     return 1
 end
@@ -287,7 +335,30 @@ function push_toast_ipc(data)
     return 1
 end
 
+local function _merge_toast_arrays(a, b)
+    a = (a or ""):gsub("%s+$", "")
+    b = (b or ""):gsub("%s+$", "")
+    if a == "" or a == "[]" then return b ~= "" and b or "[]" end
+    if b == "" or b == "[]" then return a end
+    return a:sub(1, -2) .. "," .. b:sub(2)
+end
+
 function pop_toasts_ipc()
+    local stash = TOASTS_FILE .. ".popping"
+
+    local orphan = read_file(stash)
+    if orphan then os.remove(stash) end
+
+    if os.rename(TOASTS_FILE, stash) then
+        local raw = read_file(stash) or "[]"
+        os.remove(stash)
+        return _merge_toast_arrays(orphan, raw)
+    end
+
+    if orphan and orphan ~= "" then
+        return orphan
+    end
+
     local raw = read_file(TOASTS_FILE) or "[]"
     os.remove(TOASTS_FILE)
     return raw
@@ -377,10 +448,7 @@ end
 local function _extract_subid_from_appdetails(body)
     local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
     if not subid then
-        subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^}]-"price_in_cents_with_discount"%s*:%s*0')
-    end
-    if not subid then
-        subid = body:match('"packages"%s*:%s*%[%s*(%d+)')
+        subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^{}]-"price_in_cents_with_discount"%s*:%s*0')
     end
     return subid
 end
@@ -477,7 +545,10 @@ function fetch_free_games_backend()
         if res and res.status == 200 then
             local ok, data = pcall(cjson.decode, res.body)
             if ok and type(data) == "table" then
+                local processed = 0
                 for _, entry in ipairs(data) do
+                    if processed >= 20 then break end
+                    processed = processed + 1
                     local raw_title = type(entry.title) == "string" and entry.title or ""
                     local clean = raw_title
                         :gsub(" %(Steam%) [%w%s]+ Giveaway$", "")
@@ -486,7 +557,7 @@ function fetch_free_games_backend()
                         :gsub(" Giveaway$", "")
                     if clean and clean ~= "" then
                         local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
-                            clean:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
+                            _urlencode(clean) .. "&l=english&cc=us"
                         local sres = http.get(search_url, { timeout = 10 })
                         if sres and sres.status == 200 then
                             local sok, sdata = pcall(cjson.decode, sres.body)
@@ -513,32 +584,36 @@ function fetch_free_games_backend()
 
     local games_only = {}
     for _, g in ipairs(found) do
-        if g.from_gamerpower then
-            games_only[#games_only + 1] = g
-        else
-            local verify_cc = g.cc or "us"
-            local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
-            if dres and dres.status == 200 then
-                local dok, ddata = pcall(cjson.decode, dres.body)
-                local app_type = nil
-                if dok and type(ddata) == "table" then
-                    local entry = ddata[tostring(g.appid)]
-                    if entry and entry.data then
-                        app_type = entry.data.type
+        local verify_cc = g.cc or "us"
+        local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
+        local accepted = false
+        if dres and dres.status == 200 then
+            local dok, ddata = pcall(cjson.decode, dres.body)
+            if dok and type(ddata) == "table" then
+                local entry = ddata[tostring(g.appid)]
+                if entry and entry.data then
+                    local app_type = entry.data.type
+                    local is_free  = entry.data.is_free == true
+                    local price_final = nil
+                    if entry.data.price_overview and type(entry.data.price_overview.final) == "number" then
+                        price_final = entry.data.price_overview.final
+                    end
+                    if app_type == "game" and (is_free or price_final == 0) then
+                        accepted = true
                     end
                 end
-                if app_type == "game" then
-                    games_only[#games_only + 1] = g
-                end
-            else
-                games_only[#games_only + 1] = g
             end
+        elseif not g.from_gamerpower then
+            accepted = true
+        end
+        if accepted then
+            games_only[#games_only + 1] = g
         end
     end
 
     local chunks = {}
     for _, g in ipairs(games_only) do
-        local safe = g.name:gsub('\\', '\\\\'):gsub('"', '\\"')
+        local safe = _json_escape_string(g.name)
         chunks[#chunks + 1] = '{"appid":' .. g.appid .. ',"name":"' .. safe .. '"}'
     end
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
