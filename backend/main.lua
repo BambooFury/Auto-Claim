@@ -385,9 +385,17 @@ function pop_scan_request_ipc()
     return tostring(_G.__autoclaim_scan_seq or 0)
 end
 
+local _cookie_cache = { ts = 0, raw_hash = "", header = "", sid = "" }
+local _COOKIE_CACHE_TTL = 30
+
 local function load_cookie_header()
+    local now = os.time()
     local raw = read_file(COOKIES_FILE)
     if not raw then return "", "" end
+
+    if _cookie_cache.raw_hash == raw and now - _cookie_cache.ts < _COOKIE_CACHE_TTL then
+        return _cookie_cache.header, _cookie_cache.sid
+    end
 
     local ok, data = pcall(cjson.decode, raw)
     if not ok or type(data) ~= "table" then return "", "" end
@@ -401,7 +409,12 @@ local function load_cookie_header()
         end
     end
 
-    return table.concat(pairs_list, "; "), sid
+    local header = table.concat(pairs_list, "; ")
+    _cookie_cache.ts       = now
+    _cookie_cache.raw_hash = raw
+    _cookie_cache.header   = header
+    _cookie_cache.sid      = sid
+    return header, sid
 end
 
 function log_plugin(data)
