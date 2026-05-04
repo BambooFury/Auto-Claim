@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.3.5](https://github.com/BambooFury/Auto-Claim/compare/v1.3.4...v1.3.5) (2026-05-04)
+
+
+### Bug Fixes
+
+* **backend:** make pop_toasts_ipc atomic against concurrent push ([149f1a1](https://github.com/BambooFury/Auto-Claim/commit/149f1a1dc3d1475511dbeca58ea7706b64e6b83d))
+* **backend:** parse addfreelicense response as JSON instead of substring matching ([fda6501](https://github.com/BambooFury/Auto-Claim/commit/fda65018d1936c7131a3c236f59d0efece4a86e4))
+* **backend:** rewrite _extract_subid_from_appdetails via JSON walk ([3cd8734](https://github.com/BambooFury/Auto-Claim/commit/3cd87346fe3030aae90829545a5618f20a1f6214))
+* **backend:** validate JSON shape in save_*_ipc handlers ([cebc33e](https://github.com/BambooFury/Auto-Claim/commit/cebc33ed5ecd82c196a739e66059bdb7f78711dd))
+* **frontend:** narrow SCAN_NAME_BLOCKLIST so real games are not skipped ([afcf637](https://github.com/BambooFury/Auto-Claim/commit/afcf63770afbe5fc1542d1ec05cbb3bd6e364af3))
+* **frontend:** reduce false positives in isAlreadyInLibrary ([5b15db1](https://github.com/BambooFury/Auto-Claim/commit/5b15db1a8f168f213b89b1c031d5aa07aeb8036d))
+* **plugin:** per-appid cross-process claim lock to avoid duplicate claims ([6af167f](https://github.com/BambooFury/Auto-Claim/commit/6af167ff0c2e1c7c1c5d8ae79057675b3a5e79a7))
+* **webkit:** drop install/play tokens from BTN_KEYWORDS (per Codex review) ([34632f6](https://github.com/BambooFury/Auto-Claim/commit/34632f6af7e258af31f45c83eff0d85de81cdddc))
+* **webkit:** drop loose data-ds-packageid regex that could match paid subs ([4f3e1b5](https://github.com/BambooFury/Auto-Claim/commit/4f3e1b5637ddfd74b31882525661fce2265282e1))
+* **webkit:** require steamLoginSecure before persisting cookies ([4e4ed28](https://github.com/BambooFury/Auto-Claim/commit/4e4ed28fd0ae6a853b260790ad55f406db808794))
+* **webkit:** tighten BTN_KEYWORDS to avoid clicking paid buttons ([9adc68d](https://github.com/BambooFury/Auto-Claim/commit/9adc68d6f96d6a649dc8521ecde1a5f425a8ec84))
+* **webkit:** tighten BTN_KEYWORDS to avoid clicking paid buttons ([e427d69](https://github.com/BambooFury/Auto-Claim/commit/e427d69190a9a3e2fc93308f400c94e5faef1cb8))
+* **welcome-modal:** remove keydown listener on page unload ([12f470d](https://github.com/BambooFury/Auto-Claim/commit/12f470d9cbf7d08e97baf7d92beb3b311d8d9d29))
+* **widget:** include game name when checking cache change in softRefresh ([1a15cfc](https://github.com/BambooFury/Auto-Claim/commit/1a15cfcfde675259b16f099d2b59779d665f9c7c))
+* **widget:** poll cache for scan result instead of hardcoded 8s wait ([b82ea82](https://github.com/BambooFury/Auto-Claim/commit/b82ea82830d0cd6170ebb23e7e2158446f4731a0))
+* **widget:** re-check ownership before each claim attempt ([ac03265](https://github.com/BambooFury/Auto-Claim/commit/ac03265172f0d5c6c29330fe5825a5dee7622c11))
+* **widget:** use backend scan_done counter to detect Scan now completion ([08c3f8d](https://github.com/BambooFury/Auto-Claim/commit/08c3f8d57026a5e852aff96945b30efc4cfdba64))
+
+
+### Performance
+
+* **backend:** cut SEARCH_REGIONS to us/de/tr and bump frontend scan timeout to 60s ([a4601db](https://github.com/BambooFury/Auto-Claim/commit/a4601db4119b80d162d6adc7101a2a8f668d437d))
+* **backend:** memoize load_cookie_header for 30s ([8533fd2](https://github.com/BambooFury/Auto-Claim/commit/8533fd2bc3c0f3c8f83148463882094c3b4e3c9c))
+* **frontend:** cap addViaShowStore wait at 25s instead of 60s ([c0aa2f8](https://github.com/BambooFury/Auto-Claim/commit/c0aa2f81b16b1839a12806c23f9cb01807a74a05))
+* **frontend:** reduce ShowStore attempts and use exponential backoff ([3271526](https://github.com/BambooFury/Auto-Claim/commit/327152672f9889070d7a3d56ca3ea4e04a633513))
+* **webkit:** cache cookie payload in localStorage to dedupe across tabs ([954bdcb](https://github.com/BambooFury/Auto-Claim/commit/954bdcb44d713dab9360387c9ed1548cf8d6bf52))
+* **widget:** skip cache poll while panel is closed ([6800ea5](https://github.com/BambooFury/Auto-Claim/commit/6800ea5f8ab185585fabca907adcc7ecf2a275f0))
+
+
+### Refactoring
+
+* **frontend:** extract MIN_POLL_INTERVAL_MIN and option list to constants module ([b5a4c05](https://github.com/BambooFury/Auto-Claim/commit/b5a4c059e1553fcd9580eb5c001c4757913d4529))
+
+
+### Documentation
+
+* update example screenshot ([c78dddb](https://github.com/BambooFury/Auto-Claim/commit/c78dddbafaee13eb33ffd5f5c63e3f499b3c69f6))
+
 ## [1.3.4](https://github.com/BambooFury/Auto-Claim/compare/v1.3.3...v1.3.4) (2026-05-04)
 
 
