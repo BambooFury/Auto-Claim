@@ -189,14 +189,16 @@ async function addViaShowStore(appid: number): Promise<boolean> {
   try { await setPendingClaim({ payload: String(appid) }); } catch {}
 
   let opened = false;
-  for (let attempt = 0; attempt < 6 && !opened; attempt++) {
+  const SHOWSTORE_ATTEMPTS = 3;
+  for (let attempt = 0; attempt < SHOWSTORE_ATTEMPTS && !opened; attempt++) {
     try {
       sc.Apps.ShowStore(appid, 0);
       opened = true;
       log(`[${appid}] ShowStore opened (attempt ${attempt + 1})`);
     } catch (e) {
       log(`[${appid}] ShowStore attempt ${attempt + 1} failed: ${String(e)}`);
-      await new Promise((r) => setTimeout(r, 5000));
+      const backoff = 1000 * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, backoff));
     }
   }
 
