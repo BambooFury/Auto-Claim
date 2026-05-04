@@ -299,10 +299,17 @@ const SettingsPanel: React.FC = () => {
   );
 };
 
-const SCAN_NAME_BLOCKLIST = [
-  'skin pack', 'dlc', 'soundtrack', 'ost',
-  'bundle', 'pack', 'costume', 'outfit',
-  'weapon skin', 'character skin',
+const SCAN_NAME_BLOCKLIST: RegExp[] = [
+  /\bskin pack\b/,
+  /\bdlc\b/,
+  /\bsoundtrack\b/,
+  /\bost\b/,
+  /\bbundle\b/,
+  /\bpack\b/,
+  /\bcostume\b/,
+  /\boutfit\b/,
+  /\bweapon skin\b/,
+  /\bcharacter skin\b/,
 ];
 
 async function waitForSteamReady(): Promise<void> {
@@ -385,7 +392,7 @@ async function startPolling(): Promise<void> {
 
   function shouldSkipByName(name: string): boolean {
     const lower = name.toLowerCase();
-    return SCAN_NAME_BLOCKLIST.some((kw) => lower.includes(kw));
+    return SCAN_NAME_BLOCKLIST.some((re) => re.test(lower));
   }
 
   async function processGame(game: FreeGame): Promise<void> {
