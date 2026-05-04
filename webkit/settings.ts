@@ -107,7 +107,8 @@ export function saveSettings(): void {
     .then((raw) => {
       let existing: any = {};
       try { existing = JSON.parse(raw || '{}'); } catch {}
-      const merged = Object.assign({}, existing, pluginOnlyPayload());
+      const merged: any = Object.assign({}, existing, pluginOnlyPayload());
+      delete merged.notifyOnly;
       return savePluginSettingsIPC({ payload: JSON.stringify(merged) });
     })
     .catch(() => {});
