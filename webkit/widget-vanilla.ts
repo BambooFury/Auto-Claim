@@ -94,69 +94,6 @@ export function injectVanillaWidget(): void {
 
   while (_fggIntervals.length) clearInterval(_fggIntervals.pop()!);
 
-  function isMinimalDark(): boolean {
-    try {
-      const bg = getComputedStyle(document.body).backgroundColor;
-      return bg === 'rgb(18, 18, 18)';
-    } catch {
-      return false;
-    }
-  }
-
-  function injectMinimalDarkPatch(): void {
-    if (!isMinimalDark()) return;
-    if (document.getElementById('fgg-md-patch')) return;
-    const s = document.createElement('style');
-    s.id = 'fgg-md-patch';
-    s.textContent = `
-      /* Minimal Dark theme patch — active tab underline */
-      #fgg-tab-indicator {
-        background: rgba(255,255,255,0.9) !important;
-        box-shadow: 0 0 6px rgba(255,255,255,0.2) !important;
-      }
-      /* Active tab text */
-      .fgg-tab.active { color: #fff !important; }
-
-      /* Owned card — green left accent stripe */
-      .fgg-card.owned .fgg-card-accent {
-        background: rgba(85,204,85,0.25) !important;
-      }
-      /* Owned card — subtle green bg tint */
-      .fgg-card.owned {
-        background: rgba(85,204,85,0.03) !important;
-        border-color: rgba(85,204,85,0.10) !important;
-      }
-
-      /* Toggle — fix knob centering and size */
-      .fgg-toggle {
-        width: 44px !important;
-        height: 24px !important;
-        border-radius: 6px !important;
-        position: relative !important;
-      }
-      .fgg-toggle-knob {
-        position: absolute !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        width: 14px !important;
-        height: 14px !important;
-        border-radius: 3px !important;
-        background: white !important;
-        left: 5px !important;
-        transition: left 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
-      }
-      .fgg-toggle.on .fgg-toggle-knob {
-        left: 25px !important;
-      }
-
-      /* Welcome modal — green hero background */
-      .fgg-welcome-hero {
-        background: radial-gradient(ellipse at top, rgba(85,204,85,0.12) 0%, transparent 60%) !important;
-      }
-    `;
-    document.head.appendChild(s);
-  }
-
   let palette  = getTabColor(cfg.tabColor);
   let isLeft   = cfg.panelSide === 'left';
   let geom     = tabSize(cfg.tabStyle);
@@ -329,7 +266,6 @@ export function injectVanillaWidget(): void {
   }
 
   function render() {
-    const minimalDark = isMinimalDark();
     gamesTabBtn.classList.toggle('active', activeTab === 'games');
     setsTabBtn .classList.toggle('active', activeTab === 'settings');
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
@@ -363,33 +299,8 @@ export function injectVanillaWidget(): void {
       }
     }
 
-    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid, minimalDark);
-    else                       renderSettings(bodyEl, render, persistAndRefresh, minimalDark, games);
-
-    if (minimalDark) {
-      const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
-      tabIndicator.style.setProperty('background', accent, 'important');
-      tabIndicator.style.setProperty('box-shadow', `0 0 8px ${accent}`, 'important');
-
-      panel.querySelectorAll<HTMLElement>('.fgg-toggle.on').forEach((el) => {
-        el.style.setProperty('background', 'linear-gradient(135deg,#55cc55,#2a8a2a)', 'important');
-      });
-      panel.querySelectorAll<HTMLElement>('.fgg-toggle:not(.on)').forEach((el) => {
-        el.style.setProperty('background', 'rgba(255,255,255,0.12)', 'important');
-      });
-      panel.querySelectorAll<HTMLElement>('.fgg-toggle-knob').forEach((el) => {
-        el.style.setProperty('top', '50%', 'important');
-        el.style.setProperty('transform', 'translateY(-50%)', 'important');
-        el.style.setProperty('border-radius', '3px', 'important');
-        el.style.setProperty('width', '14px', 'important');
-        el.style.setProperty('height', '14px', 'important');
-      });
-      panel.querySelectorAll<HTMLElement>('.fgg-toggle').forEach((el) => {
-        el.style.setProperty('border-radius', '6px', 'important');
-        el.style.setProperty('height', '24px', 'important');
-        el.style.setProperty('width', '44px', 'important');
-      });
-    }
+    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
+    else                       renderSettings(bodyEl, render, persistAndRefresh, games);
   }
 
   gamesTabBtn.addEventListener('click', () => { activeTab = 'games';    render(); });
@@ -500,8 +411,6 @@ export function injectVanillaWidget(): void {
   root.appendChild(deadZone);
   root.appendChild(tabBtn);
   document.body.appendChild(root);
-
-  injectMinimalDarkPatch();
 
   let lastWidgetJson = initialWidgetRaw;
   const settingsPoll = setInterval(() => {
@@ -950,7 +859,6 @@ function renderGames(
   ownedSet: Set<number>,
   claiming: boolean,
   claimingAppid: number,
-  minimalDark = false,
 ): void {
   if (games.length === 0) {
     bodyEl.innerHTML = `
@@ -988,23 +896,13 @@ function renderGames(
     const owned = card.classList.contains('owned');
     card.addEventListener('mouseenter', () => {
       card.style.transform = 'translateY(-1px)';
-      if (minimalDark) {
-        card.style.setProperty('border-color', owned ? 'rgba(85,204,85,0.22)' : 'rgba(255,255,255,0.22)', 'important');
-        card.style.setProperty('box-shadow', owned ? '0 4px 14px rgba(85,204,85,0.08)' : '0 6px 18px rgba(0,0,0,0.4)', 'important');
-      } else {
-        card.style.borderColor = 'rgba(255,255,255,0.18)';
-        card.style.boxShadow   = '0 6px 18px rgba(0,0,0,0.4)';
-      }
+      card.style.borderColor = 'rgba(255,255,255,0.18)';
+      card.style.boxShadow   = '0 6px 18px rgba(0,0,0,0.4)';
     });
     card.addEventListener('mouseleave', () => {
       card.style.transform = '';
-      if (minimalDark) {
-        card.style.setProperty('border-color', owned ? 'rgba(85,204,85,0.10)' : 'rgba(255,255,255,0.08)', 'important');
-        card.style.removeProperty('box-shadow');
-      } else {
-        card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'rgba(255,255,255,0.08)';
-        card.style.boxShadow   = '';
-      }
+      card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'rgba(255,255,255,0.08)';
+      card.style.boxShadow   = '';
     });
   });
 
@@ -1088,7 +986,6 @@ function renderSettings(
   bodyEl: HTMLElement,
   rerender: () => void,
   persistAndRefresh: () => void,
-  minimalDark = false,
   lastGames: FreeGame[] = [],
 ): void {
   const toggleHtml = (id: string, value: boolean) =>
@@ -1155,11 +1052,6 @@ function renderSettings(
   function animateToggle(btn: HTMLButtonElement, on: boolean) {
     btn.classList.toggle('on', on);
     btn.setAttribute('data-fgg-on', on ? '1' : '0');
-    if (minimalDark) {
-      btn.style.setProperty('background',
-        on ? 'linear-gradient(135deg,#55cc55,#2a8a2a)' : 'rgba(255,255,255,0.12)',
-        'important');
-    }
   }
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-autoadd')?.addEventListener('click', (e) => {
