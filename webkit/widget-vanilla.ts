@@ -15,6 +15,14 @@ const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+}
+
 function colorWithAlpha(color: string, alpha: number): string {
   const m = color.match(/^rgba?\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/i);
   if (m) return `rgba(${m[1]},${m[2]},${m[3]},${alpha})`;
@@ -1049,7 +1057,7 @@ function buildCard(
         <div class="fgg-card-content">
           <img class="fgg-card-thumb" src="${headerSrc}"/>
           <div class="fgg-card-text">
-            <div class="fgg-card-name">${g.name}</div>
+            <div class="fgg-card-name">${escapeHtml(g.name)}</div>
             <div class="fgg-card-status">
               <span class="fgg-card-dot"></span>
               ${status}
