@@ -114,8 +114,19 @@ const HEADER_URL = (id: number) =>
 
 function isAlreadyInLibrary(appid: number): boolean {
   try {
-    const ov = (window as any).appStore?.GetAppOverviewByAppID?.(appid);
-    return !!(ov && ov.local_per_client_data);
+    const store = (window as any).appStore;
+    const ov = store?.GetAppOverviewByAppID?.(appid);
+    if (!ov) return false;
+    if (ov.installed === true) return true;
+    const lpcd = ov.local_per_client_data;
+    if (lpcd && (lpcd.installed === true || lpcd.is_owned === true)) return true;
+    const apps = store?.allApps;
+    if (Array.isArray(apps)) {
+      for (const a of apps) {
+        if (a && a.appid === appid) return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
