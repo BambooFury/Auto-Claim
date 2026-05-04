@@ -352,6 +352,7 @@ async function startPolling(): Promise<void> {
 
   let settings: Settings = { ...DEFAULTS };
   let grabbedSet = new Set<number>();
+  const skipLogged = new Set<number>();
 
   async function reloadState(): Promise<void> {
     const [sRaw, gRaw] = await Promise.all([
@@ -398,18 +399,27 @@ async function startPolling(): Promise<void> {
   async function processGame(game: FreeGame): Promise<void> {
     try {
       if (grabbedSet.has(game.appid)) {
-        log(`${game.name} — already grabbed, skipping`);
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — already grabbed, skipping`);
+        }
         return;
       }
 
       if (isAlreadyInLibrary(game.appid)) {
-        log(`${game.name} — already in library, skipping`);
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — already in library, skipping`);
+        }
         grabbedSet.add(game.appid);
         return;
       }
 
       if (shouldSkipByName(game.name)) {
-        log(`${game.name} — skipping (DLC/pack detected by name)`);
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — skipping (DLC/pack detected by name)`);
+        }
         grabbedSet.add(game.appid);
         return;
       }
