@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/BambooFury/Auto-Claim/compare/v1.3.2...v1.3.3) (2026-05-04)
+
+
+### Bug Fixes
+
+* **widget:** remove Minimal Dark theme support ([a49b413](https://github.com/BambooFury/Auto-Claim/commit/a49b4136d733693816945dce9367e1aaa0951d71))
+
 ## [1.3.2](https://github.com/BambooFury/Auto-Claim/compare/v1.3.1...v1.3.2) (2026-05-04)
 
 
