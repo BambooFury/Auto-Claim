@@ -15,6 +15,20 @@ const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
 
+function colorWithAlpha(color: string, alpha: number): string {
+  const m = color.match(/^rgba?\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/i);
+  if (m) return `rgba(${m[1]},${m[2]},${m[3]},${alpha})`;
+
+  const hex = color.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return color;
+}
+
 function tabSize(style: string): { w: number; h: number; off: number } {
   if (style === 'slim')     return { w: 20, h: 48, off: 0 };
   if (style === 'floating') return { w: 26, h: 56, off: 8 };
@@ -394,7 +408,7 @@ export function injectVanillaWidget(): void {
 
     const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
     panel.style.setProperty('--fgg-tab-accent', accent);
-    panel.style.setProperty('--fgg-tab-accent-glow', accent.replace(')', ',0.3)').replace('rgba', 'rgba').replace('rgb(', 'rgba(').replace(',0.3)', ',0.3)'));
+    panel.style.setProperty('--fgg-tab-accent-glow', colorWithAlpha(accent, 0.3));
 
     tabBtn.style.width        = geom.w + 'px';
     tabBtn.style.height       = geom.h + 'px';
