@@ -325,11 +325,29 @@ export function injectVanillaWidget(): void {
 
     const badge = $<HTMLElement>('#fgg-games-badge');
     if (badge) {
-      if (games.length > 0) {
-        badge.textContent = String(games.length);
-        badge.style.display = 'inline-block';
-      } else {
+      const total    = games.length;
+      const ownedCnt = games.filter(g => isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)).length;
+      const newCnt   = total - ownedCnt;
+
+      if (total === 0) {
         badge.style.display = 'none';
+      } else if (cfg.hideOwned) {
+        if (newCnt === 0) {
+          badge.textContent = '✓';
+          badge.style.display = 'inline-block';
+          badge.style.background = 'rgba(85,204,85,0.35)';
+          badge.style.color = '#55cc55';
+        } else {
+          badge.textContent = String(newCnt);
+          badge.style.display = 'inline-block';
+          badge.style.background = 'rgba(255,255,255,0.15)';
+          badge.style.color = 'rgba(255,255,255,0.6)';
+        }
+      } else {
+        badge.textContent = String(total);
+        badge.style.display = 'inline-block';
+        badge.style.background = 'rgba(255,255,255,0.15)';
+        badge.style.color = 'rgba(255,255,255,0.6)';
       }
     }
 
@@ -923,7 +941,22 @@ function renderGames(
     return;
   }
 
-  bodyEl.innerHTML = games.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
+  const visibleGames = cfg.hideOwned
+    ? games.filter((g) => !isGameOwned(g.appid, ownedSet) && !isInLibrary(g.appid))
+    : games;
+
+  if (visibleGames.length === 0 && cfg.hideOwned) {
+    bodyEl.innerHTML = `
+      <div class="fgg-empty">
+        <div class="fgg-empty-icon">${SVG_RADAR}</div>
+        <div class="fgg-empty-title">All caught up</div>
+        <div class="fgg-empty-desc">No new free games right now.<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
+      </div>
+    `;
+    return;
+  }
+
+  bodyEl.innerHTML = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
 
   bodyEl.querySelectorAll<HTMLElement>('.fgg-card').forEach((card) => {
     const owned = card.classList.contains('owned');
@@ -1060,6 +1093,14 @@ function renderSettings(
       ${toggleHtml('fgg-notifygrab', cfg.notifyOnGrab)}
     </div>
 
+    <div class="fgg-set-row">
+      <div>
+        <div class="fgg-set-title">Hide owned games</div>
+        <div class="fgg-set-desc">Don't show already owned games in Free Games tab</div>
+      </div>
+      ${toggleHtml('fgg-hideowned', cfg.hideOwned)}
+    </div>
+
     <div class="fgg-set-row column">
       <div class="fgg-set-title">Scan interval</div>
       <div class="fgg-set-desc">How often to check for free games</div>
@@ -1104,6 +1145,13 @@ function renderSettings(
     animateToggle(e.currentTarget as HTMLButtonElement, cfg.notifyOnGrab);
     persistAndRefresh();
     logIPC({ payload: `Notify on grab toggled: ${cfg.notifyOnGrab ? 'ON' : 'OFF'}` }).catch(() => {});
+  });
+
+  bodyEl.querySelector<HTMLButtonElement>('#fgg-hideowned')?.addEventListener('click', (e) => {
+    cfg.hideOwned = !cfg.hideOwned;
+    animateToggle(e.currentTarget as HTMLButtonElement, cfg.hideOwned);
+    persistAndRefresh();
+    logIPC({ payload: `Hide owned toggled: ${cfg.hideOwned ? 'ON' : 'OFF'}` }).catch(() => {});
   });
 
   bodyEl.querySelectorAll<HTMLButtonElement>('[data-interval]').forEach((el) => {
