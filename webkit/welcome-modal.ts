@@ -303,4 +303,7 @@ function build() {
     bye();
   }
   window.addEventListener('keydown', escHandler);
+  window.addEventListener('beforeunload', () => {
+    window.removeEventListener('keydown', escHandler);
+  }, { once: true });
 }
