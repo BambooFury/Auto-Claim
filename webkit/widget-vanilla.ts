@@ -325,6 +325,7 @@ export function injectVanillaWidget(): void {
   }
 
   function render() {
+    const minimalDark = isMinimalDark();
     gamesTabBtn.classList.toggle('active', activeTab === 'games');
     setsTabBtn .classList.toggle('active', activeTab === 'settings');
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
@@ -358,10 +359,10 @@ export function injectVanillaWidget(): void {
       }
     }
 
-    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid, isMinimalDark());
-    else                       renderSettings(bodyEl, render, persistAndRefresh, isMinimalDark(), games);
+    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid, minimalDark);
+    else                       renderSettings(bodyEl, render, persistAndRefresh, minimalDark, games);
 
-    if (isMinimalDark()) {
+    if (minimalDark) {
       const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
       tabIndicator.style.setProperty('background', accent, 'important');
       tabIndicator.style.setProperty('box-shadow', `0 0 8px ${accent}`, 'important');
