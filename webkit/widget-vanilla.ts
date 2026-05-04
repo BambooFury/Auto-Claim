@@ -1127,31 +1127,56 @@ function renderSettings(
       scanResult.style.color = 'rgba(255,255,255,0.35)';
       scanResult.textContent = 'Scanning…';
     }
+
+    let initialCacheRaw = '';
+    try {
+      initialCacheRaw = await loadFreeGamesCacheIPC();
+    } catch {}
+
     try {
       await requestScanIPC();
       logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
     } catch {}
-    setTimeout(async () => {
+
+    const SCAN_DEADLINE_MS = 60_000;
+    const POLL_INTERVAL_MS = 1500;
+    const startedAt = Date.now();
+
+    const finish = (color: string, html: string, useText = false) => {
       scanBtn.disabled = false;
       scanBtn.classList.remove('busy');
-      if (scanResult) {
+      if (!scanResult) return;
+      scanResult.style.color = color;
+      if (useText) scanResult.textContent = html;
+      else scanResult.innerHTML = html;
+    };
+
+    const poll = async () => {
+      let raw = '';
+      try { raw = await loadFreeGamesCacheIPC(); } catch {}
+      if (raw && raw !== initialCacheRaw) {
         try {
-          const raw = await loadFreeGamesCacheIPC();
           const found: FreeGame[] = JSON.parse(raw || '[]');
-          const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
+          const newGames = found.filter((g) => !lastGames.some((lg) => lg.appid === g.appid));
           if (newGames.length > 0) {
-            scanResult.style.color = '#55cc55';
-            scanResult.innerHTML = newGames.map(g => `• ${escapeHtml(g.name)}`).join('<br>');
+            finish('#55cc55', newGames.map((g) => `• ${escapeHtml(g.name)}`).join('<br>'));
           } else {
-            scanResult.style.color = 'rgba(255,255,255,0.35)';
-            scanResult.textContent = 'No new free games found.';
+            finish('rgba(255,255,255,0.35)', 'No new free games found.', true);
           }
+          return;
         } catch {
-          scanResult.style.color = 'rgba(255,255,255,0.35)';
-          scanResult.textContent = 'Could not load scan results.';
+          finish('rgba(255,255,255,0.35)', 'Could not parse scan results.', true);
+          return;
         }
       }
-    }, 8000);
+      if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
+        finish('rgba(255,255,255,0.35)', 'Scan timed out — try again.', true);
+        return;
+      }
+      setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
+    };
+
+    setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
   });
 
 }
