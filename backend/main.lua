@@ -240,9 +240,17 @@ local function write_file(path, content)
     return true
 end
 
+local _MAX_IPC_PAYLOAD = 2 * 1024 * 1024
+
 local function extract_payload(data)
-    if type(data) == "table" then return data.payload end
-    return data
+    local payload
+    if type(data) == "table" then payload = data.payload
+    else payload = data end
+    if type(payload) == "string" and #payload > _MAX_IPC_PAYLOAD then
+        logger:info("[AutoClaim] dropped oversized IPC payload (" .. #payload .. " bytes)")
+        return nil
+    end
+    return payload
 end
 
 function load_grabbed_ipc()
