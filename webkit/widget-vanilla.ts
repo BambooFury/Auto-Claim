@@ -448,7 +448,10 @@ export function injectVanillaWidget(): void {
   }, 2000);
 
   void softRefresh();
-  const cachePoll = setInterval(() => { void softRefresh(); }, 5000);
+  const cachePoll = setInterval(() => {
+    if (!opened) return;
+    void softRefresh();
+  }, 5000);
   _fggIntervals.push(settingsPoll, cachePoll);
 
   window.addEventListener('beforeunload', () => {
