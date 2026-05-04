@@ -187,18 +187,19 @@ local function write_file(path, content)
     f:write(content)
     f:flush()
     f:close()
+
+    if os.rename(tmp, path) then return true end
+
     os.remove(path)
-    local ok = os.rename(tmp, path)
-    if not ok then
-        local f2 = io.open(path, "w")
-        if not f2 then
-            os.remove(tmp)
-            return false
-        end
-        f2:write(content)
-        f2:close()
-        os.remove(tmp)
+    if os.rename(tmp, path) then return true end
+
+    local f2 = io.open(path, "w")
+    if not f2 then
+        return false
     end
+    f2:write(content)
+    f2:close()
+    os.remove(tmp)
     return true
 end
 
