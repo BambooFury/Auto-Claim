@@ -30,9 +30,10 @@ const BTN_SELECTORS = [
 
 const BTN_KEYWORDS = [
   'add to account', 'add to library',
-  'install game', 'play game',
+  'add to your account', 'add to your library',
   'добавить на аккаунт', 'добавить в библиотеку',
-  'получить бесплатно', 'играть',
+  'добавить на свой аккаунт',
+  'получить бесплатно',
   'get for free',
 ];
 
