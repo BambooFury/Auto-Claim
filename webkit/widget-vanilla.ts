@@ -265,7 +265,7 @@ export function injectVanillaWidget(): void {
 
       const unchanged =
         next.length === games.length &&
-        next.every((g, i) => g.appid === games[i]?.appid);
+        next.every((g, i) => g.appid === games[i]?.appid && g.name === games[i]?.name);
       if (unchanged) return;
 
       games = next;
