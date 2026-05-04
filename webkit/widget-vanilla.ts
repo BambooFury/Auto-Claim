@@ -807,9 +807,6 @@ const PANEL_CSS = `
   .fgg-action-btn.busy .fgg-action-icon {
     animation: fgg-spin 1s linear infinite;
   }
-  @keyframes fgg-spin {
-    to { transform: rotate(360deg); }
-  }
   .fgg-header {
     padding: 14px 16px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
