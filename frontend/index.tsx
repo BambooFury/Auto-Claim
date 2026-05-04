@@ -1,6 +1,7 @@
 import { definePlugin, callable, toaster } from '@steambrew/client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
+import { MIN_POLL_INTERVAL_MIN } from './constants';
 type Empty = [];
 type StrIn = [{ payload: string }];
 
@@ -77,8 +78,6 @@ const DEFAULTS: Settings = {
   pollIntervalMin: 30,
   notifyOnGrab:    true,
 };
-
-const MIN_POLL_INTERVAL_MIN = 30;
 
 function normalizeSettings(s: Settings): Settings {
   const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
