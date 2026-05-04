@@ -149,7 +149,7 @@ local cjson = (function()
         logger:info("[AutoClaim] JSON backend: cjson (native)")
         return mod2
     end
-    logger:warn("[AutoClaim] cjson module unavailable, using pure-Lua JSON fallback")
+    logger:info("[AutoClaim] cjson module unavailable, using pure-Lua JSON fallback")
     return _pure_lua_json
 end)()
 local PLUGIN_DIR = debug.getinfo(1, "S").source:match("^@(.+)\\backend\\") or "."
