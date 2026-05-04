@@ -3,6 +3,25 @@ local millennium = require("millennium")
 local http       = require("http")
 local _PURE_LUA_JSON_NULL = {}
 
+local function _cp_to_utf8(code)
+    if code < 0x80 then
+        return string.char(code)
+    elseif code < 0x800 then
+        return string.char(0xC0 + math.floor(code/0x40), 0x80 + (code%0x40))
+    elseif code < 0x10000 then
+        return string.char(
+            0xE0 + math.floor(code/0x1000),
+            0x80 + (math.floor(code/0x40) % 0x40),
+            0x80 + (code % 0x40))
+    else
+        return string.char(
+            0xF0 + math.floor(code/0x40000),
+            0x80 + (math.floor(code/0x1000) % 0x40),
+            0x80 + (math.floor(code/0x40) % 0x40),
+            0x80 + (code % 0x40))
+    end
+end
+
 local function _pure_lua_json_decode(src)
     if type(src) ~= "string" then return nil end
     local pos, len = 1, #src
@@ -36,17 +55,16 @@ local function _pure_lua_json_decode(src)
                 elseif esc == 116 then out[#out+1] = '\t'; pos = pos + 2
                 elseif esc == 117 then
                     local code = tonumber(src:sub(pos + 2, pos + 5), 16) or 0
-                    if code < 0x80 then
-                        out[#out+1] = string.char(code)
-                    elseif code < 0x800 then
-                        out[#out+1] = string.char(0xC0 + math.floor(code/0x40), 0x80 + (code%0x40))
-                    else
-                        out[#out+1] = string.char(
-                            0xE0 + math.floor(code/0x1000),
-                            0x80 + (math.floor(code/0x40) % 0x40),
-                            0x80 + (code % 0x40))
-                    end
                     pos = pos + 6
+                    if code >= 0xD800 and code <= 0xDBFF
+                        and src:byte(pos) == 92 and src:byte(pos + 1) == 117 then
+                        local low = tonumber(src:sub(pos + 2, pos + 5), 16) or 0
+                        if low >= 0xDC00 and low <= 0xDFFF then
+                            code = (code - 0xD800) * 0x400 + (low - 0xDC00) + 0x10000
+                            pos = pos + 6
+                        end
+                    end
+                    out[#out+1] = _cp_to_utf8(code)
                 else
                     out[#out+1] = string.char(esc); pos = pos + 2
                 end
