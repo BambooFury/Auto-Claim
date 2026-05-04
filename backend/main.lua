@@ -190,6 +190,12 @@ local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
 local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
 local CLAIM_URL      = STORE_HOST .. "/checkout/addfreelicense"
 
+local function _urlencode(s)
+    return (s:gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", c:byte())
+    end))
+end
+
 local function _json_escape_string(s)
     s = s:gsub('\\', '\\\\')
          :gsub('"', '\\"')
@@ -524,7 +530,7 @@ function fetch_free_games_backend()
                         :gsub(" Giveaway$", "")
                     if clean and clean ~= "" then
                         local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
-                            clean:gsub(" ", "+"):gsub("%-", "%%2D") .. "&l=english&cc=us"
+                            _urlencode(clean) .. "&l=english&cc=us"
                         local sres = http.get(search_url, { timeout = 10 })
                         if sres and sres.status == 200 then
                             local sok, sdata = pcall(cjson.decode, sres.body)
