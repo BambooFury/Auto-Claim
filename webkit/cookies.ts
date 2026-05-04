@@ -26,6 +26,11 @@ export function captureCookiesToBackend(): void {
 
     if (!jar.sessionid) return;
 
-    saveCookiesIPC({ payload: JSON.stringify(jar) }).catch(() => {});
+    const payload = JSON.stringify(jar);
+    try {
+      if (sessionStorage.getItem('fgg_last_cookies') === payload) return;
+      sessionStorage.setItem('fgg_last_cookies', payload);
+    } catch {}
+    saveCookiesIPC({ payload }).catch(() => {});
   } catch {}
 }
