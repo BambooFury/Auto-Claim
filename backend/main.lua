@@ -360,13 +360,18 @@ function pop_toasts_ipc()
         return _merge_toast_arrays(orphan, raw)
     end
 
+    os.remove(stash)
+    if os.rename(TOASTS_FILE, stash) then
+        local raw = read_file(stash) or "[]"
+        os.remove(stash)
+        return _merge_toast_arrays(orphan, raw)
+    end
+
     if orphan and orphan ~= "" then
         return orphan
     end
 
-    local raw = read_file(TOASTS_FILE) or "[]"
-    os.remove(TOASTS_FILE)
-    return raw
+    return read_file(TOASTS_FILE) or "[]"
 end
 
 function request_scan_ipc()
