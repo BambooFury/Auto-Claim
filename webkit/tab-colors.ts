@@ -12,8 +12,6 @@ const palette: Record<string, TabColor> = {
   red:   { bg: 'rgba(224,82,82,0.7)',    bgHover: 'rgba(224,82,82,0.9)',    arrow: 'rgba(255,255,255,0.9)' },
 };
 
-export const TAB_COLORS = palette;
-
 function parseHex(hex: string): { r: number; g: number; b: number } | null {
   let h = hex.trim().replace(/^#/, '');
   if (h.length === 3) {
