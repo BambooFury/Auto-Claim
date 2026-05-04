@@ -219,6 +219,13 @@ export function injectVanillaWidget(): void {
       claimingAppid = g.appid;
       render();
 
+      if (isInLibrary(g.appid) || ownedSet.has(g.appid)) {
+        ownedSet.add(g.appid);
+        claimDone++;
+        refreshFooter();
+        continue;
+      }
+
       const acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
       if (!acquired) {
         logIPC({ payload: `[${g.appid}] widget claim skipped — lock busy` }).catch(() => {});
