@@ -288,7 +288,10 @@ function build() {
   root.appendChild(dim);
   document.body.appendChild(root);
 
-  function bye() { dismiss(root, dlg, dim); }
+  function bye() {
+    window.removeEventListener('keydown', escHandler);
+    dismiss(root, dlg, dim);
+  }
 
   const cta  = dlg.querySelector<HTMLButtonElement>('#fgg-welcome-cta');
   const xBtn = dlg.querySelector<HTMLButtonElement>('#fgg-welcome-x');
@@ -298,7 +301,6 @@ function build() {
   function escHandler(ev: KeyboardEvent) {
     if (ev.key !== 'Escape') return;
     bye();
-    window.removeEventListener('keydown', escHandler);
   }
   window.addEventListener('keydown', escHandler);
 }
