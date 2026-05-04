@@ -177,13 +177,15 @@ local PLUGIN_DIR = (function()
     return src:match("^(.+)\\backend\\") or "."
 end)()
 
-local GRABBED_FILE   = PLUGIN_DIR .. "\\grabbed.json"
-local SETTINGS_FILE  = PLUGIN_DIR .. "\\settings.json"
-local WIDGETS_FILE   = PLUGIN_DIR .. "\\widget_settings.json"
-local CACHE_FILE     = PLUGIN_DIR .. "\\free_games_cache.json"
-local COOKIES_FILE   = PLUGIN_DIR .. "\\steam_cookies.json"
-local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
-local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
+local GRABBED_FILE      = PLUGIN_DIR .. "\\grabbed.json"
+local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
+local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
+local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
+local COOKIES_FILE      = PLUGIN_DIR .. "\\steam_cookies.json"
+local PENDING_FILE      = PLUGIN_DIR .. "\\claim_pending.json"
+local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
+local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
+local CLAIM_LOCK_TTL    = 60
 
 _G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
 
@@ -407,6 +409,54 @@ function log_plugin(data)
     if payload and payload ~= "" then
         logger:info("[AutoClaim] " .. tostring(payload))
     end
+    return 1
+end
+
+local function _read_claim_locks()
+    local raw = read_file(CLAIM_LOCK_FILE) or "{}"
+    local ok, data = pcall(cjson.decode, raw)
+    if ok and type(data) == "table" then return data end
+    return {}
+end
+
+local function _prune_claim_locks(locks, now)
+    for k, ts in pairs(locks) do
+        if type(ts) ~= "number" or now - ts > CLAIM_LOCK_TTL then
+            locks[k] = nil
+        end
+    end
+    return locks
+end
+
+local function _write_claim_locks(locks)
+    local chunks = {}
+    for k, v in pairs(locks) do
+        chunks[#chunks + 1] = '"' .. tostring(k) .. '":' .. tostring(v)
+    end
+    write_file(CLAIM_LOCK_FILE, "{" .. table.concat(chunks, ",") .. "}")
+end
+
+function try_acquire_claim_lock_ipc(data)
+    local payload = extract_payload(data)
+    local appid = tostring(tonumber(payload) or "")
+    if appid == "" then return 0 end
+
+    local now = os.time()
+    local locks = _prune_claim_locks(_read_claim_locks(), now)
+    if locks[appid] then return 0 end
+    locks[appid] = now
+    _write_claim_locks(locks)
+    return 1
+end
+
+function release_claim_lock_ipc(data)
+    local payload = extract_payload(data)
+    local appid = tostring(tonumber(payload) or "")
+    if appid == "" then return 0 end
+
+    local locks = _prune_claim_locks(_read_claim_locks(), os.time())
+    locks[appid] = nil
+    _write_claim_locks(locks)
     return 1
 end
 

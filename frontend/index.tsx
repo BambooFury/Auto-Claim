@@ -15,6 +15,8 @@ const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const setPendingClaim   = callable<StrIn, number>('set_pending_claim_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
 const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
+const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc');
+const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
@@ -224,6 +226,20 @@ async function addViaShowStore(appid: number): Promise<boolean> {
 async function addGameToLibrary(appid: number): Promise<boolean> {
   if (isAlreadyInLibrary(appid)) return true;
 
+  const acquired = await tryAcquireClaimLock({ payload: String(appid) }).catch(() => 0);
+  if (!acquired) {
+    log(`[${appid}] claim lock busy — another process is claiming, skipping`);
+    return false;
+  }
+
+  try {
+    return await _addGameToLibraryLocked(appid);
+  } finally {
+    await releaseClaimLock({ payload: String(appid) }).catch(() => {});
+  }
+}
+
+async function _addGameToLibraryLocked(appid: number): Promise<boolean> {
   let result = '0|no result';
   try {
     result = await withTimeout(

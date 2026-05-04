@@ -12,3 +12,4 @@ claim_pending.json
 settings.json
 widget_settings.json
 pending_toasts.json
+claim_inflight.json

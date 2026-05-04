@@ -2,6 +2,7 @@ import { silentClaim } from './claim';
 import {
   loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
   requestScanIPC,
+  tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
@@ -218,7 +219,21 @@ export function injectVanillaWidget(): void {
       claimingAppid = g.appid;
       render();
 
-      const result = await silentClaim(g.appid);
+      const acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
+      if (!acquired) {
+        logIPC({ payload: `[${g.appid}] widget claim skipped — lock busy` }).catch(() => {});
+        claimDone++;
+        refreshFooter();
+        continue;
+      }
+
+      let result;
+      try {
+        result = await silentClaim(g.appid);
+      } finally {
+        await releaseClaimLockIPC({ payload: String(g.appid) }).catch(() => {});
+      }
+
       if (result.ok) {
         ownedSet.add(g.appid);
         if (cfg.notifyOnGrab) {
