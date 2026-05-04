@@ -557,26 +557,30 @@ function fetch_free_games_backend()
 
     local games_only = {}
     for _, g in ipairs(found) do
-        if g.from_gamerpower then
-            games_only[#games_only + 1] = g
-        else
-            local verify_cc = g.cc or "us"
-            local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
-            if dres and dres.status == 200 then
-                local dok, ddata = pcall(cjson.decode, dres.body)
-                local app_type = nil
-                if dok and type(ddata) == "table" then
-                    local entry = ddata[tostring(g.appid)]
-                    if entry and entry.data then
-                        app_type = entry.data.type
+        local verify_cc = g.cc or "us"
+        local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
+        local accepted = false
+        if dres and dres.status == 200 then
+            local dok, ddata = pcall(cjson.decode, dres.body)
+            if dok and type(ddata) == "table" then
+                local entry = ddata[tostring(g.appid)]
+                if entry and entry.data then
+                    local app_type = entry.data.type
+                    local is_free  = entry.data.is_free == true
+                    local price_final = nil
+                    if entry.data.price_overview and type(entry.data.price_overview.final) == "number" then
+                        price_final = entry.data.price_overview.final
+                    end
+                    if app_type == "game" and (is_free or price_final == 0) then
+                        accepted = true
                     end
                 end
-                if app_type == "game" then
-                    games_only[#games_only + 1] = g
-                end
-            else
-                games_only[#games_only + 1] = g
             end
+        elseif not g.from_gamerpower then
+            accepted = true
+        end
+        if accepted then
+            games_only[#games_only + 1] = g
         end
     end
 
