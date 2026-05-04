@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/BambooFury/Auto-Claim/compare/v1.3.3...v1.3.4) (2026-05-04)
+
+
+### Bug Fixes
+
+* **backend:** resolve PLUGIN_DIR with forward-slash source paths ([36ed55a](https://github.com/BambooFury/Auto-Claim/commit/36ed55a11dc210b11ee201bd7f7276ad6bde9ee0))
+
 ## [1.3.3](https://github.com/BambooFury/Auto-Claim/compare/v1.3.2...v1.3.3) (2026-05-04)
 
 
