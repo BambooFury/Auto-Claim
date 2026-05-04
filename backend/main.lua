@@ -1,6 +1,8 @@
 local logger     = require("logger")
 local millennium = require("millennium")
 local http       = require("http")
+local _PURE_LUA_JSON_NULL = {}
+
 local function _pure_lua_json_decode(src)
     if type(src) ~= "string" then return nil end
     local pos, len = 1, #src
@@ -121,7 +123,7 @@ local function _pure_lua_json_decode(src)
         elseif c == 34 then return parse_string()
         elseif c == 116 then return parse_literal("true",  true)
         elseif c == 102 then return parse_literal("false", false)
-        elseif c == 110 then return parse_literal("null",  nil)
+        elseif c == 110 then return parse_literal("null",  _PURE_LUA_JSON_NULL)
         elseif c == 45 or (c >= 48 and c <= 57) then return parse_number()
         else error("unexpected char at " .. pos) end
     end
@@ -132,6 +134,7 @@ local function _pure_lua_json_decode(src)
 end
 
 local _pure_lua_json = {
+    null   = _PURE_LUA_JSON_NULL,
     decode = _pure_lua_json_decode,
     encode = function(v)
         if v == nil then return "null"
