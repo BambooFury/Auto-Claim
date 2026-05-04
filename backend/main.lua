@@ -187,7 +187,8 @@ local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
 
-_G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
+_G.__autoclaim_scan_seq      = _G.__autoclaim_scan_seq or 0
+_G.__autoclaim_scan_done_seq = _G.__autoclaim_scan_done_seq or 0
 
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
@@ -392,6 +393,10 @@ end
 
 function pop_scan_request_ipc()
     return tostring(_G.__autoclaim_scan_seq or 0)
+end
+
+function pop_scan_done_ipc()
+    return tostring(_G.__autoclaim_scan_done_seq or 0)
 end
 
 local _cookie_cache = { ts = 0, raw_hash = "", header = "", sid = "" }
@@ -633,7 +638,7 @@ function claim_free_game_backend(data)
     return (ok and "1|" or "0|") .. tostring(reason)
 end
 
-function fetch_free_games_backend()
+local function _fetch_free_games_impl()
     local found     = {}
     local seen      = {}
     local fetch_ok  = false
@@ -744,6 +749,16 @@ function fetch_free_games_backend()
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
     write_file(CACHE_FILE, json_out)
     return json_out
+end
+
+function fetch_free_games_backend()
+    local ok, result = pcall(_fetch_free_games_impl)
+    _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
+    if not ok then
+        logger:info("[AutoClaim] scan failed: " .. tostring(result))
+        return read_file(CACHE_FILE) or "[]"
+    end
+    return result
 end
 
 local function on_load()

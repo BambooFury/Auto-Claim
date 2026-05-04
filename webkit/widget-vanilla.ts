@@ -1,7 +1,7 @@
 import { silentClaim } from './claim';
 import {
   loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
-  requestScanIPC,
+  requestScanIPC, popScanDoneIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
@@ -1128,17 +1128,15 @@ function renderSettings(
       scanResult.textContent = 'Scanning…';
     }
 
-    let initialCacheRaw = '';
-    try {
-      initialCacheRaw = await loadFreeGamesCacheIPC();
-    } catch {}
+    let initialDoneSeq = '';
+    try { initialDoneSeq = await popScanDoneIPC(); } catch {}
 
     try {
       await requestScanIPC();
       logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
     } catch {}
 
-    const SCAN_DEADLINE_MS = 60_000;
+    const SCAN_DEADLINE_MS = 180_000;
     const POLL_INTERVAL_MS = 1500;
     const startedAt = Date.now();
 
@@ -1152,9 +1150,12 @@ function renderSettings(
     };
 
     const poll = async () => {
-      let raw = '';
-      try { raw = await loadFreeGamesCacheIPC(); } catch {}
-      if (raw && raw !== initialCacheRaw) {
+      let curSeq = '';
+      try { curSeq = await popScanDoneIPC(); } catch {}
+
+      if (curSeq && curSeq !== initialDoneSeq) {
+        let raw = '';
+        try { raw = await loadFreeGamesCacheIPC(); } catch {}
         try {
           const found: FreeGame[] = JSON.parse(raw || '[]');
           const newGames = found.filter((g) => !lastGames.some((lg) => lg.appid === g.appid));
@@ -1163,12 +1164,12 @@ function renderSettings(
           } else {
             finish('rgba(255,255,255,0.35)', 'No new free games found.', true);
           }
-          return;
         } catch {
           finish('rgba(255,255,255,0.35)', 'Could not parse scan results.', true);
-          return;
         }
+        return;
       }
+
       if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
         finish('rgba(255,255,255,0.35)', 'Scan timed out — try again.', true);
         return;
