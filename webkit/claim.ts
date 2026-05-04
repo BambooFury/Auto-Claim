@@ -2,7 +2,6 @@ const SUBID_PATTERNS: RegExp[] = [
   /javascript:AddFreeLicense\(\s*(\d+)\s*\)/,
   /id="add_to_cart_submit_(\d+)"/,
   /name="subid"\s+value="(\d+)"/,
-  /data-ds-packageid="(\d+)"[^>]*>[^<]*Free/i,
 ];
 
 export interface ClaimResult {
