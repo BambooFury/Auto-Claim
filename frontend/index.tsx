@@ -313,10 +313,6 @@ const SCAN_NAME_BLOCKLIST: RegExp[] = [
   /\bdlc\b/,
   /\bsoundtrack\b/,
   /\bost\b/,
-  /\bbundle\b/,
-  /\bpack\b/,
-  /\bcostume\b/,
-  /\boutfit\b/,
   /\bweapon skin\b/,
   /\bcharacter skin\b/,
 ];
