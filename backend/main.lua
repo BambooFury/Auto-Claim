@@ -421,10 +421,7 @@ end
 local function _extract_subid_from_appdetails(body)
     local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
     if not subid then
-        subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^}]-"price_in_cents_with_discount"%s*:%s*0')
-    end
-    if not subid then
-        subid = body:match('"packages"%s*:%s*%[%s*(%d+)')
+        subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^{}]-"price_in_cents_with_discount"%s*:%s*0')
     end
     return subid
 end
