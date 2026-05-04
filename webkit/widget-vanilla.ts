@@ -837,7 +837,9 @@ const PANEL_CSS = `
   #fgg-body.is-settings {
     max-height: none;
     overflow-y: visible;
+    padding-bottom: 4px;
   }
+  #fgg-body.is-settings .fgg-set-row:last-child { padding-bottom: 0; }
   #fgg-body::-webkit-scrollbar             { width: 6px; }
   #fgg-body::-webkit-scrollbar-track       { background: transparent; margin: 6px 0; }
   #fgg-body::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.12); border-radius: 3px; transition: background 0.15s; }
@@ -1071,7 +1073,7 @@ function renderSettings(
         <span class="fgg-action-icon">⟳</span>
         <span>Scan now</span>
       </button>
-      <div id="fgg-scan-result" style="display:none;margin-top:6px;font-size:11px;line-height:1.4;"></div>
+      <div id="fgg-scan-result" style="margin-top:6px;font-size:11px;line-height:1.4;min-height:16px;color:rgba(255,255,255,0.35);"></div>
     </div>
   `;
 
@@ -1124,7 +1126,6 @@ function renderSettings(
     scanBtn.classList.add('busy');
     if (scanResult) {
       scanResult.style.color = 'rgba(255,255,255,0.35)';
-      scanResult.style.display = 'block';
       scanResult.textContent = 'Scanning…';
     }
     try {
@@ -1141,11 +1142,9 @@ function renderSettings(
           const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
           if (newGames.length > 0) {
             scanResult.style.color = '#55cc55';
-            scanResult.style.display = 'block';
             scanResult.innerHTML = newGames.map(g => `• ${g.name}`).join('<br>');
           } else {
             scanResult.style.color = 'rgba(255,255,255,0.35)';
-            scanResult.style.display = 'block';
             scanResult.textContent = 'No new free games found.';
           }
         } catch {
