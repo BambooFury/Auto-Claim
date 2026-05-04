@@ -470,16 +470,21 @@ async function startPolling(): Promise<void> {
     }
   };
 
-  let lastScanSeq = '';
+  let lastScanSeq = 0;
   try {
-    lastScanSeq = await withTimeout(popScanRequest(), 2000, '0');
-  } catch { lastScanSeq = '0'; }
+    lastScanSeq = parseInt(await withTimeout(popScanRequest(), 2000, '0'), 10) || 0;
+  } catch { lastScanSeq = 0; }
 
   _trackInterval(async () => {
     try {
-      const seq = await withTimeout(popScanRequest(), 2000, lastScanSeq);
-      if (seq && seq !== lastScanSeq) {
-        lastScanSeq = seq;
+      const raw = await withTimeout(popScanRequest(), 2000, String(lastScanSeq));
+      const cur = parseInt(raw, 10) || 0;
+      if (cur < lastScanSeq) {
+        lastScanSeq = cur;
+        return;
+      }
+      if (cur > lastScanSeq) {
+        lastScanSeq = cur;
         void triggerScan('user requested');
       }
     } catch {}
