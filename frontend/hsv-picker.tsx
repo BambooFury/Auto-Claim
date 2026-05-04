@@ -71,6 +71,12 @@ export const HsvPicker: React.FC<HsvPickerProps> = ({ value, onChange }) => {
 
   const svRef  = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => {
+    dragCleanupRef.current?.();
+    dragCleanupRef.current = null;
+  }, []);
 
   const emit = useCallback((nextHsv: HSV) => {
     const rgb = hsvToRgb(nextHsv.h, nextHsv.s, nextHsv.v);
@@ -95,11 +101,15 @@ export const HsvPicker: React.FC<HsvPickerProps> = ({ value, onChange }) => {
 
     update(e.clientX, e.clientY);
 
+    dragCleanupRef.current?.();
     const move = (ev: MouseEvent) => update(ev.clientX, ev.clientY);
-    const up   = () => {
+    const cleanup = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
+      if (dragCleanupRef.current === cleanup) dragCleanupRef.current = null;
     };
+    const up = cleanup;
+    dragCleanupRef.current = cleanup;
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
@@ -119,11 +129,15 @@ export const HsvPicker: React.FC<HsvPickerProps> = ({ value, onChange }) => {
 
     update(e.clientX);
 
+    dragCleanupRef.current?.();
     const move = (ev: MouseEvent) => update(ev.clientX);
-    const up   = () => {
+    const cleanup = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
+      if (dragCleanupRef.current === cleanup) dragCleanupRef.current = null;
     };
+    const up = cleanup;
+    dragCleanupRef.current = cleanup;
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
