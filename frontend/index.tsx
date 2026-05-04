@@ -493,7 +493,7 @@ async function startPolling(): Promise<void> {
     log('Scanning Steam Store for 100% discounts...');
 
     try {
-      const raw = await withTimeout(fetchFreeGames(), 30000, '[]');
+      const raw = await withTimeout(fetchFreeGames(), 60000, '[]');
       const games: FreeGame[] = JSON.parse(raw || '[]');
       log(`Scan complete — ${games.length} free game(s) found`);
 

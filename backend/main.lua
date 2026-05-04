@@ -191,7 +191,7 @@ _G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
 
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
-local SEARCH_REGIONS = { "us", "ua", "ru", "de", "gb", "tr" }
+local SEARCH_REGIONS = { "us", "de", "tr" }
 local GAMERPOWER_URL = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
 local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
 local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
