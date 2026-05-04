@@ -172,6 +172,19 @@ local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
 local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
 local CLAIM_URL      = STORE_HOST .. "/checkout/addfreelicense"
 
+local function _json_escape_string(s)
+    s = s:gsub('\\', '\\\\')
+         :gsub('"', '\\"')
+         :gsub('\n', '\\n')
+         :gsub('\r', '\\r')
+         :gsub('\t', '\\t')
+         :gsub('\b', '\\b')
+         :gsub('\f', '\\f')
+    return (s:gsub('[%z\1-\31]', function(c)
+        return string.format('\\u%04x', c:byte())
+    end))
+end
+
 local function read_file(path)
     local f = io.open(path, "r")
     if not f then return nil end
@@ -545,7 +558,7 @@ function fetch_free_games_backend()
 
     local chunks = {}
     for _, g in ipairs(games_only) do
-        local safe = g.name:gsub('\\', '\\\\'):gsub('"', '\\"')
+        local safe = _json_escape_string(g.name)
         chunks[#chunks + 1] = '{"appid":' .. g.appid .. ',"name":"' .. safe .. '"}'
     end
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
