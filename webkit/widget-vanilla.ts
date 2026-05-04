@@ -500,6 +500,7 @@ export function injectVanillaWidget(): void {
 
   let lastWidgetJson = initialWidgetRaw;
   const settingsPoll = setInterval(() => {
+    if (!opened) return;
     loadWidgetSettingsIPC()
       .then((raw) => {
         if (raw === lastWidgetJson) return;
