@@ -507,6 +507,13 @@ async function startPolling(): Promise<void> {
     } catch {}
   }, 3000);
 
+  _trackInterval(async () => {
+    try {
+      const sRaw = await withTimeout(loadSettings(), 3000, '{}');
+      settings = { ...DEFAULTS, ...JSON.parse(sRaw || '{}') };
+    } catch {}
+  }, 30000);
+
   const scheduleNext = (retryDelay?: number) => {
     const interval = retryDelay ?? (settings.pollIntervalMin || 30) * 60 * 1000;
     if (retryDelay) {
