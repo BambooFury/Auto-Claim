@@ -284,8 +284,7 @@ export function injectVanillaWidget(): void {
       if (result.ok) {
         ownedSet.add(g.appid);
         if (cfg.notifyOnGrab) {
-          const safe = g.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-          pushToastIPC({ payload: `{"appid":${g.appid},"name":"${safe}"}` })
+          pushToastIPC({ payload: JSON.stringify({ appid: g.appid, name: g.name }) })
             .catch(() => {});
         }
       } else if (result.reason === 'session expired' || result.reason === 'no sessionid') {
