@@ -528,7 +528,10 @@ function fetch_free_games_backend()
         if res and res.status == 200 then
             local ok, data = pcall(cjson.decode, res.body)
             if ok and type(data) == "table" then
+                local processed = 0
                 for _, entry in ipairs(data) do
+                    if processed >= 20 then break end
+                    processed = processed + 1
                     local raw_title = type(entry.title) == "string" and entry.title or ""
                     local clean = raw_title
                         :gsub(" %(Steam%) [%w%s]+ Giveaway$", "")
