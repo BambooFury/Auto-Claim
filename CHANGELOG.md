@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/BambooFury/Auto-Claim/compare/v1.3.0...v1.3.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* correct toggle button shape and knob size for Minimal Dark theme ([e86a5de](https://github.com/BambooFury/Auto-Claim/commit/e86a5de42348d6a3cab80884f343870cd6ccabfa))
+
 ## [1.3.0](https://github.com/BambooFury/Auto-Claim/compare/v1.2.8...v1.3.0) (2026-05-04)
 
 
