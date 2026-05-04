@@ -6,7 +6,7 @@ import type { PanelSide, TabStyle } from './types';
 
 const LS_KEY = 'fgg_store_settings';
 
-export interface PluginConfig {
+interface PluginConfig {
   tabColor: string;
   accentColor: string;
   showOverlay: boolean;
