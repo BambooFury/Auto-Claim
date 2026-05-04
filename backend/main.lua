@@ -335,13 +335,30 @@ function push_toast_ipc(data)
     return 1
 end
 
+local function _merge_toast_arrays(a, b)
+    a = (a or ""):gsub("%s+$", "")
+    b = (b or ""):gsub("%s+$", "")
+    if a == "" or a == "[]" then return b ~= "" and b or "[]" end
+    if b == "" or b == "[]" then return a end
+    return a:sub(1, -2) .. "," .. b:sub(2)
+end
+
 function pop_toasts_ipc()
     local stash = TOASTS_FILE .. ".popping"
+
+    local orphan = read_file(stash)
+    if orphan then os.remove(stash) end
+
     if os.rename(TOASTS_FILE, stash) then
         local raw = read_file(stash) or "[]"
         os.remove(stash)
-        return raw
+        return _merge_toast_arrays(orphan, raw)
     end
+
+    if orphan and orphan ~= "" then
+        return orphan
+    end
+
     local raw = read_file(TOASTS_FILE) or "[]"
     os.remove(TOASTS_FILE)
     return raw
