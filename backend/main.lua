@@ -177,19 +177,22 @@ local PLUGIN_DIR = (function()
     return src:match("^(.+)\\backend\\") or "."
 end)()
 
-local GRABBED_FILE   = PLUGIN_DIR .. "\\grabbed.json"
-local SETTINGS_FILE  = PLUGIN_DIR .. "\\settings.json"
-local WIDGETS_FILE   = PLUGIN_DIR .. "\\widget_settings.json"
-local CACHE_FILE     = PLUGIN_DIR .. "\\free_games_cache.json"
-local COOKIES_FILE   = PLUGIN_DIR .. "\\steam_cookies.json"
-local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
-local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
+local GRABBED_FILE      = PLUGIN_DIR .. "\\grabbed.json"
+local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
+local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
+local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
+local COOKIES_FILE      = PLUGIN_DIR .. "\\steam_cookies.json"
+local PENDING_FILE      = PLUGIN_DIR .. "\\claim_pending.json"
+local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
+local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
+local CLAIM_LOCK_TTL    = 60
 
-_G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
+_G.__autoclaim_scan_seq      = _G.__autoclaim_scan_seq or 0
+_G.__autoclaim_scan_done_seq = _G.__autoclaim_scan_done_seq or 0
 
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
-local SEARCH_REGIONS = { "us", "ua", "ru", "de", "gb", "tr" }
+local SEARCH_REGIONS = { "us", "de", "tr" }
 local GAMERPOWER_URL = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
 local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
 local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
@@ -262,9 +265,18 @@ function load_grabbed_ipc()
     return read_file(GRABBED_FILE) or "[]"
 end
 
+local function _is_valid_json_payload(payload, expected_kind)
+    if type(payload) ~= "string" or payload == "" then return false end
+    local ok, parsed = pcall(cjson.decode, payload)
+    if not ok then return false end
+    if expected_kind == "array" and type(parsed) ~= "table" then return false end
+    if expected_kind == "object" and type(parsed) ~= "table" then return false end
+    return true
+end
+
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
-    if not payload then return 0 end
+    if not _is_valid_json_payload(payload, "array") then return 0 end
     write_file(GRABBED_FILE, payload)
     return 1
 end
@@ -275,7 +287,7 @@ end
 
 function save_settings_ipc(data)
     local payload = extract_payload(data)
-    if not payload then return 0 end
+    if not _is_valid_json_payload(payload, "object") then return 0 end
     write_file(SETTINGS_FILE, payload)
     return 1
 end
@@ -286,7 +298,7 @@ end
 
 function save_widget_settings_ipc(data)
     local payload = extract_payload(data)
-    if not payload then return 0 end
+    if not _is_valid_json_payload(payload, "object") then return 0 end
     write_file(WIDGETS_FILE, payload)
     return 1
 end
@@ -360,13 +372,18 @@ function pop_toasts_ipc()
         return _merge_toast_arrays(orphan, raw)
     end
 
+    os.remove(stash)
+    if os.rename(TOASTS_FILE, stash) then
+        local raw = read_file(stash) or "[]"
+        os.remove(stash)
+        return _merge_toast_arrays(orphan, raw)
+    end
+
     if orphan and orphan ~= "" then
         return orphan
     end
 
-    local raw = read_file(TOASTS_FILE) or "[]"
-    os.remove(TOASTS_FILE)
-    return raw
+    return read_file(TOASTS_FILE) or "[]"
 end
 
 function request_scan_ipc()
@@ -378,9 +395,21 @@ function pop_scan_request_ipc()
     return tostring(_G.__autoclaim_scan_seq or 0)
 end
 
+function pop_scan_done_ipc()
+    return tostring(_G.__autoclaim_scan_done_seq or 0)
+end
+
+local _cookie_cache = { ts = 0, raw_hash = "", header = "", sid = "" }
+local _COOKIE_CACHE_TTL = 30
+
 local function load_cookie_header()
+    local now = os.time()
     local raw = read_file(COOKIES_FILE)
     if not raw then return "", "" end
+
+    if _cookie_cache.raw_hash == raw and now - _cookie_cache.ts < _COOKIE_CACHE_TTL then
+        return _cookie_cache.header, _cookie_cache.sid
+    end
 
     local ok, data = pcall(cjson.decode, raw)
     if not ok or type(data) ~= "table" then return "", "" end
@@ -394,7 +423,12 @@ local function load_cookie_header()
         end
     end
 
-    return table.concat(pairs_list, "; "), sid
+    local header = table.concat(pairs_list, "; ")
+    _cookie_cache.ts       = now
+    _cookie_cache.raw_hash = raw
+    _cookie_cache.header   = header
+    _cookie_cache.sid      = sid
+    return header, sid
 end
 
 function log_plugin(data)
@@ -402,6 +436,54 @@ function log_plugin(data)
     if payload and payload ~= "" then
         logger:info("[AutoClaim] " .. tostring(payload))
     end
+    return 1
+end
+
+local function _read_claim_locks()
+    local raw = read_file(CLAIM_LOCK_FILE) or "{}"
+    local ok, data = pcall(cjson.decode, raw)
+    if ok and type(data) == "table" then return data end
+    return {}
+end
+
+local function _prune_claim_locks(locks, now)
+    for k, ts in pairs(locks) do
+        if type(ts) ~= "number" or now - ts > CLAIM_LOCK_TTL then
+            locks[k] = nil
+        end
+    end
+    return locks
+end
+
+local function _write_claim_locks(locks)
+    local chunks = {}
+    for k, v in pairs(locks) do
+        chunks[#chunks + 1] = '"' .. tostring(k) .. '":' .. tostring(v)
+    end
+    write_file(CLAIM_LOCK_FILE, "{" .. table.concat(chunks, ",") .. "}")
+end
+
+function try_acquire_claim_lock_ipc(data)
+    local payload = extract_payload(data)
+    local appid = tostring(tonumber(payload) or "")
+    if appid == "" then return 0 end
+
+    local now = os.time()
+    local locks = _prune_claim_locks(_read_claim_locks(), now)
+    if locks[appid] then return 0 end
+    locks[appid] = now
+    _write_claim_locks(locks)
+    return 1
+end
+
+function release_claim_lock_ipc(data)
+    local payload = extract_payload(data)
+    local appid = tostring(tonumber(payload) or "")
+    if appid == "" then return 0 end
+
+    local locks = _prune_claim_locks(_read_claim_locks(), os.time())
+    locks[appid] = nil
+    _write_claim_locks(locks)
     return 1
 end
 
@@ -441,16 +523,59 @@ local function claim_subid(subid, sessionid_override, appid_hint)
     if not res then
         return false, "http error: " .. tostring(err)
     end
+    if res.status == 401 or res.status == 403 then
+        return false, "session expired"
+    end
     if res.status ~= 200 then
         return false, "http " .. tostring(res.status)
     end
-    if res.body:find("Sign In", 1, true) or res.body:find("login", 1, true) then
+
+    local ok_decode, parsed = pcall(cjson.decode, res.body)
+    if ok_decode and type(parsed) == "table" then
+        if parsed.success == 1 or parsed.success == true then
+            return true, "ok"
+        end
+        if parsed.purchaseresultdetail then
+            return false, "purchase result " .. tostring(parsed.purchaseresultdetail)
+        end
+        return false, "claim refused"
+    end
+
+    if res.body:find('"success"%s*:%s*1') then
+        return true, "ok"
+    end
+    if res.body:find("g_steamID%s*=%s*false", 1, false)
+        or res.body:find('href="https://store%.steampowered%.com/login')
+        or res.body:find("<title>Sign In", 1, true) then
         return false, "session expired"
     end
-    return true, "ok"
+    return false, "claim refused"
 end
 
-local function _extract_subid_from_appdetails(body)
+local function _extract_subid_from_appdetails(body, appid)
+    local ok, parsed = pcall(cjson.decode, body)
+    if ok and type(parsed) == "table" then
+        local entry = parsed[tostring(appid)]
+        if type(entry) == "table" and entry.success and type(entry.data) == "table" then
+            local groups = entry.data.package_groups
+            if type(groups) == "table" then
+                for _, g in ipairs(groups) do
+                    if type(g) == "table" and type(g.subs) == "table" then
+                        for _, sub in ipairs(g.subs) do
+                            if type(sub) == "table"
+                                and (sub.is_free_license == true
+                                    or sub.price_in_cents_with_discount == 0) then
+                                if sub.packageid then
+                                    return tostring(sub.packageid)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
     if not subid then
         subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^{}]-"price_in_cents_with_discount"%s*:%s*0')
@@ -469,7 +594,7 @@ local function fetch_subid_for_appid(appid)
 
         local res = http.get(url, { timeout = 15 })
         if res and res.status == 200 then
-            local subid = _extract_subid_from_appdetails(res.body)
+            local subid = _extract_subid_from_appdetails(res.body, appid)
             if subid then return subid end
 
             for inner in res.body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
@@ -513,7 +638,7 @@ function claim_free_game_backend(data)
     return (ok and "1|" or "0|") .. tostring(reason)
 end
 
-function fetch_free_games_backend()
+local function _fetch_free_games_impl()
     local found     = {}
     local seen      = {}
     local fetch_ok  = false
@@ -624,6 +749,16 @@ function fetch_free_games_backend()
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
     write_file(CACHE_FILE, json_out)
     return json_out
+end
+
+function fetch_free_games_backend()
+    local ok, result = pcall(_fetch_free_games_impl)
+    _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
+    if not ok then
+        logger:info("[AutoClaim] scan failed: " .. tostring(result))
+        return read_file(CACHE_FILE) or "[]"
+    end
+    return result
 end
 
 local function on_load()

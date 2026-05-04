@@ -1,6 +1,7 @@
 import { definePlugin, callable, toaster } from '@steambrew/client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
+import { MIN_POLL_INTERVAL_MIN } from './constants';
 type Empty = [];
 type StrIn = [{ payload: string }];
 
@@ -15,6 +16,8 @@ const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const setPendingClaim   = callable<StrIn, number>('set_pending_claim_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
 const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
+const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc');
+const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
@@ -76,8 +79,6 @@ const DEFAULTS: Settings = {
   notifyOnGrab:    true,
 };
 
-const MIN_POLL_INTERVAL_MIN = 30;
-
 function normalizeSettings(s: Settings): Settings {
   const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
     ? s.pollIntervalMin
@@ -114,8 +115,19 @@ const HEADER_URL = (id: number) =>
 
 function isAlreadyInLibrary(appid: number): boolean {
   try {
-    const ov = (window as any).appStore?.GetAppOverviewByAppID?.(appid);
-    return !!(ov && ov.local_per_client_data);
+    const store = (window as any).appStore;
+    const ov = store?.GetAppOverviewByAppID?.(appid);
+    if (!ov) return false;
+    if (ov.installed === true) return true;
+    const lpcd = ov.local_per_client_data;
+    if (lpcd && (lpcd.installed === true || lpcd.is_owned === true)) return true;
+    const apps = store?.allApps;
+    if (Array.isArray(apps)) {
+      for (const a of apps) {
+        if (a && a.appid === appid) return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -177,14 +189,16 @@ async function addViaShowStore(appid: number): Promise<boolean> {
   try { await setPendingClaim({ payload: String(appid) }); } catch {}
 
   let opened = false;
-  for (let attempt = 0; attempt < 6 && !opened; attempt++) {
+  const SHOWSTORE_ATTEMPTS = 3;
+  for (let attempt = 0; attempt < SHOWSTORE_ATTEMPTS && !opened; attempt++) {
     try {
       sc.Apps.ShowStore(appid, 0);
       opened = true;
       log(`[${appid}] ShowStore opened (attempt ${attempt + 1})`);
     } catch (e) {
       log(`[${appid}] ShowStore attempt ${attempt + 1} failed: ${String(e)}`);
-      await new Promise((r) => setTimeout(r, 5000));
+      const backoff = 1000 * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, backoff));
     }
   }
 
@@ -193,16 +207,19 @@ async function addViaShowStore(appid: number): Promise<boolean> {
     return false;
   }
 
-  for (let i = 0; i < 120; i++) {
-    await new Promise((r) => setTimeout(r, 500));
+  const SHOWSTORE_TIMEOUT_S = 25;
+  const POLL_MS = 500;
+  const polls = Math.floor((SHOWSTORE_TIMEOUT_S * 1000) / POLL_MS);
+  for (let i = 0; i < polls; i++) {
+    await new Promise((r) => setTimeout(r, POLL_MS));
     if (isAlreadyInLibrary(appid)) {
-      log(`[${appid}] detected in library after ${(i + 1) * 0.5}s`);
+      log(`[${appid}] detected in library after ${(i + 1) * POLL_MS / 1000}s`);
       await new Promise((r) => setTimeout(r, 1500));
       navigateBack(prevUrl);
       return true;
     }
   }
-  log(`[${appid}] ShowStore fallback timed out`);
+  log(`[${appid}] ShowStore fallback timed out after ${SHOWSTORE_TIMEOUT_S}s`);
   navigateBack(prevUrl);
   return false;
 }
@@ -210,6 +227,20 @@ async function addViaShowStore(appid: number): Promise<boolean> {
 async function addGameToLibrary(appid: number): Promise<boolean> {
   if (isAlreadyInLibrary(appid)) return true;
 
+  const acquired = await tryAcquireClaimLock({ payload: String(appid) }).catch(() => 0);
+  if (!acquired) {
+    log(`[${appid}] claim lock busy — another process is claiming, skipping`);
+    return false;
+  }
+
+  try {
+    return await _addGameToLibraryLocked(appid);
+  } finally {
+    await releaseClaimLock({ payload: String(appid) }).catch(() => {});
+  }
+}
+
+async function _addGameToLibraryLocked(appid: number): Promise<boolean> {
   let result = '0|no result';
   try {
     result = await withTimeout(
@@ -313,10 +344,6 @@ const SCAN_NAME_BLOCKLIST: RegExp[] = [
   /\bdlc\b/,
   /\bsoundtrack\b/,
   /\bost\b/,
-  /\bbundle\b/,
-  /\bpack\b/,
-  /\bcostume\b/,
-  /\boutfit\b/,
   /\bweapon skin\b/,
   /\bcharacter skin\b/,
 ];
@@ -467,7 +494,7 @@ async function startPolling(): Promise<void> {
     log('Scanning Steam Store for 100% discounts...');
 
     try {
-      const raw = await withTimeout(fetchFreeGames(), 30000, '[]');
+      const raw = await withTimeout(fetchFreeGames(), 60000, '[]');
       const games: FreeGame[] = JSON.parse(raw || '[]');
       log(`Scan complete — ${games.length} free game(s) found`);
 

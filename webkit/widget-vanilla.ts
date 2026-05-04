@@ -1,7 +1,8 @@
 import { silentClaim } from './claim';
 import {
   loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
-  requestScanIPC,
+  requestScanIPC, popScanDoneIPC,
+  tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
@@ -218,7 +219,28 @@ export function injectVanillaWidget(): void {
       claimingAppid = g.appid;
       render();
 
-      const result = await silentClaim(g.appid);
+      if (isInLibrary(g.appid) || ownedSet.has(g.appid)) {
+        ownedSet.add(g.appid);
+        claimDone++;
+        refreshFooter();
+        continue;
+      }
+
+      const acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
+      if (!acquired) {
+        logIPC({ payload: `[${g.appid}] widget claim skipped — lock busy` }).catch(() => {});
+        claimDone++;
+        refreshFooter();
+        continue;
+      }
+
+      let result;
+      try {
+        result = await silentClaim(g.appid);
+      } finally {
+        await releaseClaimLockIPC({ payload: String(g.appid) }).catch(() => {});
+      }
+
       if (result.ok) {
         ownedSet.add(g.appid);
         if (cfg.notifyOnGrab) {
@@ -250,7 +272,7 @@ export function injectVanillaWidget(): void {
 
       const unchanged =
         next.length === games.length &&
-        next.every((g, i) => g.appid === games[i]?.appid);
+        next.every((g, i) => g.appid === games[i]?.appid && g.name === games[i]?.name);
       if (unchanged) return;
 
       games = next;
@@ -448,7 +470,10 @@ export function injectVanillaWidget(): void {
   }, 2000);
 
   void softRefresh();
-  const cachePoll = setInterval(() => { void softRefresh(); }, 5000);
+  const cachePoll = setInterval(() => {
+    if (!opened) return;
+    void softRefresh();
+  }, 5000);
   _fggIntervals.push(settingsPoll, cachePoll);
 
   window.addEventListener('beforeunload', () => {
@@ -1102,31 +1127,57 @@ function renderSettings(
       scanResult.style.color = 'rgba(255,255,255,0.35)';
       scanResult.textContent = 'Scanning…';
     }
+
+    let initialDoneSeq = '';
+    try { initialDoneSeq = await popScanDoneIPC(); } catch {}
+
     try {
       await requestScanIPC();
       logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
     } catch {}
-    setTimeout(async () => {
+
+    const SCAN_DEADLINE_MS = 180_000;
+    const POLL_INTERVAL_MS = 1500;
+    const startedAt = Date.now();
+
+    const finish = (color: string, html: string, useText = false) => {
       scanBtn.disabled = false;
       scanBtn.classList.remove('busy');
-      if (scanResult) {
+      if (!scanResult) return;
+      scanResult.style.color = color;
+      if (useText) scanResult.textContent = html;
+      else scanResult.innerHTML = html;
+    };
+
+    const poll = async () => {
+      let curSeq = '';
+      try { curSeq = await popScanDoneIPC(); } catch {}
+
+      if (curSeq && curSeq !== initialDoneSeq) {
+        let raw = '';
+        try { raw = await loadFreeGamesCacheIPC(); } catch {}
         try {
-          const raw = await loadFreeGamesCacheIPC();
           const found: FreeGame[] = JSON.parse(raw || '[]');
-          const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
+          const newGames = found.filter((g) => !lastGames.some((lg) => lg.appid === g.appid));
           if (newGames.length > 0) {
-            scanResult.style.color = '#55cc55';
-            scanResult.innerHTML = newGames.map(g => `• ${escapeHtml(g.name)}`).join('<br>');
+            finish('#55cc55', newGames.map((g) => `• ${escapeHtml(g.name)}`).join('<br>'));
           } else {
-            scanResult.style.color = 'rgba(255,255,255,0.35)';
-            scanResult.textContent = 'No new free games found.';
+            finish('rgba(255,255,255,0.35)', 'No new free games found.', true);
           }
         } catch {
-          scanResult.style.color = 'rgba(255,255,255,0.35)';
-          scanResult.textContent = 'Could not load scan results.';
+          finish('rgba(255,255,255,0.35)', 'Could not parse scan results.', true);
         }
+        return;
       }
-    }, 8000);
+
+      if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
+        finish('rgba(255,255,255,0.35)', 'Scan timed out — try again.', true);
+        return;
+      }
+      setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
+    };
+
+    setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
   });
 
 }
