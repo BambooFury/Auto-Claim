@@ -1007,6 +1007,14 @@ function renderGames(
       if (id) location.href = `https://store.steampowered.com/app/${id}/`;
     });
   });
+
+  bodyEl.querySelectorAll<HTMLImageElement>('img[data-fallback-src]').forEach((img) => {
+    img.addEventListener('error', () => {
+      const fb = img.getAttribute('data-fallback-src');
+      img.removeAttribute('data-fallback-src');
+      if (fb) img.src = fb;
+    }, { once: true });
+  });
 }
 
 function buildCard(
@@ -1050,7 +1058,7 @@ function buildCard(
   return `
     <div class="${cls}" data-owned="${owned ? 1 : 0}" data-claiming="${isClaim ? 1 : 0}" style="${vars.join(';')}">
       <div class="fgg-card-frame">
-        <img class="fgg-card-bg" src="${heroSrc}" onerror="this.onerror=null;this.src='${heroBack}'"/>
+        <img class="fgg-card-bg" src="${heroSrc}" data-fallback-src="${heroBack}"/>
         <div class="fgg-card-overlay"></div>
         <div class="fgg-card-accent"></div>
         <div class="fgg-card-content">
