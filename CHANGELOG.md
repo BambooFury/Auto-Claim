@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.2.8](https://github.com/BambooFury/Auto-Claim/compare/v1.2.7...v1.2.8) (2026-05-04)
+
+
+### Bug Fixes
+
+* **backend:** accumulate subid candidates across all regions ([0b9952c](https://github.com/BambooFury/Auto-Claim/commit/0b9952c50ea8425d5e5bb837e37ea0998b9cc697))
+* **backend:** handle JSON null via sentinel to preserve array indices ([2a66cc7](https://github.com/BambooFury/Auto-Claim/commit/2a66cc759255be6c4cf3d1f6e0d386323184f7e1))
+* **backend:** iterate scan regions when resolving free package id ([dcbeffb](https://github.com/BambooFury/Auto-Claim/commit/dcbeffbc6526f1d199d8ff21a326cb8bc7d57d22))
+* **frontend:** cancel polling timers on hot-reload and unmount ([acc9f8b](https://github.com/BambooFury/Auto-Claim/commit/acc9f8bd5ac372e64746ee30aed5482b73f19bed))
+* **webkit:** keep panel size stable when Scan now is pressed ([cb0064e](https://github.com/BambooFury/Auto-Claim/commit/cb0064ec6c57c6e64981c2662d3a16369f693021))
+* **webkit:** persist accentColor in localStorage snapshot ([8d12e11](https://github.com/BambooFury/Auto-Claim/commit/8d12e11811d4086b350a660de6432ab0195895ac))
+
+
+### Refactoring
+
+* **backend:** remove dead IPC, encode stub, toast lock, redundant block ([2fcedf5](https://github.com/BambooFury/Auto-Claim/commit/2fcedf5a834487bf531fa3a13493c3820c9914a0))
+* **frontend:** compute hue color once in HSV picker ([8b59831](https://github.com/BambooFury/Auto-Claim/commit/8b5983119f8b820e8cf6d924ad72b38461050a17))
+* **frontend:** drop dead plugin-settings UI plumbing ([22cc486](https://github.com/BambooFury/Auto-Claim/commit/22cc4861ce902dae7af0f43ac2bfea6047b88efb))
+* **webkit:** drop unused PluginConfig export ([0bc80bd](https://github.com/BambooFury/Auto-Claim/commit/0bc80bd535e54480b28c77384f125c455202441a))
+* **webkit:** drop unused TAB_COLORS export ([e08782e](https://github.com/BambooFury/Auto-Claim/commit/e08782e605446f26efde0620f83c61f14986bbab))
+* **webkit:** drop unused waitForWelcomeDismissed ([29fff50](https://github.com/BambooFury/Auto-Claim/commit/29fff50b71f52712494e15ee5d0bd321773870ed))
+* **webkit:** remove dead localStorage fallback in isInLibrary ([015203c](https://github.com/BambooFury/Auto-Claim/commit/015203c2a5b2b0eeb39b6572a074e9b97bead2d9))
+* **webkit:** replace brittle color replace-chain with alpha helper ([1e9571f](https://github.com/BambooFury/Auto-Claim/commit/1e9571f7fc26f80d14573373a7b5af5ca810ae67))
+
+
+### Documentation
+
+* **changelog:** remove duplicate fix entry ([136f598](https://github.com/BambooFury/Auto-Claim/commit/136f59861b701afe1ea7af728d8d637f3dc26321))
+
+
+### Maintenance
+
+* **backend:** lower pure-Lua JSON fallback log to info ([4c92edb](https://github.com/BambooFury/Auto-Claim/commit/4c92edb3a43070e4ab2f3fee324517b65c8491d7))
+
 ## [1.2.7](https://github.com/BambooFury/Auto-Claim/compare/v1.2.6...v1.2.7) (2026-05-03)
 
 
