@@ -409,25 +409,36 @@ function add_free_license(data)
     return ok and "1" or "0"
 end
 
+local function _extract_subid_from_appdetails(body)
+    local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
+    if not subid then
+        subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^}]-"price_in_cents_with_discount"%s*:%s*0')
+    end
+    if not subid then
+        subid = body:match('"packages"%s*:%s*%[%s*(%d+)')
+    end
+    return subid
+end
+
 local function fetch_subid_for_appid(appid)
-    local url = APPDETAILS_URL
-        .. "?appids=" .. appid
-        .. "&filters=packages,package_groups,price_overview&cc=ua"
+    local last_body = nil
 
-    local res = http.get(url, { timeout = 15 })
-    if not res or res.status ~= 200 then return nil end
+    for _, cc in ipairs(SEARCH_REGIONS) do
+        local url = APPDETAILS_URL
+            .. "?appids=" .. appid
+            .. "&filters=packages,package_groups,price_overview&cc=" .. cc
 
-    local subid = res.body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
-    if not subid then
-        subid = res.body:match('"packageid"%s*:%s*(%d+)%s*,[^}]-"price_in_cents_with_discount"%s*:%s*0')
+        local res = http.get(url, { timeout = 15 })
+        if res and res.status == 200 then
+            local subid = _extract_subid_from_appdetails(res.body)
+            if subid then return subid end
+            last_body = res.body
+        end
     end
-    if not subid then
-        subid = res.body:match('"packages"%s*:%s*%[%s*(%d+)')
-    end
 
-    if not subid then
+    if last_body then
         local candidates = {}
-        for inner in res.body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
+        for inner in last_body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
             for p in inner:gmatch("%d+") do
                 candidates[#candidates + 1] = p
             end
@@ -439,14 +450,13 @@ local function fetch_subid_for_appid(appid)
             if pres and pres.status == 200 then
                 local price = pres.body:match('"final"%s*:%s*(%d+)')
                 if price == "0" then
-                    subid = pid
-                    break
+                    return pid
                 end
             end
         end
     end
 
-    return subid
+    return nil
 end
 
 function get_subid_backend(data)
