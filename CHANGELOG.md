@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.3.2](https://github.com/BambooFury/Auto-Claim/compare/v1.3.1...v1.3.2) (2026-05-04)
+
+
+### Bug Fixes
+
+* **backend:** cap IPC payload size to prevent runaway writes ([2d7e4ac](https://github.com/BambooFury/Auto-Claim/commit/2d7e4ac8efce6a3f993217ff8827f614a98eb476))
+* **backend:** combine UTF-16 surrogate pairs in pure-Lua JSON decoder ([11052b0](https://github.com/BambooFury/Auto-Claim/commit/11052b017b8504da35eadc6cd71a56546b784dff))
+* **backend:** escape control characters in cache JSON output ([f48fdfe](https://github.com/BambooFury/Auto-Claim/commit/f48fdfe60f9dba2ec49e68e7d916e439bb3e3736))
+* **backend:** prevent pop_toasts_ipc from dropping concurrent pushes ([ffb6b5d](https://github.com/BambooFury/Auto-Claim/commit/ffb6b5d2f9a0b5dbc848b0ece45c41e8988a8d30))
+* **backend:** recover orphaned toast stash on next pop after crash ([6a919a9](https://github.com/BambooFury/Auto-Claim/commit/6a919a9099c897a863c7d7f0f18d79bded8860ed))
+* **backend:** rewrite write_file to avoid wiping originals on Windows ([54807b4](https://github.com/BambooFury/Auto-Claim/commit/54807b47cb481d3082e8fc805b8fb1f10e2630fc))
+* **backend:** rewrite write_file to avoid wiping originals on Windows ([7eb9e7f](https://github.com/BambooFury/Auto-Claim/commit/7eb9e7f4db38c8e03b958973ed607932264895bd))
+* **backend:** tighten subid regex to avoid grabbing paid packages ([ce47330](https://github.com/BambooFury/Auto-Claim/commit/ce47330e1b77263130715e63550855a9ecd2a21e))
+* **backend:** URL-encode storesearch terms instead of partial substitution ([171e326](https://github.com/BambooFury/Auto-Claim/commit/171e32630ed5baf5324d28387a57ccd23f8533a4))
+* **backend:** validate cookies JSON before overwriting stored value ([288f167](https://github.com/BambooFury/Auto-Claim/commit/288f1670ef663e183028dab323a89175ab44a65c))
+* **backend:** verify GamerPower-sourced appids are free games before claim ([32f164d](https://github.com/BambooFury/Auto-Claim/commit/32f164d4ebf9c14ea9be158275d2be4353c63192))
+* **claim:** drop generic packageid fallback that could grab paid sub ([57a96cc](https://github.com/BambooFury/Auto-Claim/commit/57a96cc945227ebbfe502481208664417143d837))
+* **frontend:** clamp pollIntervalMin to match webkit minimum ([fae428e](https://github.com/BambooFury/Auto-Claim/commit/fae428efd14e7294ea8d51922eaf0c5c7f27643b))
+* **frontend:** clean up HsvPicker drag listeners on unmount ([27e8c78](https://github.com/BambooFury/Auto-Claim/commit/27e8c78862cdb57d8054d1837cbe507b7b8ea008))
+* **frontend:** compare scan sequence numerically and ignore backend resets ([41d0e7d](https://github.com/BambooFury/Auto-Claim/commit/41d0e7d8d1607fa9d5bedbad9e0b61cc5c2e9823))
+* **frontend:** refresh settings between scans for pollIntervalMin updates ([d836352](https://github.com/BambooFury/Auto-Claim/commit/d836352040ea1a9389375725a10eeb6b7bf94b4a))
+* **frontend:** throttle repetitive 'skipping' log lines per appid ([4c54c77](https://github.com/BambooFury/Auto-Claim/commit/4c54c771bbbec937e2a16b69691c5080748c70a1))
+* **frontend:** use word-boundary regexes in scan name blocklist ([fc37944](https://github.com/BambooFury/Auto-Claim/commit/fc37944a5795b273a0ccdf8c5fa15d04dda7830b))
+* **frontend:** wire ring active state for custom color button ([5740b7e](https://github.com/BambooFury/Auto-Claim/commit/5740b7e5fdd1186e8a3170b2d9f9f39031be241a))
+* **welcome-modal:** remove keydown listener on every close path ([1b04f08](https://github.com/BambooFury/Auto-Claim/commit/1b04f08fa09c3fff706648eed3896679be1bbaf5))
+* **widget:** escape game name in card to prevent HTML injection ([0ef03f1](https://github.com/BambooFury/Auto-Claim/commit/0ef03f16d84849bbdd0dfc97f6724a6fe359b4e7))
+* **widget:** escape names in manual scan result list ([82a4a7a](https://github.com/BambooFury/Auto-Claim/commit/82a4a7a249ab7d3d7f832bd8dff8cb27ff632b83))
+* **widget:** guard softRefresh against re-entrant overlapping calls ([cc87780](https://github.com/BambooFury/Auto-Claim/commit/cc87780c677411bf387187040f683c339fc0d3c6))
+* **widget:** show overflow indicator when more than 8 games are queued ([5782076](https://github.com/BambooFury/Auto-Claim/commit/578207646b59336c7f8ce99c14a3ea45a1a41c01))
+* **widget:** use JSON.stringify for toast payload to escape all chars ([ba2e025](https://github.com/BambooFury/Auto-Claim/commit/ba2e02598e1c1916643e206cd0360c5868d80a3d))
+
+
+### Performance
+
+* **backend:** cap GamerPower entries processed per scan to 20 ([ac02d20](https://github.com/BambooFury/Auto-Claim/commit/ac02d20a5786f1d02da1be9b8468bd5840208224))
+* **cookies:** skip cookie write when payload matches last sent value ([e4718b1](https://github.com/BambooFury/Auto-Claim/commit/e4718b16d4e0c0ad0f5803eccb082111292c35e8))
+* **widget:** cache isMinimalDark result for the duration of render ([ce3df87](https://github.com/BambooFury/Auto-Claim/commit/ce3df8785a89c43c787e78b2d6f9d853a35ba3e3))
+* **widget:** skip widget settings poll while panel is closed ([055ab13](https://github.com/BambooFury/Auto-Claim/commit/055ab139bd4045cba20236f196d9c5934162e702))
+
+
+### Refactoring
+
+* **widget:** replace inline onerror with addEventListener fallback ([078d93d](https://github.com/BambooFury/Auto-Claim/commit/078d93d8fcc359b57f143d9c432cffa853f381fb))
+
+
+### Maintenance
+
+* **settings:** strip legacy notifyOnly key when persisting settings ([6e639cf](https://github.com/BambooFury/Auto-Claim/commit/6e639cfacb83c117715d67d2493b4f133242194f))
+
 ## [1.3.1](https://github.com/BambooFury/Auto-Claim/compare/v1.3.0...v1.3.1) (2026-05-04)
 
 
