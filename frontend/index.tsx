@@ -7,7 +7,6 @@ type StrIn = [{ payload: string }];
 const loadGrabbed       = callable<Empty, string>('load_grabbed_ipc');
 const saveGrabbed       = callable<StrIn, number>('save_grabbed_ipc');
 const loadSettings      = callable<Empty, string>('load_settings_ipc');
-const saveSettings      = callable<StrIn, number>('save_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
 const fetchFreeGames    = callable<Empty, string>('fetch_free_games_backend');
 const claimFreeGameLua  = callable<StrIn, string>('claim_free_game_backend');
@@ -253,15 +252,6 @@ const SettingsPanel: React.FC = () => {
     setTimeout(() => { void boot(); }, 500);
   }, []);
 
-  const updateSettings = useCallback((patch: Partial<Settings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      saveSettings({ payload: JSON.stringify(next) });
-      syncStoreSettings(next, widget);
-      return next;
-    });
-  }, [widget]);
-
   const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
     setWidget((prev) => {
       const next = { ...prev, ...patch };
@@ -281,10 +271,8 @@ const SettingsPanel: React.FC = () => {
   return React.createElement('div',
     { style: { display: 'flex', flexDirection: 'column' } },
     React.createElement(SettingsTab, {
-      plugin:    settings,
       widget,
-      onPlugin:  updateSettings,
-      onWidget:  updateWidget,
+      onWidget: updateWidget,
     }),
   );
 };

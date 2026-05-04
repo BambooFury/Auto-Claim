@@ -3,12 +3,6 @@ import { HsvPicker } from './hsv-picker';
 
 const h = React.createElement;
 
-export interface PluginSettings {
-  autoAdd: boolean;
-  pollIntervalMin: number;
-  notifyOnGrab: boolean;
-}
-
 export interface WidgetSettings {
   panelSide:   'left' | 'right';
   tabColor:    string;
@@ -32,8 +26,6 @@ const STYLE_OPTIONS = [
   { id: 'floating', label: 'Floating' },
 ];
 
-const WIDGET_LS_KEY = 'fgg_widget_settings';
-
 const widgetDefaults = (): WidgetSettings => ({
   panelSide:   'left',
   tabColor:    'gray',
@@ -41,23 +33,6 @@ const widgetDefaults = (): WidgetSettings => ({
   showOverlay: false,
   tabStyle:    'large',
 });
-
-export function loadWidgetSettings(): WidgetSettings {
-  const base = widgetDefaults();
-  try {
-    const raw = localStorage.getItem(WIDGET_LS_KEY);
-    if (!raw) return base;
-    return Object.assign(base, JSON.parse(raw));
-  } catch {
-    return base;
-  }
-}
-
-export function saveWidgetSettings(s: WidgetSettings) {
-  try {
-    localStorage.setItem(WIDGET_LS_KEY, JSON.stringify(s));
-  } catch {}
-}
 
 type Choice = { id: string; label: string };
 
@@ -375,9 +350,7 @@ function row(title: string, desc: string, control: React.ReactNode, first = fals
 }
 
 interface SettingsTabProps {
-  plugin:   PluginSettings;
   widget:   WidgetSettings;
-  onPlugin: (p: Partial<PluginSettings>) => void;
   onWidget: (p: Partial<WidgetSettings>) => void;
 }
 
