@@ -446,13 +446,33 @@ local function claim_subid(subid, sessionid_override, appid_hint)
     if not res then
         return false, "http error: " .. tostring(err)
     end
+    if res.status == 401 or res.status == 403 then
+        return false, "session expired"
+    end
     if res.status ~= 200 then
         return false, "http " .. tostring(res.status)
     end
-    if res.body:find("Sign In", 1, true) or res.body:find("login", 1, true) then
+
+    local ok_decode, parsed = pcall(cjson.decode, res.body)
+    if ok_decode and type(parsed) == "table" then
+        if parsed.success == 1 or parsed.success == true then
+            return true, "ok"
+        end
+        if parsed.purchaseresultdetail then
+            return false, "purchase result " .. tostring(parsed.purchaseresultdetail)
+        end
+        return false, "claim refused"
+    end
+
+    if res.body:find('"success"%s*:%s*1') then
+        return true, "ok"
+    end
+    if res.body:find("g_steamID%s*=%s*false", 1, false)
+        or res.body:find('href="https://store%.steampowered%.com/login')
+        or res.body:find("<title>Sign In", 1, true) then
         return false, "session expired"
     end
-    return true, "ok"
+    return false, "claim refused"
 end
 
 local function _extract_subid_from_appdetails(body)
