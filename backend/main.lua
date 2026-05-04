@@ -136,15 +136,6 @@ end
 local _pure_lua_json = {
     null   = _PURE_LUA_JSON_NULL,
     decode = _pure_lua_json_decode,
-    encode = function(v)
-        if v == nil then return "null"
-        elseif type(v) == "boolean" then return v and "true" or "false"
-        elseif type(v) == "number" then return tostring(v)
-        elseif type(v) == "string" then
-            return '"' .. v:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n') .. '"'
-        end
-        return "null"
-    end,
 }
 
 local cjson = (function()
@@ -171,8 +162,7 @@ local COOKIES_FILE   = PLUGIN_DIR .. "\\steam_cookies.json"
 local PENDING_FILE   = PLUGIN_DIR .. "\\claim_pending.json"
 local TOASTS_FILE    = PLUGIN_DIR .. "\\pending_toasts.json"
 
-_G.__autoclaim_scan_seq   = _G.__autoclaim_scan_seq   or 0
-_G.__autoclaim_toast_lock = _G.__autoclaim_toast_lock or false
+_G.__autoclaim_scan_seq = _G.__autoclaim_scan_seq or 0
 
 local STORE_HOST     = "https://store.steampowered.com"
 local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
@@ -261,10 +251,6 @@ function save_cookies_ipc(data)
     return 1
 end
 
-function load_cookies_ipc()
-    return read_file(COOKIES_FILE) or "{}"
-end
-
 function set_pending_claim_ipc(data)
     local payload = extract_payload(data)
     if not payload or payload == "" then
@@ -288,12 +274,6 @@ function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not payload or payload == "" then return 0 end
 
-    local waited = 0
-    while _G.__autoclaim_toast_lock and waited < 20 do
-        waited = waited + 1
-    end
-    _G.__autoclaim_toast_lock = true
-
     local raw  = read_file(TOASTS_FILE) or "[]"
     local trim = raw:gsub("%s+$", "")
     local combined
@@ -304,7 +284,6 @@ function push_toast_ipc(data)
     end
     write_file(TOASTS_FILE, combined)
 
-    _G.__autoclaim_toast_lock = false
     return 1
 end
 
@@ -395,20 +374,6 @@ local function claim_subid(subid, sessionid_override, appid_hint)
     return true, "ok"
 end
 
-function add_free_license(data)
-    local payload = extract_payload(data)
-    if not payload then return "0" end
-
-    local subid, sessionid = payload:match("^([^|]+)|(.*)$")
-    if not subid then
-        subid = payload
-        sessionid = ""
-    end
-
-    local ok = claim_subid(subid, sessionid, nil)
-    return ok and "1" or "0"
-end
-
 local function _extract_subid_from_appdetails(body)
     local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
     if not subid then
@@ -459,19 +424,6 @@ local function fetch_subid_for_appid(appid)
     return nil
 end
 
-function get_subid_backend(data)
-    local payload = data
-    if type(data) == "table" then
-        payload = data.payload or data.appid or ""
-    end
-
-    local appid = tonumber(payload)
-    if not appid then return "-1" end
-
-    local subid = fetch_subid_for_appid(appid)
-    return subid and tostring(subid) or "-1"
-end
-
 function claim_free_game_backend(data)
     local payload = data
     if type(data) == "table" then
@@ -493,33 +445,32 @@ function fetch_free_games_backend()
     local seen      = {}
     local fetch_ok  = false
 
-    do
-        for _, cc in ipairs(SEARCH_REGIONS) do
-            local url = SEARCH_BASE .. "&cc=" .. cc
-            local res = http.get(url, { timeout = 25 })
-            if res and res.status == 200 then
-                fetch_ok = true
-                local ok, data = pcall(cjson.decode, res.body)
-                if ok and type(data) == "table" and type(data.items) == "table" then
-                    for _, item in ipairs(data.items) do
-                        local logo_url = type(item.logo) == "string" and item.logo or ""
-                        logo_url = logo_url:gsub("\\/", "/")
-                        local appid_str = logo_url:match("/apps/(%d+)/")
-                        if appid_str then
-                            local id = tonumber(appid_str)
-                            if id and id > 0 and not seen[id] then
-                                seen[id] = true
-                                found[#found + 1] = {
-                                    appid = id,
-                                    name  = type(item.name) == "string" and item.name or ("AppID " .. appid_str),
-                                    cc    = cc,
-                                }
-                            end
+    for _, cc in ipairs(SEARCH_REGIONS) do
+        local url = SEARCH_BASE .. "&cc=" .. cc
+        local res = http.get(url, { timeout = 25 })
+        if res and res.status == 200 then
+            fetch_ok = true
+            local ok, data = pcall(cjson.decode, res.body)
+            if ok and type(data) == "table" and type(data.items) == "table" then
+                for _, item in ipairs(data.items) do
+                    local logo_url = type(item.logo) == "string" and item.logo or ""
+                    logo_url = logo_url:gsub("\\/", "/")
+                    local appid_str = logo_url:match("/apps/(%d+)/")
+                    if appid_str then
+                        local id = tonumber(appid_str)
+                        if id and id > 0 and not seen[id] then
+                            seen[id] = true
+                            found[#found + 1] = {
+                                appid = id,
+                                name  = type(item.name) == "string" and item.name or ("AppID " .. appid_str),
+                                cc    = cc,
+                            }
                         end
                     end
                 end
             end
         end
+    end
 
     do
         local res = http.get(GAMERPOWER_URL, { timeout = 15 })
@@ -554,8 +505,6 @@ function fetch_free_games_backend()
                 end
             end
         end
-    end
-
     end
 
     if not fetch_ok then
