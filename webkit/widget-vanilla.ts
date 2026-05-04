@@ -977,7 +977,11 @@ function renderGames(
     return;
   }
 
-  bodyEl.innerHTML = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
+  const cardsHtml = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
+  const overflowHtml = visibleGames.length > 8
+    ? `<div class="fgg-empty-desc" style="text-align:center;padding:6px 0 2px;">+${visibleGames.length - 8} more not shown</div>`
+    : '';
+  bodyEl.innerHTML = cardsHtml + overflowHtml;
 
   bodyEl.querySelectorAll<HTMLElement>('.fgg-card').forEach((card) => {
     const owned = card.classList.contains('owned');
