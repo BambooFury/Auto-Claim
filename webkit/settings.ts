@@ -62,6 +62,7 @@ function loadFromLocalStorage(): void {
 function snapshotForLocalStorage() {
   return {
     tabColor:        cfg.tabColor,
+    accentColor:     cfg.accentColor,
     showOverlay:     cfg.showOverlay,
     panelSide:       cfg.panelSide,
     tabStyle:        cfg.tabStyle,
