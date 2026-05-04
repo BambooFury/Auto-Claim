@@ -1,4 +1,3 @@
-import type { GrabbedItem } from './types';
 const APPUSER_URL = 'https://store.steampowered.com/api/appuserdetails/';
 export async function checkLibraryAsync(appids: number[]): Promise<Set<number>> {
   const owned = new Set<number>();
@@ -26,16 +25,6 @@ export function isInLibrary(appid: number): boolean {
     if (typeof fn === 'function') {
       const ov = fn.call(appStore, appid);
       if (ov && (ov.local_per_client_data || ov.appid)) return true;
-    }
-  } catch {}
-
-  try {
-    const raw = localStorage.getItem('fgg_grabbed') || localStorage.getItem('fgg_grabbed_cache');
-    if (raw) {
-      const arr = JSON.parse(raw) as GrabbedItem[];
-      for (const g of arr) {
-        if (g.appid === appid && g.added !== false) return true;
-      }
     }
   } catch {}
 
