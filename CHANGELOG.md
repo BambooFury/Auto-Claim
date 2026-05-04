@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/BambooFury/Auto-Claim/compare/v1.2.8...v1.3.0) (2026-05-04)
+
+
+### Features
+
+* add hide owned games toggle in settings with smart badge indicator ([03de1db](https://github.com/BambooFury/Auto-Claim/commit/03de1dbb98146f3fb8d8b14c83fc3168badc659d))
+* add hide owned games toggle in settings with smart badge indicator ([dd2ebab](https://github.com/BambooFury/Auto-Claim/commit/dd2ebab337abcc4b24bb9f3cc4c549aebe02a1f7))
+
 ## [1.2.8](https://github.com/BambooFury/Auto-Claim/compare/v1.2.7...v1.2.8) (2026-05-04)
 
 
