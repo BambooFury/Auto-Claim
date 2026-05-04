@@ -18,6 +18,27 @@ const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
+const _autoclaimIntervals: Array<ReturnType<typeof setInterval>> = [];
+let _autoclaimNextScanTimer: ReturnType<typeof setTimeout> | null = null;
+let _autoclaimPollingStarted = false;
+
+function _trackInterval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
+  const id = setInterval(fn, ms);
+  _autoclaimIntervals.push(id);
+  return id;
+}
+
+function _clearAutoclaimTimers(): void {
+  while (_autoclaimIntervals.length) {
+    const id = _autoclaimIntervals.pop();
+    if (id !== undefined) clearInterval(id);
+  }
+  if (_autoclaimNextScanTimer) {
+    clearTimeout(_autoclaimNextScanTimer);
+    _autoclaimNextScanTimer = null;
+  }
+}
+
 const log = (msg: string) => {
   _logPluginIPC({ payload: msg }).catch(() => {});
 };
@@ -249,7 +270,8 @@ const SettingsPanel: React.FC = () => {
       syncStoreSettings(s, w);
       setLoaded(true);
     };
-    setTimeout(() => { void boot(); }, 500);
+    const bootTimer = setTimeout(() => { void boot(); }, 500);
+    return () => clearTimeout(bootTimer);
   }, []);
 
   const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
@@ -311,9 +333,15 @@ async function drainPendingToasts(): Promise<void> {
 }
 
 async function startPolling(): Promise<void> {
+  if (_autoclaimPollingStarted) {
+    log('startPolling re-entered — clearing previous timers');
+    _clearAutoclaimTimers();
+  }
+  _autoclaimPollingStarted = true;
+
   await waitForSteamReady();
 
-  setInterval(() => { void drainPendingToasts(); }, 5000);
+  _trackInterval(() => { void drainPendingToasts(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
   let grabbedSet = new Set<number>();
@@ -447,7 +475,7 @@ async function startPolling(): Promise<void> {
     lastScanSeq = await withTimeout(popScanRequest(), 2000, '0');
   } catch { lastScanSeq = '0'; }
 
-  setInterval(async () => {
+  _trackInterval(async () => {
     try {
       const seq = await withTimeout(popScanRequest(), 2000, lastScanSeq);
       if (seq && seq !== lastScanSeq) {
@@ -464,7 +492,9 @@ async function startPolling(): Promise<void> {
     } else {
       log(`Next scan in ${settings.pollIntervalMin} min`);
     }
-    setTimeout(async () => {
+    if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
+    _autoclaimNextScanTimer = setTimeout(async () => {
+      _autoclaimNextScanTimer = null;
       const ok = await triggerScan(retryDelay ? 'retry after failure' : 'scheduled');
       if (!ok) {
         const next = Math.min((retryDelay ?? 60000) * 2.5, (settings.pollIntervalMin || 30) * 60 * 1000);
@@ -475,6 +505,8 @@ async function startPolling(): Promise<void> {
     }, interval);
   };
   scheduleNext();
+
+  window.addEventListener('beforeunload', _clearAutoclaimTimers, { once: true });
 }
 
 export default definePlugin(() => {
