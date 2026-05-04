@@ -264,9 +264,18 @@ function load_grabbed_ipc()
     return read_file(GRABBED_FILE) or "[]"
 end
 
+local function _is_valid_json_payload(payload, expected_kind)
+    if type(payload) ~= "string" or payload == "" then return false end
+    local ok, parsed = pcall(cjson.decode, payload)
+    if not ok then return false end
+    if expected_kind == "array" and type(parsed) ~= "table" then return false end
+    if expected_kind == "object" and type(parsed) ~= "table" then return false end
+    return true
+end
+
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
-    if not payload then return 0 end
+    if not _is_valid_json_payload(payload, "array") then return 0 end
     write_file(GRABBED_FILE, payload)
     return 1
 end
@@ -277,7 +286,7 @@ end
 
 function save_settings_ipc(data)
     local payload = extract_payload(data)
-    if not payload then return 0 end
+    if not _is_valid_json_payload(payload, "object") then return 0 end
     write_file(SETTINGS_FILE, payload)
     return 1
 end
@@ -288,7 +297,7 @@ end
 
 function save_widget_settings_ipc(data)
     local payload = extract_payload(data)
-    if not payload then return 0 end
+    if not _is_valid_json_payload(payload, "object") then return 0 end
     write_file(WIDGETS_FILE, payload)
     return 1
 end
