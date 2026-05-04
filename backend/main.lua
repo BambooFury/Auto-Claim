@@ -170,7 +170,12 @@ local cjson = (function()
     logger:info("[AutoClaim] cjson module unavailable, using pure-Lua JSON fallback")
     return _pure_lua_json
 end)()
-local PLUGIN_DIR = debug.getinfo(1, "S").source:match("^@(.+)\\backend\\") or "."
+local PLUGIN_DIR = (function()
+    local src = debug.getinfo(1, "S").source or ""
+    if src:sub(1, 1) == "@" then src = src:sub(2) end
+    src = src:gsub("/", "\\")
+    return src:match("^(.+)\\backend\\") or "."
+end)()
 
 local GRABBED_FILE   = PLUGIN_DIR .. "\\grabbed.json"
 local SETTINGS_FILE  = PLUGIN_DIR .. "\\settings.json"
