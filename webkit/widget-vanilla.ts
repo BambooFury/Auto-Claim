@@ -123,22 +123,22 @@ export function injectVanillaWidget(): void {
       .fgg-toggle {
         width: 44px !important;
         height: 24px !important;
-        border-radius: 12px !important;
+        border-radius: 6px !important;
         position: relative !important;
       }
       .fgg-toggle-knob {
         position: absolute !important;
         top: 50% !important;
         transform: translateY(-50%) !important;
-        width: 16px !important;
-        height: 16px !important;
-        border-radius: 4px !important;
+        width: 14px !important;
+        height: 14px !important;
+        border-radius: 3px !important;
         background: white !important;
-        left: 4px !important;
+        left: 5px !important;
         transition: left 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
       }
       .fgg-toggle.on .fgg-toggle-knob {
-        left: 24px !important;
+        left: 25px !important;
       }
 
       /* Welcome modal — green hero background */
@@ -364,6 +364,18 @@ export function injectVanillaWidget(): void {
       });
       panel.querySelectorAll<HTMLElement>('.fgg-toggle:not(.on)').forEach((el) => {
         el.style.setProperty('background', 'rgba(255,255,255,0.12)', 'important');
+      });
+      panel.querySelectorAll<HTMLElement>('.fgg-toggle-knob').forEach((el) => {
+        el.style.setProperty('top', '50%', 'important');
+        el.style.setProperty('transform', 'translateY(-50%)', 'important');
+        el.style.setProperty('border-radius', '3px', 'important');
+        el.style.setProperty('width', '14px', 'important');
+        el.style.setProperty('height', '14px', 'important');
+      });
+      panel.querySelectorAll<HTMLElement>('.fgg-toggle').forEach((el) => {
+        el.style.setProperty('border-radius', '6px', 'important');
+        el.style.setProperty('height', '24px', 'important');
+        el.style.setProperty('width', '44px', 'important');
       });
     }
   }
