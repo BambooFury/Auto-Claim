@@ -147,11 +147,8 @@ export const HsvPicker: React.FC<HsvPickerProps> = ({ value, onChange }) => {
     }
   }, [value]);
 
-  const hueColor = rgbToHex(
-    hsvToRgb(hsv.h, 1, 1).r,
-    hsvToRgb(hsv.h, 1, 1).g,
-    hsvToRgb(hsv.h, 1, 1).b,
-  );
+  const hueRgb   = hsvToRgb(hsv.h, 1, 1);
+  const hueColor = rgbToHex(hueRgb.r, hueRgb.g, hueRgb.b);
 
   const currentRgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
   const currentHex = rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b);

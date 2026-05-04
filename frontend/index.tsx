@@ -7,7 +7,6 @@ type StrIn = [{ payload: string }];
 const loadGrabbed       = callable<Empty, string>('load_grabbed_ipc');
 const saveGrabbed       = callable<StrIn, number>('save_grabbed_ipc');
 const loadSettings      = callable<Empty, string>('load_settings_ipc');
-const saveSettings      = callable<StrIn, number>('save_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
 const fetchFreeGames    = callable<Empty, string>('fetch_free_games_backend');
 const claimFreeGameLua  = callable<StrIn, string>('claim_free_game_backend');
@@ -18,6 +17,27 @@ const popToasts         = callable<Empty, string>('pop_toasts_ipc');
 const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
+
+const _autoclaimIntervals: Array<ReturnType<typeof setInterval>> = [];
+let _autoclaimNextScanTimer: ReturnType<typeof setTimeout> | null = null;
+let _autoclaimPollingStarted = false;
+
+function _trackInterval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
+  const id = setInterval(fn, ms);
+  _autoclaimIntervals.push(id);
+  return id;
+}
+
+function _clearAutoclaimTimers(): void {
+  while (_autoclaimIntervals.length) {
+    const id = _autoclaimIntervals.pop();
+    if (id !== undefined) clearInterval(id);
+  }
+  if (_autoclaimNextScanTimer) {
+    clearTimeout(_autoclaimNextScanTimer);
+    _autoclaimNextScanTimer = null;
+  }
+}
 
 const log = (msg: string) => {
   _logPluginIPC({ payload: msg }).catch(() => {});
@@ -250,17 +270,9 @@ const SettingsPanel: React.FC = () => {
       syncStoreSettings(s, w);
       setLoaded(true);
     };
-    setTimeout(() => { void boot(); }, 500);
+    const bootTimer = setTimeout(() => { void boot(); }, 500);
+    return () => clearTimeout(bootTimer);
   }, []);
-
-  const updateSettings = useCallback((patch: Partial<Settings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      saveSettings({ payload: JSON.stringify(next) });
-      syncStoreSettings(next, widget);
-      return next;
-    });
-  }, [widget]);
 
   const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
     setWidget((prev) => {
@@ -281,10 +293,8 @@ const SettingsPanel: React.FC = () => {
   return React.createElement('div',
     { style: { display: 'flex', flexDirection: 'column' } },
     React.createElement(SettingsTab, {
-      plugin:    settings,
       widget,
-      onPlugin:  updateSettings,
-      onWidget:  updateWidget,
+      onWidget: updateWidget,
     }),
   );
 };
@@ -323,9 +333,15 @@ async function drainPendingToasts(): Promise<void> {
 }
 
 async function startPolling(): Promise<void> {
+  if (_autoclaimPollingStarted) {
+    log('startPolling re-entered — clearing previous timers');
+    _clearAutoclaimTimers();
+  }
+  _autoclaimPollingStarted = true;
+
   await waitForSteamReady();
 
-  setInterval(() => { void drainPendingToasts(); }, 5000);
+  _trackInterval(() => { void drainPendingToasts(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
   let grabbedSet = new Set<number>();
@@ -459,7 +475,7 @@ async function startPolling(): Promise<void> {
     lastScanSeq = await withTimeout(popScanRequest(), 2000, '0');
   } catch { lastScanSeq = '0'; }
 
-  setInterval(async () => {
+  _trackInterval(async () => {
     try {
       const seq = await withTimeout(popScanRequest(), 2000, lastScanSeq);
       if (seq && seq !== lastScanSeq) {
@@ -476,7 +492,9 @@ async function startPolling(): Promise<void> {
     } else {
       log(`Next scan in ${settings.pollIntervalMin} min`);
     }
-    setTimeout(async () => {
+    if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
+    _autoclaimNextScanTimer = setTimeout(async () => {
+      _autoclaimNextScanTimer = null;
       const ok = await triggerScan(retryDelay ? 'retry after failure' : 'scheduled');
       if (!ok) {
         const next = Math.min((retryDelay ?? 60000) * 2.5, (settings.pollIntervalMin || 30) * 60 * 1000);
@@ -487,6 +505,8 @@ async function startPolling(): Promise<void> {
     }, interval);
   };
   scheduleNext();
+
+  window.addEventListener('beforeunload', _clearAutoclaimTimers, { once: true });
 }
 
 export default definePlugin(() => {

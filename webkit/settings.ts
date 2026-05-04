@@ -6,7 +6,7 @@ import type { PanelSide, TabStyle } from './types';
 
 const LS_KEY = 'fgg_store_settings';
 
-export interface PluginConfig {
+interface PluginConfig {
   tabColor: string;
   accentColor: string;
   showOverlay: boolean;
@@ -62,6 +62,7 @@ function loadFromLocalStorage(): void {
 function snapshotForLocalStorage() {
   return {
     tabColor:        cfg.tabColor,
+    accentColor:     cfg.accentColor,
     showOverlay:     cfg.showOverlay,
     panelSide:       cfg.panelSide,
     tabStyle:        cfg.tabStyle,

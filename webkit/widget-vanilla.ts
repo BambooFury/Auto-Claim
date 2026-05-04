@@ -15,6 +15,20 @@ const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
 
+function colorWithAlpha(color: string, alpha: number): string {
+  const m = color.match(/^rgba?\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/i);
+  if (m) return `rgba(${m[1]},${m[2]},${m[3]},${alpha})`;
+
+  const hex = color.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return color;
+}
+
 function tabSize(style: string): { w: number; h: number; off: number } {
   if (style === 'slim')     return { w: 20, h: 48, off: 0 };
   if (style === 'floating') return { w: 26, h: 56, off: 8 };
@@ -394,7 +408,7 @@ export function injectVanillaWidget(): void {
 
     const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
     panel.style.setProperty('--fgg-tab-accent', accent);
-    panel.style.setProperty('--fgg-tab-accent-glow', accent.replace(')', ',0.3)').replace('rgba', 'rgba').replace('rgb(', 'rgba(').replace(',0.3)', ',0.3)'));
+    panel.style.setProperty('--fgg-tab-accent-glow', colorWithAlpha(accent, 0.3));
 
     tabBtn.style.width        = geom.w + 'px';
     tabBtn.style.height       = geom.h + 'px';
@@ -823,7 +837,9 @@ const PANEL_CSS = `
   #fgg-body.is-settings {
     max-height: none;
     overflow-y: visible;
+    padding-bottom: 4px;
   }
+  #fgg-body.is-settings .fgg-set-row:last-child { padding-bottom: 0; }
   #fgg-body::-webkit-scrollbar             { width: 6px; }
   #fgg-body::-webkit-scrollbar-track       { background: transparent; margin: 6px 0; }
   #fgg-body::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.12); border-radius: 3px; transition: background 0.15s; }
@@ -1057,7 +1073,7 @@ function renderSettings(
         <span class="fgg-action-icon">⟳</span>
         <span>Scan now</span>
       </button>
-      <div id="fgg-scan-result" style="display:none;margin-top:6px;font-size:11px;line-height:1.4;"></div>
+      <div id="fgg-scan-result" style="margin-top:6px;font-size:11px;line-height:1.4;min-height:16px;color:rgba(255,255,255,0.35);"></div>
     </div>
   `;
 
@@ -1110,7 +1126,6 @@ function renderSettings(
     scanBtn.classList.add('busy');
     if (scanResult) {
       scanResult.style.color = 'rgba(255,255,255,0.35)';
-      scanResult.style.display = 'block';
       scanResult.textContent = 'Scanning…';
     }
     try {
@@ -1127,11 +1142,9 @@ function renderSettings(
           const newGames = found.filter(g => !lastGames.some(lg => lg.appid === g.appid));
           if (newGames.length > 0) {
             scanResult.style.color = '#55cc55';
-            scanResult.style.display = 'block';
             scanResult.innerHTML = newGames.map(g => `• ${g.name}`).join('<br>');
           } else {
             scanResult.style.color = 'rgba(255,255,255,0.35)';
-            scanResult.style.display = 'block';
             scanResult.textContent = 'No new free games found.';
           }
         } catch {
