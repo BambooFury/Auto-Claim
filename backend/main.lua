@@ -475,7 +475,30 @@ local function claim_subid(subid, sessionid_override, appid_hint)
     return false, "claim refused"
 end
 
-local function _extract_subid_from_appdetails(body)
+local function _extract_subid_from_appdetails(body, appid)
+    local ok, parsed = pcall(cjson.decode, body)
+    if ok and type(parsed) == "table" then
+        local entry = parsed[tostring(appid)]
+        if type(entry) == "table" and entry.success and type(entry.data) == "table" then
+            local groups = entry.data.package_groups
+            if type(groups) == "table" then
+                for _, g in ipairs(groups) do
+                    if type(g) == "table" and type(g.subs) == "table" then
+                        for _, sub in ipairs(g.subs) do
+                            if type(sub) == "table"
+                                and (sub.is_free_license == true
+                                    or sub.price_in_cents_with_discount == 0) then
+                                if sub.packageid then
+                                    return tostring(sub.packageid)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
     if not subid then
         subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^{}]-"price_in_cents_with_discount"%s*:%s*0')
@@ -494,7 +517,7 @@ local function fetch_subid_for_appid(appid)
 
         local res = http.get(url, { timeout = 15 })
         if res and res.status == 200 then
-            local subid = _extract_subid_from_appdetails(res.body)
+            local subid = _extract_subid_from_appdetails(res.body, appid)
             if subid then return subid end
 
             for inner in res.body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
