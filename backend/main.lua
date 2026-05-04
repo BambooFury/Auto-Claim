@@ -293,6 +293,8 @@ end
 function save_cookies_ipc(data)
     local payload = extract_payload(data)
     if not payload or payload == "" then return 0 end
+    local ok, parsed = pcall(cjson.decode, payload)
+    if not ok or type(parsed) ~= "table" then return 0 end
     write_file(COOKIES_FILE, payload)
     return 1
 end
