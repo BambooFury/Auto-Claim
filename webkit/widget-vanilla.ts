@@ -237,6 +237,7 @@ export function injectVanillaWidget(): void {
   let claimDone  = 0;
   let claimTotal = 0;
   let ownedSet  = new Set<number>();
+  let refreshing = false;
 
   const $ = <T extends Element = HTMLElement>(sel: string) =>
     panel.querySelector(sel) as T | null;
@@ -304,7 +305,8 @@ export function injectVanillaWidget(): void {
   }
 
   async function softRefresh() {
-    if (busyClaim) return;
+    if (busyClaim || refreshing) return;
+    refreshing = true;
     try {
       const raw = await loadFreeGamesCacheIPC();
       const next: FreeGame[] = JSON.parse(raw || '[]');
@@ -321,7 +323,9 @@ export function injectVanillaWidget(): void {
 
       if (opened && activeTab === 'games') render();
       if (cfg.autoAdd && next.length > 0) void runAutoClaim();
-    } catch {}
+    } catch {} finally {
+      refreshing = false;
+    }
   }
 
   function render() {
