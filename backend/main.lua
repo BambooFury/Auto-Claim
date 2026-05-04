@@ -386,7 +386,8 @@ local function _extract_subid_from_appdetails(body)
 end
 
 local function fetch_subid_for_appid(appid)
-    local last_body = nil
+    local candidates = {}
+    local seen = {}
 
     for _, cc in ipairs(SEARCH_REGIONS) do
         local url = APPDETAILS_URL
@@ -397,26 +398,25 @@ local function fetch_subid_for_appid(appid)
         if res and res.status == 200 then
             local subid = _extract_subid_from_appdetails(res.body)
             if subid then return subid end
-            last_body = res.body
+
+            for inner in res.body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
+                for p in inner:gmatch("%d+") do
+                    if not seen[p] then
+                        seen[p] = true
+                        candidates[#candidates + 1] = p
+                    end
+                end
+            end
         end
     end
 
-    if last_body then
-        local candidates = {}
-        for inner in last_body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
-            for p in inner:gmatch("%d+") do
-                candidates[#candidates + 1] = p
-            end
-        end
-
-        for _, pid in ipairs(candidates) do
-            local pres = http.get(PKGDETAILS_URL .. "?packageids=" .. pid .. "&cc=us",
-                                  { timeout = 10 })
-            if pres and pres.status == 200 then
-                local price = pres.body:match('"final"%s*:%s*(%d+)')
-                if price == "0" then
-                    return pid
-                end
+    for _, pid in ipairs(candidates) do
+        local pres = http.get(PKGDETAILS_URL .. "?packageids=" .. pid .. "&cc=us",
+                              { timeout = 10 })
+        if pres and pres.status == 200 then
+            local price = pres.body:match('"final"%s*:%s*(%d+)')
+            if price == "0" then
+                return pid
             end
         end
     end
