@@ -289,6 +289,12 @@ function push_toast_ipc(data)
 end
 
 function pop_toasts_ipc()
+    local stash = TOASTS_FILE .. ".popping"
+    if os.rename(TOASTS_FILE, stash) then
+        local raw = read_file(stash) or "[]"
+        os.remove(stash)
+        return raw
+    end
     local raw = read_file(TOASTS_FILE) or "[]"
     os.remove(TOASTS_FILE)
     return raw
