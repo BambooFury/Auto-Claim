@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.6](https://github.com/BambooFury/Auto-Claim/compare/v1.3.5...v1.3.6) (2026-05-05)
+
+
+### Bug Fixes
+
+* wrap http calls in pcall to prevent crash, queue concurrent scan requests ([fe2ad32](https://github.com/BambooFury/Auto-Claim/commit/fe2ad321ad7dceab860b107bb1cd4deab49fa246))
+
 ## [1.3.5](https://github.com/BambooFury/Auto-Claim/compare/v1.3.4...v1.3.5) (2026-05-04)
 
 
