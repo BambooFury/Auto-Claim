@@ -512,14 +512,27 @@ async function startPolling(): Promise<void> {
   await runOneScan();
 
   let scanInProgress = false;
+  let scanQueued = false;
   const triggerScan = async (reason: string): Promise<boolean> => {
-    if (scanInProgress) return false;
+    if (scanInProgress) {
+      scanQueued = true;
+      log(`Scan queued (${reason}) — another scan is in progress`);
+      return false;
+    }
     scanInProgress = true;
+    scanQueued = false;
     try {
       log(`Manual scan triggered: ${reason}`);
-      return await runOneScan();
+      const result = await runOneScan();
+      if (scanQueued) {
+        scanQueued = false;
+        scanInProgress = false;
+        return triggerScan('queued');
+      }
+      return result;
     } finally {
       scanInProgress = false;
+      scanQueued = false;
     }
   };
 

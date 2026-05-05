@@ -167,7 +167,6 @@ local cjson = (function()
         logger:info("[AutoClaim] JSON backend: cjson (native)")
         return mod2
     end
-    logger:info("[AutoClaim] cjson module unavailable, using pure-Lua JSON fallback")
     return _pure_lua_json
 end)()
 local PLUGIN_DIR = (function()
@@ -223,6 +222,24 @@ local function read_file(path)
     local body = f:read("*a")
     f:close()
     return body
+end
+
+local function safe_http_get(url, opts)
+    local ok, res = pcall(http.get, url, opts or {})
+    if not ok then
+        logger:warn("[AutoClaim] safe_http_get crashed: " .. tostring(res))
+        return nil
+    end
+    return res
+end
+
+local function safe_http_post(url, body, opts)
+    local ok, res = pcall(http.post, url, body, opts or {})
+    if not ok then
+        logger:warn("[AutoClaim] safe_http_post crashed: " .. tostring(res))
+        return nil
+    end
+    return res
 end
 
 local function write_file(path, content)
@@ -509,7 +526,7 @@ local function claim_subid(subid, sessionid_override, appid_hint)
         and (STORE_HOST .. "/app/" .. appid_hint .. "/")
         or  (STORE_HOST .. "/")
 
-    local res, err = http.post(CLAIM_URL, body, {
+    local res, err = safe_http_post(CLAIM_URL, body, {
         timeout = 15,
         headers = {
             ["Content-Type"]      = "application/x-www-form-urlencoded",
@@ -592,7 +609,7 @@ local function fetch_subid_for_appid(appid)
             .. "?appids=" .. appid
             .. "&filters=packages,package_groups,price_overview&cc=" .. cc
 
-        local res = http.get(url, { timeout = 15 })
+        local res = safe_http_get(url, { timeout = 15 })
         if res and res.status == 200 then
             local subid = _extract_subid_from_appdetails(res.body, appid)
             if subid then return subid end
@@ -609,7 +626,7 @@ local function fetch_subid_for_appid(appid)
     end
 
     for _, pid in ipairs(candidates) do
-        local pres = http.get(PKGDETAILS_URL .. "?packageids=" .. pid .. "&cc=us",
+        local pres = safe_http_get(PKGDETAILS_URL .. "?packageids=" .. pid .. "&cc=us",
                               { timeout = 10 })
         if pres and pres.status == 200 then
             local price = pres.body:match('"final"%s*:%s*(%d+)')
@@ -645,7 +662,7 @@ local function _fetch_free_games_impl()
 
     for _, cc in ipairs(SEARCH_REGIONS) do
         local url = SEARCH_BASE .. "&cc=" .. cc
-        local res = http.get(url, { timeout = 25 })
+        local res = safe_http_get(url, { timeout = 25 })
         if res and res.status == 200 then
             fetch_ok = true
             local ok, data = pcall(cjson.decode, res.body)
@@ -671,7 +688,7 @@ local function _fetch_free_games_impl()
     end
 
     do
-        local res = http.get(GAMERPOWER_URL, { timeout = 15 })
+        local res = safe_http_get(GAMERPOWER_URL, { timeout = 15 })
         if res and res.status == 200 then
             local ok, data = pcall(cjson.decode, res.body)
             if ok and type(data) == "table" then
@@ -688,7 +705,7 @@ local function _fetch_free_games_impl()
                     if clean and clean ~= "" then
                         local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
                             _urlencode(clean) .. "&l=english&cc=us"
-                        local sres = http.get(search_url, { timeout = 10 })
+                        local sres = safe_http_get(search_url, { timeout = 10 })
                         if sres and sres.status == 200 then
                             local sok, sdata = pcall(cjson.decode, sres.body)
                             if sok and type(sdata) == "table" and type(sdata.items) == "table" and sdata.items[1] then
@@ -715,7 +732,7 @@ local function _fetch_free_games_impl()
     local games_only = {}
     for _, g in ipairs(found) do
         local verify_cc = g.cc or "us"
-        local dres = http.get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
+        local dres = safe_http_get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
         local accepted = false
         if dres and dres.status == 200 then
             local dok, ddata = pcall(cjson.decode, dres.body)
