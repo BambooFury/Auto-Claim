@@ -53,13 +53,33 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
       body: form.toString(),
     });
 
+    if (claimRes.status === 401 || claimRes.status === 403) {
+      return { ok: false, reason: 'session expired' };
+    }
     if (!claimRes.ok) return { ok: false, reason: 'http ' + claimRes.status };
 
     const text = await claimRes.text();
-    if (/Sign In|please log in/i.test(text)) {
+
+    try {
+      const data = JSON.parse(text);
+      if (data && typeof data === 'object') {
+        if (data.success === 1 || data.success === true) {
+          return { ok: true, reason: 'ok' };
+        }
+        if (data.purchaseresultdetail !== undefined) {
+          return { ok: false, reason: 'purchase result ' + data.purchaseresultdetail };
+        }
+        return { ok: false, reason: 'claim refused' };
+      }
+    } catch {}
+
+    if (/"success"\s*:\s*1\b/.test(text)) {
+      return { ok: true, reason: 'ok' };
+    }
+    if (/Sign In|please log in|store\.steampowered\.com\/login/i.test(text)) {
       return { ok: false, reason: 'session expired' };
     }
-    return { ok: true, reason: 'ok' };
+    return { ok: false, reason: 'claim refused' };
   } catch (err) {
     return { ok: false, reason: String(err) };
   }
