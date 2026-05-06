@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.1](https://github.com/BambooFury/Auto-Claim/compare/v1.4.0...v1.4.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* apply settings changes in real-time, update badge on hide-owned toggle ([f8f939b](https://github.com/BambooFury/Auto-Claim/commit/f8f939b4de81df8680c3930ae350fe1d50945bd1))
+* disable filter button keyboard access on settings tab ([67719e7](https://github.com/BambooFury/Auto-Claim/commit/67719e75d5fed1b22da52cad018118340f5c601f))
+* replace filter dropdown with toggle, dim filter btn on settings tab ([067f082](https://github.com/BambooFury/Auto-Claim/commit/067f082c93dfd76910901b2a8c0ca37533298151))
+* replace filter dropdown with toggle, dim filter btn on settings tab ([3d5c2d3](https://github.com/BambooFury/Auto-Claim/commit/3d5c2d347cdc4ee3de583c269d90c4d9b1db5118))
+
 ## [1.4.0](https://github.com/BambooFury/Auto-Claim/compare/v1.3.6...v1.4.0) (2026-05-06)
 
 
