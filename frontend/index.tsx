@@ -92,11 +92,12 @@ function normalizeSettings(s: Settings): Settings {
 }
 
 const defaultWidget = (): WidgetSettings => ({
-  panelSide:   'left',
-  tabColor:    'gray',
-  accentColor: 'rgba(255,255,255,0.5)',
-  showOverlay: false,
-  tabStyle:    'large',
+  panelSide:      'left',
+  tabColor:       'gray',
+  accentColor:    'rgba(255,255,255,0.5)',
+  indicatorColor: '#ff7a3c',
+  showOverlay:    false,
+  tabStyle:       'large',
 });
 
 function syncStoreSettings(s: Settings, w: WidgetSettings): void {
@@ -106,6 +107,7 @@ function syncStoreSettings(s: Settings, w: WidgetSettings): void {
     pollIntervalMin: s.pollIntervalMin,
     tabColor:        w.tabColor,
     accentColor:     w.accentColor,
+    indicatorColor:  w.indicatorColor,
     showOverlay:     w.showOverlay,
     panelSide:       w.panelSide,
     tabStyle:        w.tabStyle,

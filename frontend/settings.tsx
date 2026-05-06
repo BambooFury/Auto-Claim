@@ -4,11 +4,12 @@ import { HsvPicker } from './hsv-picker';
 const h = React.createElement;
 
 export interface WidgetSettings {
-  panelSide:   'left' | 'right';
-  tabColor:    string;
-  accentColor: string;
-  showOverlay: boolean;
-  tabStyle:    'slim' | 'large' | 'floating';
+  panelSide:      'left' | 'right';
+  tabColor:       string;
+  accentColor:    string;
+  indicatorColor: string;
+  showOverlay:    boolean;
+  tabStyle:       'slim' | 'large' | 'floating';
 }
 
 interface Swatch { id: string; label: string; preview: string }
@@ -27,11 +28,12 @@ const STYLE_OPTIONS = [
 ];
 
 const widgetDefaults = (): WidgetSettings => ({
-  panelSide:   'left',
-  tabColor:    'gray',
-  accentColor: 'rgba(255,255,255,0.5)',
-  showOverlay: false,
-  tabStyle:    'large',
+  panelSide:      'left',
+  tabColor:       'gray',
+  accentColor:    'rgba(255,255,255,0.5)',
+  indicatorColor: '#ff7a3c',
+  showOverlay:    false,
+  tabStyle:       'large',
 });
 
 type Choice = { id: string; label: string };
@@ -425,6 +427,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ widget, onWidget }) =>
     }),
   );
 
+  const indicatorRow = row(
+    'Indicator Color',
+    'Color of the new-game notification dot on the side tab',
+    h(ColorPicker, {
+      value:    widget.indicatorColor ?? '#ff7a3c',
+      onChange: (id) => onWidget({ indicatorColor: id }),
+    }),
+  );
+
   const sideRow = row(
     'Panel Side',
     'Side the panel slides out from',
@@ -449,6 +460,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ widget, onWidget }) =>
 
   return h('div',
     { style: { display: 'flex', flexDirection: 'column' } },
-    heading, overlayRow, colorRow, accentRow, sideRow, styleRow,
+    heading, overlayRow, colorRow, accentRow, indicatorRow, sideRow, styleRow,
   );
 };

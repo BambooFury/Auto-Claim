@@ -9,6 +9,7 @@ const LS_KEY = 'fgg_store_settings';
 interface PluginConfig {
   tabColor: string;
   accentColor: string;
+  indicatorColor: string;
   showOverlay: boolean;
   panelSide: PanelSide;
   tabStyle: TabStyle;
@@ -22,6 +23,7 @@ interface PluginConfig {
 export const cfg: PluginConfig = {
   tabColor: 'gray',
   accentColor: 'rgba(255,255,255,0.5)',
+  indicatorColor: '#ff7a3c',
   showOverlay: false,
   panelSide: 'left',
   tabStyle: 'large',
@@ -45,8 +47,9 @@ function isFilterMode(v: any): v is FilterMode { return VALID_FILTER_MODES.index
 function applyInto(target: PluginConfig, src: any): void {
   if (!src || typeof src !== 'object') return;
 
-  if (typeof src.tabColor    === 'string')  target.tabColor    = src.tabColor;
-  if (typeof src.accentColor === 'string')  target.accentColor = src.accentColor;
+  if (typeof src.tabColor       === 'string') target.tabColor       = src.tabColor;
+  if (typeof src.accentColor    === 'string') target.accentColor    = src.accentColor;
+  if (typeof src.indicatorColor === 'string') target.indicatorColor = src.indicatorColor;
   if (typeof src.showOverlay === 'boolean') target.showOverlay = src.showOverlay;
   if (isPanelSide(src.panelSide))           target.panelSide   = src.panelSide;
   if (isTabStyle(src.tabStyle))             target.tabStyle    = src.tabStyle;
@@ -71,6 +74,7 @@ function snapshotForLocalStorage() {
   return {
     tabColor:        cfg.tabColor,
     accentColor:     cfg.accentColor,
+    indicatorColor:  cfg.indicatorColor,
     showOverlay:     cfg.showOverlay,
     panelSide:       cfg.panelSide,
     tabStyle:        cfg.tabStyle,
@@ -84,12 +88,13 @@ function snapshotForLocalStorage() {
 
 function widgetOnlyPayload() {
   return {
-    tabColor:    cfg.tabColor,
-    accentColor: cfg.accentColor,
-    showOverlay: cfg.showOverlay,
-    panelSide:   cfg.panelSide,
-    tabStyle:    cfg.tabStyle,
-    filterMode:  cfg.filterMode,
+    tabColor:       cfg.tabColor,
+    accentColor:    cfg.accentColor,
+    indicatorColor: cfg.indicatorColor,
+    showOverlay:    cfg.showOverlay,
+    panelSide:      cfg.panelSide,
+    tabStyle:       cfg.tabStyle,
+    filterMode:     cfg.filterMode,
   };
 }
 

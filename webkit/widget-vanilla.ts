@@ -72,6 +72,20 @@ function gameTypeLabel(t?: string): string {
   }
 }
 
+const INDICATOR_PRESET_HEX: Record<string, string> = {
+  gray:  '#a8a8a8',
+  black: '#1a1a1a',
+  white: '#f0f0f0',
+  blue:  '#4c9eff',
+  red:   '#e05252',
+};
+
+function resolveIndicatorHex(value: string | undefined, fallback: string): string {
+  if (!value) return fallback;
+  if (value.charAt(0) === '#') return value;
+  return INDICATOR_PRESET_HEX[value] || fallback;
+}
+
 const SVG_GIFT = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 7v14"></path>
@@ -470,8 +484,9 @@ export function injectVanillaWidget(): void {
         .then((raw) => {
           try {
             const w = JSON.parse(raw || '{}');
-            if (w.tabColor)                                  cfg.tabColor    = w.tabColor;
-            if (w.accentColor)                               cfg.accentColor = w.accentColor;
+            if (w.tabColor)                                  cfg.tabColor       = w.tabColor;
+            if (w.accentColor)                               cfg.accentColor    = w.accentColor;
+            if (typeof w.indicatorColor === 'string')        cfg.indicatorColor = w.indicatorColor;
             if (w.showOverlay !== undefined)                 cfg.showOverlay = w.showOverlay;
             if (w.panelSide === 'left' || w.panelSide === 'right') cfg.panelSide = w.panelSide;
             if (w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') {
@@ -519,6 +534,11 @@ export function injectVanillaWidget(): void {
     const accent = cfg.accentColor || 'rgba(255,255,255,0.95)';
     panel.style.setProperty('--fgg-tab-accent', accent);
     panel.style.setProperty('--fgg-tab-accent-glow', colorWithAlpha(accent, 0.3));
+
+    const indicatorHex = resolveIndicatorHex(cfg.indicatorColor, '#ff7a3c');
+    tabBtn.style.setProperty('--fgg-indicator-color', indicatorHex);
+    tabBtn.style.setProperty('--fgg-indicator-soft',   colorWithAlpha(indicatorHex, 0.55));
+    tabBtn.style.setProperty('--fgg-indicator-strong', colorWithAlpha(indicatorHex, 0.95));
 
     tabBtn.style.width        = geom.w + 'px';
     tabBtn.style.height       = geom.h + 'px';
@@ -588,6 +608,9 @@ export function injectVanillaWidget(): void {
           if (w.accentColor && w.accentColor !== cfg.accentColor) {
             cfg.accentColor = w.accentColor; changed = true;
           }
+          if (typeof w.indicatorColor === 'string' && w.indicatorColor !== cfg.indicatorColor) {
+            cfg.indicatorColor = w.indicatorColor; changed = true;
+          }
           if (w.showOverlay !== undefined && w.showOverlay !== cfg.showOverlay) {
             cfg.showOverlay = w.showOverlay; changed = true;
           }
@@ -638,8 +661,8 @@ const PANEL_CSS = `
     100% { transform: scale(2.6);  opacity: 0;    }
   }
   @keyframes fgg-tab-badge-glow {
-    0%, 100% { box-shadow: 0 0 6px rgba(255,154,60,0.55), inset 0 0 2px rgba(255,255,255,0.45); }
-    50%      { box-shadow: 0 0 12px rgba(255,154,60,0.95), inset 0 0 2px rgba(255,255,255,0.55); }
+    0%, 100% { box-shadow: 0 0 6px var(--fgg-indicator-soft, rgba(255,122,60,0.55)), inset 0 0 2px rgba(255,255,255,0.45); }
+    50%      { box-shadow: 0 0 12px var(--fgg-indicator-strong, rgba(255,122,60,0.95)), inset 0 0 2px rgba(255,255,255,0.55); }
   }
 
   .fgg-tab-badge {
@@ -647,7 +670,7 @@ const PANEL_CSS = `
     top: -3px;
     width: 9px; height: 9px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #ffc14d 0%, #ff7a3c 100%);
+    background: var(--fgg-indicator-color, #ff7a3c);
     pointer-events: none;
     display: none;
     animation: fgg-tab-badge-glow 2s ease-in-out infinite;
@@ -660,12 +683,12 @@ const PANEL_CSS = `
     border-radius: 50%;
   }
   .fgg-tab-badge::before {
-    background: rgba(255,154,60,0.55);
+    background: var(--fgg-indicator-soft, rgba(255,122,60,0.55));
     animation: fgg-tab-ping 1.6s cubic-bezier(0,0,0.2,1) infinite;
     z-index: 0;
   }
   .fgg-tab-badge::after {
-    background: linear-gradient(135deg, #ffc14d 0%, #ff7a3c 100%);
+    background: var(--fgg-indicator-color, #ff7a3c);
     z-index: 1;
   }
 
