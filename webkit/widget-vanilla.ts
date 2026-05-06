@@ -561,7 +561,6 @@ export function injectVanillaWidget(): void {
 
   let lastWidgetJson = initialWidgetRaw;
   const settingsPoll = setInterval(() => {
-    if (!opened) return;
     loadWidgetSettingsIPC()
       .then((raw) => {
         if (raw === lastWidgetJson) return;
@@ -1376,6 +1375,7 @@ function renderSettings(
     cfg.hideOwned = !cfg.hideOwned;
     animateToggle(e.currentTarget as HTMLButtonElement, cfg.hideOwned);
     persistAndRefresh();
+    rerender();
     logIPC({ payload: `Hide owned toggled: ${cfg.hideOwned ? 'ON' : 'OFF'}` }).catch(() => {});
   });
 
