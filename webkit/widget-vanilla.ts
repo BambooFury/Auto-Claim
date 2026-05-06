@@ -281,6 +281,26 @@ export function injectVanillaWidget(): void {
     tabBadgeEl.style.display = newCnt > 0 ? 'block' : 'none';
   }
 
+  function refreshGamesBadge() {
+    const badge = $<HTMLElement>('#fgg-games-badge');
+    if (!badge) return;
+    const filtered = visibleByFilter(games);
+    const total    = filtered.length;
+    const ownedCnt = filtered.filter(g => isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)).length;
+    const newCnt   = total - ownedCnt;
+
+    if (total === 0) {
+      badge.classList.remove('is-shown', 'is-zero');
+    } else if (cfg.hideOwned && newCnt === 0) {
+      badge.textContent = '✓';
+      badge.classList.add('is-shown', 'is-zero');
+    } else {
+      badge.textContent = String(cfg.hideOwned ? newCnt : total);
+      badge.classList.remove('is-zero');
+      badge.classList.add('is-shown');
+    }
+  }
+
   function positionTabBadge() {
     if (isLeft) {
       tabBadgeEl.style.left  = '';
@@ -383,7 +403,7 @@ export function injectVanillaWidget(): void {
 
       if (unchanged) {
         updateNewIndicator();
-        if (opened && activeTab === 'games') render();
+        refreshGamesBadge();
 
         const stillPending = games.some(
           (g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid),
@@ -427,25 +447,7 @@ export function injectVanillaWidget(): void {
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
     bodyEl.classList.toggle('is-settings', activeTab === 'settings');
 
-    const badge = $<HTMLElement>('#fgg-games-badge');
-    if (badge) {
-      const filtered = visibleByFilter(games);
-      const total    = filtered.length;
-      const ownedCnt = filtered.filter(g => isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)).length;
-      const newCnt   = total - ownedCnt;
-
-      if (total === 0) {
-        badge.classList.remove('is-shown', 'is-zero');
-      } else if (cfg.hideOwned && newCnt === 0) {
-        badge.textContent = '✓';
-        badge.classList.add('is-shown', 'is-zero');
-      } else {
-        badge.textContent = String(cfg.hideOwned ? newCnt : total);
-        badge.classList.remove('is-zero');
-        badge.classList.add('is-shown');
-      }
-    }
-
+    refreshGamesBadge();
     updateFilterBtnState();
 
     if (activeTab === 'games') {
