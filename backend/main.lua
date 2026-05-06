@@ -282,12 +282,35 @@ function load_grabbed_ipc()
     return read_file(GRABBED_FILE) or "[]"
 end
 
+local function _is_array_table(t)
+    if type(t) ~= "table" then return false end
+    local n = 0
+    for k, _ in pairs(t) do
+        if type(k) ~= "number" then return false end
+        n = n + 1
+    end
+    if n == 0 then return true end
+    for i = 1, n do
+        if t[i] == nil then return false end
+    end
+    return true
+end
+
+local function _is_object_table(t)
+    if type(t) ~= "table" then return false end
+    if next(t) == nil then return true end
+    for k, _ in pairs(t) do
+        if type(k) ~= "string" then return false end
+    end
+    return true
+end
+
 local function _is_valid_json_payload(payload, expected_kind)
     if type(payload) ~= "string" or payload == "" then return false end
     local ok, parsed = pcall(cjson.decode, payload)
-    if not ok then return false end
-    if expected_kind == "array" and type(parsed) ~= "table" then return false end
-    if expected_kind == "object" and type(parsed) ~= "table" then return false end
+    if not ok or type(parsed) ~= "table" then return false end
+    if expected_kind == "array"  and not _is_array_table(parsed)  then return false end
+    if expected_kind == "object" and not _is_object_table(parsed) then return false end
     return true
 end
 
@@ -326,9 +349,7 @@ end
 
 function save_cookies_ipc(data)
     local payload = extract_payload(data)
-    if not payload or payload == "" then return 0 end
-    local ok, parsed = pcall(cjson.decode, payload)
-    if not ok or type(parsed) ~= "table" then return 0 end
+    if not _is_valid_json_payload(payload, "object") then return 0 end
     write_file(COOKIES_FILE, payload)
     return 1
 end
@@ -339,7 +360,9 @@ function set_pending_claim_ipc(data)
         os.remove(PENDING_FILE)
         return 1
     end
-    write_file(PENDING_FILE, tostring(payload))
+    local appid = tonumber(payload)
+    if not appid or appid <= 0 then return 0 end
+    write_file(PENDING_FILE, tostring(appid))
     return 1
 end
 
@@ -354,15 +377,17 @@ end
 
 function push_toast_ipc(data)
     local payload = extract_payload(data)
-    if not payload or payload == "" then return 0 end
+    if not _is_valid_json_payload(payload, "object") then return 0 end
 
     local raw  = read_file(TOASTS_FILE) or "[]"
     local trim = raw:gsub("%s+$", "")
     local combined
     if trim == "" or trim == "[]" then
         combined = "[" .. payload .. "]"
-    else
+    elseif trim:sub(1, 1) == "[" and trim:sub(-1) == "]" then
         combined = trim:sub(1, -2) .. "," .. payload .. "]"
+    else
+        combined = "[" .. payload .. "]"
     end
     write_file(TOASTS_FILE, combined)
 
@@ -729,24 +754,36 @@ local function _fetch_free_games_impl()
         return read_file(CACHE_FILE) or "[]"
     end
 
-    local games_only = {}
+    local accepted_items = {}
     for _, g in ipairs(found) do
         local verify_cc = g.cc or "us"
         local dres = safe_http_get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
         local accepted = false
+        local detected_type = nil
         if dres and dres.status == 200 then
             local dok, ddata = pcall(cjson.decode, dres.body)
             if dok and type(ddata) == "table" then
                 local entry = ddata[tostring(g.appid)]
                 if entry and entry.data then
                     local app_type = entry.data.type
-                    local is_free  = entry.data.is_free == true
+                    detected_type = app_type
+                    local is_free = entry.data.is_free == true
                     local price_final = nil
                     if entry.data.price_overview and type(entry.data.price_overview.final) == "number" then
                         price_final = entry.data.price_overview.final
                     end
-                    if app_type == "game" and (is_free or price_final == 0) then
-                        accepted = true
+                    local is_currently_free = is_free or price_final == 0
+                    local is_listable_type =
+                        app_type == "game" or app_type == "dlc" or
+                        app_type == "music" or app_type == "demo"
+                    if g.from_gamerpower then
+                        if app_type == "game" and is_currently_free then
+                            accepted = true
+                        end
+                    else
+                        if is_listable_type and is_currently_free then
+                            accepted = true
+                        end
                     end
                 end
             end
@@ -754,14 +791,18 @@ local function _fetch_free_games_impl()
             accepted = true
         end
         if accepted then
-            games_only[#games_only + 1] = g
+            g.type = detected_type or "unknown"
+            accepted_items[#accepted_items + 1] = g
         end
     end
 
     local chunks = {}
-    for _, g in ipairs(games_only) do
-        local safe = _json_escape_string(g.name)
-        chunks[#chunks + 1] = '{"appid":' .. g.appid .. ',"name":"' .. safe .. '"}'
+    for _, g in ipairs(accepted_items) do
+        local safe_name = _json_escape_string(g.name)
+        local safe_type = _json_escape_string(g.type or "unknown")
+        chunks[#chunks + 1] = '{"appid":' .. g.appid ..
+            ',"name":"' .. safe_name ..
+            '","type":"' .. safe_type .. '"}'
     end
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
     write_file(CACHE_FILE, json_out)

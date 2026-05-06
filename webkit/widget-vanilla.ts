@@ -59,6 +59,33 @@ function arrowPoints(isLeft: boolean, opened: boolean): string {
   return opened ? '3,2 7,7 3,12' : '7,2 3,7 7,12';
 }
 
+function isClaimableGame(g: FreeGame): boolean {
+  return !g.type || g.type === 'game' || g.type === 'unknown';
+}
+
+function gameTypeLabel(t?: string): string {
+  switch (t) {
+    case 'dlc':   return 'DLC';
+    case 'music': return 'Soundtrack';
+    case 'demo':  return 'Demo';
+    default:      return '';
+  }
+}
+
+const INDICATOR_PRESET_HEX: Record<string, string> = {
+  gray:  '#a8a8a8',
+  black: '#1a1a1a',
+  white: '#f0f0f0',
+  blue:  '#4c9eff',
+  red:   '#e05252',
+};
+
+function resolveIndicatorHex(value: string | undefined, fallback: string): string {
+  if (!value) return fallback;
+  if (value.charAt(0) === '#') return value;
+  return INDICATOR_PRESET_HEX[value] || fallback;
+}
+
 const SVG_GIFT = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 7v14"></path>
@@ -87,6 +114,12 @@ const SVG_GEAR = `
 const SVG_CHECK = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <path d="M20 6 9 17l-5-5"/>
+  </svg>
+`;
+
+const SVG_FUNNEL = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>
   </svg>
 `;
 
@@ -142,7 +175,8 @@ export function injectVanillaWidget(): void {
       '<polyline id="fgg-arrow" points="' + arrowPoints(isLeft, false) + '"' +
       ' stroke="' + palette.arrow + '" stroke-width="2"' +
       ' stroke-linecap="round" stroke-linejoin="round"></polyline>' +
-    '</svg>';
+    '</svg>' +
+    '<span id="fgg-tab-badge" class="fgg-tab-badge" aria-hidden="true"></span>';
 
   const panel = document.createElement('div');
   Object.assign(panel.style, {
@@ -176,6 +210,8 @@ export function injectVanillaWidget(): void {
   let claimTotal = 0;
   let ownedSet  = new Set<number>();
   let refreshing = false;
+  let lastLibFetchMs = 0;
+  const LIB_RECHECK_MS = 30_000;
 
   const $ = <T extends Element = HTMLElement>(sel: string) =>
     panel.querySelector(sel) as T | null;
@@ -187,6 +223,107 @@ export function injectVanillaWidget(): void {
   const gamesTabBtn  = $<HTMLButtonElement>('#fgg-tab-games')!;
   const setsTabBtn   = $<HTMLButtonElement>('#fgg-tab-settings')!;
   const arrowEl      = tabBtn.querySelector<SVGPolylineElement>('#fgg-arrow')!;
+  const tabBadgeEl   = tabBtn.querySelector<HTMLElement>('#fgg-tab-badge')!;
+  const filterBtnEl  = $<HTMLElement>('#fgg-filter-btn')!;
+  const filterPopEl  = $<HTMLElement>('#fgg-filter-pop')!;
+
+  function updateFilterBtnState() {
+    filterPopEl.querySelectorAll<HTMLButtonElement>('[data-fgg-filter]').forEach((opt) => {
+      opt.classList.toggle('active', opt.getAttribute('data-fgg-filter') === cfg.filterMode);
+      opt.setAttribute('aria-checked', opt.getAttribute('data-fgg-filter') === cfg.filterMode ? 'true' : 'false');
+    });
+  }
+
+  function setFilterPopOpen(open: boolean) {
+    if (open) {
+      filterPopEl.removeAttribute('hidden');
+      filterBtnEl.classList.add('is-open');
+      filterBtnEl.setAttribute('aria-expanded', 'true');
+      filterPopEl.style.left = '8px';
+      filterPopEl.style.right = '';
+    } else {
+      filterPopEl.setAttribute('hidden', '');
+      filterBtnEl.classList.remove('is-open');
+      filterBtnEl.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function toggleFilterPop(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+    const isHidden = filterPopEl.hasAttribute('hidden');
+    setFilterPopOpen(isHidden);
+  }
+
+  filterBtnEl.addEventListener('click', toggleFilterPop);
+  filterBtnEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') toggleFilterPop(e);
+  });
+
+  filterPopEl.addEventListener('click', (e) => e.stopPropagation());
+  filterPopEl.querySelectorAll<HTMLButtonElement>('[data-fgg-filter]').forEach((opt) => {
+    opt.addEventListener('click', () => {
+      const mode = opt.getAttribute('data-fgg-filter');
+      if (mode !== 'games' && mode !== 'all') return;
+      setFilterPopOpen(false);
+      if (cfg.filterMode === mode) return;
+      cfg.filterMode = mode;
+      saveSettings();
+      refreshFooter();
+      logIPC({ payload: `Filter mode changed: ${mode}` }).catch(() => {});
+      activeTab = 'games';
+      render();
+    });
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    if (filterPopEl.hasAttribute('hidden')) return;
+    const t = e.target as Node | null;
+    if (t && (filterPopEl.contains(t) || filterBtnEl.contains(t))) return;
+    setFilterPopOpen(false);
+  });
+
+  function visibleByFilter(list: FreeGame[]): FreeGame[] {
+    return cfg.filterMode === 'all' ? list : list.filter(isClaimableGame);
+  }
+
+  function updateNewIndicator() {
+    const list = visibleByFilter(games);
+    const newCnt = list.reduce((acc, g) => {
+      return acc + (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid) ? 0 : 1);
+    }, 0);
+    tabBadgeEl.style.display = newCnt > 0 ? 'block' : 'none';
+  }
+
+  function refreshGamesBadge() {
+    const badge = $<HTMLElement>('#fgg-games-badge');
+    if (!badge) return;
+    const filtered = visibleByFilter(games);
+    const total    = filtered.length;
+    const ownedCnt = filtered.filter(g => isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)).length;
+    const newCnt   = total - ownedCnt;
+
+    if (total === 0) {
+      badge.classList.remove('is-shown', 'is-zero');
+    } else if (cfg.hideOwned && newCnt === 0) {
+      badge.textContent = '✓';
+      badge.classList.add('is-shown', 'is-zero');
+    } else {
+      badge.textContent = String(cfg.hideOwned ? newCnt : total);
+      badge.classList.remove('is-zero');
+      badge.classList.add('is-shown');
+    }
+  }
+
+  function positionTabBadge() {
+    if (isLeft) {
+      tabBadgeEl.style.left  = '';
+      tabBadgeEl.style.right = '-3px';
+    } else {
+      tabBadgeEl.style.right = '';
+      tabBadgeEl.style.left  = '-3px';
+    }
+  }
 
   function refreshFooter() {
     if (busyClaim) {
@@ -207,7 +344,9 @@ export function injectVanillaWidget(): void {
 
   async function runAutoClaim() {
     if (busyClaim) return;
-    const todo = games.filter((g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid));
+    const todo = games.filter((g) =>
+      isClaimableGame(g) && !ownedSet.has(g.appid) && !isInLibrary(g.appid),
+    );
     if (todo.length === 0) return;
 
     busyClaim  = true;
@@ -243,6 +382,7 @@ export function injectVanillaWidget(): void {
 
       if (result.ok) {
         ownedSet.add(g.appid);
+        updateNewIndicator();
         if (cfg.notifyOnGrab) {
           pushToastIPC({ payload: JSON.stringify({ appid: g.appid, name: g.name }) })
             .catch(() => {});
@@ -260,6 +400,7 @@ export function injectVanillaWidget(): void {
     claimTotal    = 0;
     claimDone     = 0;
     refreshFooter();
+    updateNewIndicator();
     render();
   }
 
@@ -273,12 +414,39 @@ export function injectVanillaWidget(): void {
       const unchanged =
         next.length === games.length &&
         next.every((g, i) => g.appid === games[i]?.appid && g.name === games[i]?.name);
-      if (unchanged) return;
+
+      if (unchanged) {
+        updateNewIndicator();
+        refreshGamesBadge();
+
+        const stillPending = games.some(
+          (g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid),
+        );
+        if (stillPending && Date.now() - lastLibFetchMs > LIB_RECHECK_MS && games.length > 0) {
+          const fresh = await checkLibraryAsync(games.map((g) => g.appid))
+            .catch((): Set<number> | null => null);
+          if (fresh) {
+            let changed = false;
+            fresh.forEach((id: number) => {
+              if (!ownedSet.has(id)) { ownedSet.add(id); changed = true; }
+            });
+            lastLibFetchMs = Date.now();
+            if (changed) {
+              updateNewIndicator();
+              if (opened && activeTab === 'games') render();
+            }
+          }
+        }
+        return;
+      }
 
       games = next;
       ownedSet = next.length > 0
         ? await checkLibraryAsync(next.map((g) => g.appid)).catch(() => new Set<number>())
         : new Set<number>();
+      lastLibFetchMs = Date.now();
+
+      updateNewIndicator();
 
       if (opened && activeTab === 'games') render();
       if (cfg.autoAdd && next.length > 0) void runAutoClaim();
@@ -293,36 +461,14 @@ export function injectVanillaWidget(): void {
     tabIndicator.style.left = activeTab === 'games' ? '0%' : '50%';
     bodyEl.classList.toggle('is-settings', activeTab === 'settings');
 
-    const badge = $<HTMLElement>('#fgg-games-badge');
-    if (badge) {
-      const total    = games.length;
-      const ownedCnt = games.filter(g => isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)).length;
-      const newCnt   = total - ownedCnt;
+    refreshGamesBadge();
+    updateFilterBtnState();
 
-      if (total === 0) {
-        badge.style.display = 'none';
-      } else if (cfg.hideOwned) {
-        if (newCnt === 0) {
-          badge.textContent = '✓';
-          badge.style.display = 'inline-block';
-          badge.style.background = 'rgba(85,204,85,0.35)';
-          badge.style.color = '#55cc55';
-        } else {
-          badge.textContent = String(newCnt);
-          badge.style.display = 'inline-block';
-          badge.style.background = 'rgba(255,255,255,0.15)';
-          badge.style.color = 'rgba(255,255,255,0.6)';
-        }
-      } else {
-        badge.textContent = String(total);
-        badge.style.display = 'inline-block';
-        badge.style.background = 'rgba(255,255,255,0.15)';
-        badge.style.color = 'rgba(255,255,255,0.6)';
-      }
+    if (activeTab === 'games') {
+      renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
+    } else {
+      renderSettings(bodyEl, render, persistAndRefresh, games);
     }
-
-    if (activeTab === 'games') renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
-    else                       renderSettings(bodyEl, render, persistAndRefresh, games);
   }
 
   gamesTabBtn.addEventListener('click', () => { activeTab = 'games';    render(); });
@@ -338,12 +484,16 @@ export function injectVanillaWidget(): void {
         .then((raw) => {
           try {
             const w = JSON.parse(raw || '{}');
-            if (w.tabColor)                                  cfg.tabColor    = w.tabColor;
-            if (w.accentColor)                               cfg.accentColor = w.accentColor;
+            if (w.tabColor)                                  cfg.tabColor       = w.tabColor;
+            if (w.accentColor)                               cfg.accentColor    = w.accentColor;
+            if (typeof w.indicatorColor === 'string')        cfg.indicatorColor = w.indicatorColor;
             if (w.showOverlay !== undefined)                 cfg.showOverlay = w.showOverlay;
             if (w.panelSide === 'left' || w.panelSide === 'right') cfg.panelSide = w.panelSide;
             if (w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') {
               cfg.tabStyle = w.tabStyle;
+            }
+            if (w.filterMode === 'games' || w.filterMode === 'all') {
+              cfg.filterMode = w.filterMode;
             }
             applyChrome();
           } catch {}
@@ -385,6 +535,11 @@ export function injectVanillaWidget(): void {
     panel.style.setProperty('--fgg-tab-accent', accent);
     panel.style.setProperty('--fgg-tab-accent-glow', colorWithAlpha(accent, 0.3));
 
+    const indicatorHex = resolveIndicatorHex(cfg.indicatorColor, '#ff7a3c');
+    tabBtn.style.setProperty('--fgg-indicator-color', indicatorHex);
+    tabBtn.style.setProperty('--fgg-indicator-soft',   colorWithAlpha(indicatorHex, 0.55));
+    tabBtn.style.setProperty('--fgg-indicator-strong', colorWithAlpha(indicatorHex, 0.95));
+
     tabBtn.style.width        = geom.w + 'px';
     tabBtn.style.height       = geom.h + 'px';
     tabBtn.style.borderRadius = tabRadius(cfg.tabStyle, isLeft);
@@ -419,6 +574,7 @@ export function injectVanillaWidget(): void {
     }
 
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
+    positionTabBadge();
     dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
     render();
   }
@@ -452,6 +608,9 @@ export function injectVanillaWidget(): void {
           if (w.accentColor && w.accentColor !== cfg.accentColor) {
             cfg.accentColor = w.accentColor; changed = true;
           }
+          if (typeof w.indicatorColor === 'string' && w.indicatorColor !== cfg.indicatorColor) {
+            cfg.indicatorColor = w.indicatorColor; changed = true;
+          }
           if (w.showOverlay !== undefined && w.showOverlay !== cfg.showOverlay) {
             cfg.showOverlay = w.showOverlay; changed = true;
           }
@@ -461,6 +620,9 @@ export function injectVanillaWidget(): void {
           if ((w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating')
               && w.tabStyle !== cfg.tabStyle) {
             cfg.tabStyle = w.tabStyle; changed = true;
+          }
+          if ((w.filterMode === 'games' || w.filterMode === 'all') && w.filterMode !== cfg.filterMode) {
+            cfg.filterMode = w.filterMode; changed = true;
           }
 
           if (changed) applyChrome();
@@ -492,6 +654,43 @@ const PANEL_CSS = `
   @keyframes fgg-pulse   { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
   @keyframes fgg-glow    { 0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.3); }
                            50%      { box-shadow: 0 0 14px rgba(255,255,255,0.5); } }
+
+  @keyframes fgg-tab-ping {
+    0%   { transform: scale(0.85); opacity: 0.85; }
+    80%  { transform: scale(2.6);  opacity: 0;    }
+    100% { transform: scale(2.6);  opacity: 0;    }
+  }
+  @keyframes fgg-tab-badge-glow {
+    0%, 100% { box-shadow: 0 0 6px var(--fgg-indicator-soft, rgba(255,122,60,0.55)), inset 0 0 2px rgba(255,255,255,0.45); }
+    50%      { box-shadow: 0 0 12px var(--fgg-indicator-strong, rgba(255,122,60,0.95)), inset 0 0 2px rgba(255,255,255,0.55); }
+  }
+
+  .fgg-tab-badge {
+    position: absolute;
+    top: -3px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--fgg-indicator-color, #ff7a3c);
+    pointer-events: none;
+    display: none;
+    animation: fgg-tab-badge-glow 2s ease-in-out infinite;
+  }
+  .fgg-tab-badge::before,
+  .fgg-tab-badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+  .fgg-tab-badge::before {
+    background: var(--fgg-indicator-soft, rgba(255,122,60,0.55));
+    animation: fgg-tab-ping 1.6s cubic-bezier(0,0,0.2,1) infinite;
+    z-index: 0;
+  }
+  .fgg-tab-badge::after {
+    background: var(--fgg-indicator-color, #ff7a3c);
+    z-index: 1;
+  }
 
   .fgg-card { animation: fgg-fade-in .25s ease both; }
 
@@ -800,6 +999,95 @@ const PANEL_CSS = `
     transition: left 0.25s ${SMOOTH};
   }
 
+  .fgg-filter-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    width: 22px; height: 22px;
+    padding: 0;
+    border: none;
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.65);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .fgg-filter-btn:hover,
+  .fgg-filter-btn.is-open {
+    color: #fff;
+    background: rgba(255,255,255,0.20);
+  }
+  .fgg-filter-btn svg {
+    width: 12px; height: 12px;
+    display: block;
+    pointer-events: none;
+  }
+  .fgg-filter-badge {
+    position: absolute;
+    top: -6px;
+    right: -7px;
+    min-width: 9px;
+    height: 13px;
+    padding: 0 4px;
+    border-radius: 7px;
+    background: #d9d9d9;
+    color: #1a1a1a;
+    box-shadow: 0 0 0 2px #0d0d0d;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 13px;
+    text-align: center;
+    pointer-events: none;
+    display: none;
+    box-sizing: content-box;
+  }
+  .fgg-filter-badge.is-shown { display: inline-block; }
+  .fgg-filter-badge.is-zero {
+    background: #55cc55;
+    color: #0d0d0d;
+  }
+
+  .fgg-filter-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    z-index: 10;
+    background: #161616;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    padding: 3px;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.55);
+    animation: fgg-fade-in 0.15s ease both;
+    display: inline-flex;
+    flex-direction: row;
+    gap: 2px;
+    width: max-content;
+  }
+  .fgg-filter-pop[hidden] { display: none; }
+  .fgg-filter-opt {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .fgg-filter-opt:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.9);
+  }
+  .fgg-filter-opt.active {
+    background: rgba(255,255,255,0.14);
+    color: #fff;
+    font-weight: 700;
+  }
+
   #fgg-body {
     padding: 14px 16px;
     display: flex; flex-direction: column; gap: 0;
@@ -862,9 +1150,13 @@ function panelMarkup(): string {
     </div>
 
     <div class="fgg-tabs">
-      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span><span id="fgg-games-badge" style="display:none;margin-left:5px;min-width:14px;height:14px;border-radius:7px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:9px;font-weight:600;line-height:14px;text-align:center;padding:0 4px;vertical-align:middle;flex-shrink:0;"></span></button>
+      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span><span id="fgg-filter-btn" class="fgg-filter-btn" role="button" tabindex="0" aria-label="Filter" aria-haspopup="menu" aria-expanded="false">${SVG_FUNNEL}<span id="fgg-games-badge" class="fgg-filter-badge"></span></span></button>
       <button id="fgg-tab-settings" class="fgg-tab">${SVG_GEAR}<span>SETTINGS</span></button>
       <div id="fgg-tab-indicator" class="fgg-tab-indicator"></div>
+      <div id="fgg-filter-pop" class="fgg-filter-pop" role="menu" aria-label="Filter free items" hidden>
+        <button class="fgg-filter-opt" role="menuitemradio" data-fgg-filter="games">Games</button>
+        <button class="fgg-filter-opt" role="menuitemradio" data-fgg-filter="all">All</button>
+      </div>
     </div>
 
     <div id="fgg-body"></div>
@@ -890,22 +1182,29 @@ function renderGames(
       <div class="fgg-empty">
         <div class="fgg-empty-icon">${SVG_RADAR}</div>
         <div class="fgg-empty-title">All caught up</div>
-        <div class="fgg-empty-desc">No free games detected right now.<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
+        <div class="fgg-empty-desc">No free items detected right now.<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
       </div>
     `;
     return;
   }
 
-  const visibleGames = cfg.hideOwned
-    ? games.filter((g) => !isGameOwned(g.appid, ownedSet) && !isInLibrary(g.appid))
-    : games;
+  const filteredByMode = cfg.filterMode === 'all' ? games : games.filter(isClaimableGame);
 
-  if (visibleGames.length === 0 && cfg.hideOwned) {
+  const visibleGames = cfg.hideOwned
+    ? filteredByMode.filter((g) => !isGameOwned(g.appid, ownedSet) && !isInLibrary(g.appid))
+    : filteredByMode;
+
+  if (visibleGames.length === 0) {
+    const emptyMsg = cfg.hideOwned
+      ? 'No new free items right now.'
+      : (cfg.filterMode === 'games'
+          ? 'No free games right now.'
+          : 'No free items right now.');
     bodyEl.innerHTML = `
       <div class="fgg-empty">
         <div class="fgg-empty-icon">${SVG_RADAR}</div>
         <div class="fgg-empty-title">All caught up</div>
-        <div class="fgg-empty-desc">No new free games right now.<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
+        <div class="fgg-empty-desc">${emptyMsg}<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
       </div>
     `;
     return;
@@ -955,10 +1254,12 @@ function buildCard(
 ): string {
   const owned     = isGameOwned(g.appid, ownedSet);
   const isClaim   = claiming && claimingAppid === g.appid;
+  const typeLabel = gameTypeLabel(g.type);
 
   const accent    = owned ? 'rgba(85,204,85,0.35)' : isClaim ? 'rgba(255,255,255,0.6)'  : 'rgba(255,255,255,0.28)';
   const dotColor  = owned ? '#55cc55'              : 'rgba(255,255,255,0.7)';
-  const status    = owned ? 'Owned · in your library' : isClaim ? 'Claiming silently…' : '100% off · pending';
+  const baseStatus = typeLabel ? typeLabel + ' · 100% off' : '100% off · pending';
+  const status    = owned ? 'Owned · in your library' : isClaim ? 'Claiming silently…' : baseStatus;
   const cardEdge  = owned ? 'rgba(85,204,85,0.18)' : isClaim ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)';
   const cardGlow  = isClaim ? '0 0 16px rgba(255,255,255,0.10)' : '';
 

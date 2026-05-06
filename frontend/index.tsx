@@ -56,6 +56,11 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 interface FreeGame {
   appid: number;
   name:  string;
+  type?: string;
+}
+
+function isAutoClaimable(game: FreeGame): boolean {
+  return !game.type || game.type === 'game' || game.type === 'unknown';
 }
 
 interface GrabbedEntry {
@@ -87,11 +92,12 @@ function normalizeSettings(s: Settings): Settings {
 }
 
 const defaultWidget = (): WidgetSettings => ({
-  panelSide:   'left',
-  tabColor:    'gray',
-  accentColor: 'rgba(255,255,255,0.5)',
-  showOverlay: false,
-  tabStyle:    'large',
+  panelSide:      'left',
+  tabColor:       'gray',
+  accentColor:    'rgba(255,255,255,0.5)',
+  indicatorColor: '#ff7a3c',
+  showOverlay:    false,
+  tabStyle:       'large',
 });
 
 function syncStoreSettings(s: Settings, w: WidgetSettings): void {
@@ -101,6 +107,7 @@ function syncStoreSettings(s: Settings, w: WidgetSettings): void {
     pollIntervalMin: s.pollIntervalMin,
     tabColor:        w.tabColor,
     accentColor:     w.accentColor,
+    indicatorColor:  w.indicatorColor,
     showOverlay:     w.showOverlay,
     panelSide:       w.panelSide,
     tabStyle:        w.tabStyle,
@@ -451,6 +458,14 @@ async function startPolling(): Promise<void> {
         return;
       }
 
+      if (!isAutoClaimable(game)) {
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — skipping (type=${game.type}, not a game)`);
+        }
+        return;
+      }
+
       if (shouldSkipByName(game.name)) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
@@ -509,8 +524,6 @@ async function startPolling(): Promise<void> {
     }
   }
 
-  await runOneScan();
-
   let scanInProgress = false;
   let scanQueued = false;
   const triggerScan = async (reason: string): Promise<boolean> => {
@@ -540,6 +553,8 @@ async function startPolling(): Promise<void> {
   try {
     lastScanSeq = parseInt(await withTimeout(popScanRequest(), 2000, '0'), 10) || 0;
   } catch { lastScanSeq = 0; }
+
+  await triggerScan('initial');
 
   _trackInterval(async () => {
     try {

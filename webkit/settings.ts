@@ -2,13 +2,14 @@ import {
   loadPluginSettingsIPC, savePluginSettingsIPC,
   loadWidgetSettingsIPC, saveWidgetSettingsIPC,
 } from './ipc';
-import type { PanelSide, TabStyle } from './types';
+import type { PanelSide, TabStyle, FilterMode } from './types';
 
 const LS_KEY = 'fgg_store_settings';
 
 interface PluginConfig {
   tabColor: string;
   accentColor: string;
+  indicatorColor: string;
   showOverlay: boolean;
   panelSide: PanelSide;
   tabStyle: TabStyle;
@@ -16,11 +17,13 @@ interface PluginConfig {
   pollIntervalMin: number;
   notifyOnGrab: boolean;
   hideOwned: boolean;
+  filterMode: FilterMode;
 }
 
 export const cfg: PluginConfig = {
   tabColor: 'gray',
   accentColor: 'rgba(255,255,255,0.5)',
+  indicatorColor: '#ff7a3c',
   showOverlay: false,
   panelSide: 'left',
   tabStyle: 'large',
@@ -28,21 +31,25 @@ export const cfg: PluginConfig = {
   pollIntervalMin: 30,
   notifyOnGrab: true,
   hideOwned: false,
+  filterMode: 'games',
 };
 
 export let initialWidgetRaw = '';
 
-const VALID_PANEL_SIDES: PanelSide[] = ['left', 'right'];
-const VALID_TAB_STYLES: TabStyle[]   = ['slim', 'large', 'floating'];
+const VALID_PANEL_SIDES: PanelSide[]  = ['left', 'right'];
+const VALID_TAB_STYLES: TabStyle[]    = ['slim', 'large', 'floating'];
+const VALID_FILTER_MODES: FilterMode[] = ['games', 'all'];
 
-function isPanelSide(v: any): v is PanelSide { return VALID_PANEL_SIDES.indexOf(v) !== -1; }
-function isTabStyle(v: any):  v is TabStyle  { return VALID_TAB_STYLES.indexOf(v)  !== -1; }
+function isPanelSide(v: any):  v is PanelSide  { return VALID_PANEL_SIDES.indexOf(v)  !== -1; }
+function isTabStyle(v: any):   v is TabStyle   { return VALID_TAB_STYLES.indexOf(v)   !== -1; }
+function isFilterMode(v: any): v is FilterMode { return VALID_FILTER_MODES.indexOf(v) !== -1; }
 
 function applyInto(target: PluginConfig, src: any): void {
   if (!src || typeof src !== 'object') return;
 
-  if (typeof src.tabColor    === 'string')  target.tabColor    = src.tabColor;
-  if (typeof src.accentColor === 'string')  target.accentColor = src.accentColor;
+  if (typeof src.tabColor       === 'string') target.tabColor       = src.tabColor;
+  if (typeof src.accentColor    === 'string') target.accentColor    = src.accentColor;
+  if (typeof src.indicatorColor === 'string') target.indicatorColor = src.indicatorColor;
   if (typeof src.showOverlay === 'boolean') target.showOverlay = src.showOverlay;
   if (isPanelSide(src.panelSide))           target.panelSide   = src.panelSide;
   if (isTabStyle(src.tabStyle))             target.tabStyle    = src.tabStyle;
@@ -52,6 +59,7 @@ function applyInto(target: PluginConfig, src: any): void {
   }
   if (typeof src.notifyOnGrab === 'boolean') target.notifyOnGrab = src.notifyOnGrab;
   if (typeof src.hideOwned   === 'boolean') target.hideOwned    = src.hideOwned;
+  if (isFilterMode(src.filterMode))          target.filterMode   = src.filterMode;
 }
 
 function loadFromLocalStorage(): void {
@@ -66,6 +74,7 @@ function snapshotForLocalStorage() {
   return {
     tabColor:        cfg.tabColor,
     accentColor:     cfg.accentColor,
+    indicatorColor:  cfg.indicatorColor,
     showOverlay:     cfg.showOverlay,
     panelSide:       cfg.panelSide,
     tabStyle:        cfg.tabStyle,
@@ -73,16 +82,19 @@ function snapshotForLocalStorage() {
     pollIntervalMin: cfg.pollIntervalMin,
     notifyOnGrab:    cfg.notifyOnGrab,
     hideOwned:       cfg.hideOwned,
+    filterMode:      cfg.filterMode,
   };
 }
 
 function widgetOnlyPayload() {
   return {
-    tabColor:    cfg.tabColor,
-    accentColor: cfg.accentColor,
-    showOverlay: cfg.showOverlay,
-    panelSide:   cfg.panelSide,
-    tabStyle:    cfg.tabStyle,
+    tabColor:       cfg.tabColor,
+    accentColor:    cfg.accentColor,
+    indicatorColor: cfg.indicatorColor,
+    showOverlay:    cfg.showOverlay,
+    panelSide:      cfg.panelSide,
+    tabStyle:       cfg.tabStyle,
+    filterMode:     cfg.filterMode,
   };
 }
 
