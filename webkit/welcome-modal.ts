@@ -1,4 +1,4 @@
-const SEEN_FLAG = 'fgg_welcomed_v2';
+const SEEN_FLAG = 'fgg_welcomed_v3';
 const sa = 'xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"';
 const sb = 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const SVG_ATTRS = sa + ' ' + sb;
@@ -25,6 +25,9 @@ const ico = {
   settings: `<svg ${SVG_ATTRS} viewBox="0 0 24 24" width="18" height="18">
     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
     <circle cx="12" cy="12" r="3"/>
+  </svg>`,
+  funnel: `<svg ${SVG_ATTRS} viewBox="0 0 24 24" width="18" height="18">
+    <path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>
   </svg>`,
   rocket: `<svg ${SVG_ATTRS} viewBox="0 0 24 24" width="16" height="16">
     <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
@@ -271,6 +274,8 @@ function build() {
         "Most of the time you won't see anything &mdash; just a small toast saying the game was added.")}
       ${row(ico.eye,      'First time only &mdash; a quick flash',
         "On the very first free game the Steam Store may briefly open and close itself. That's normal &mdash; it's how Steam confirms the giveaway. After that, everything stays invisible.")}
+      ${row(ico.funnel,   'Filter what you see',
+        'Tap the funnel next to <strong>Free Games</strong> to switch between <strong>Games</strong> and <strong>All</strong> free items (DLC, soundtracks, demos). Auto-claim still fires only for full games &mdash; the rest you grab with one click.')}
       ${row(ico.settings, 'Fully customizable',
         'Use the side-tab on the storefront, or open Plugin Settings to change the widget style, scan interval, or switch to notify-only mode.')}
     </div>
