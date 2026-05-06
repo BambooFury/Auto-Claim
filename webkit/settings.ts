@@ -2,7 +2,7 @@ import {
   loadPluginSettingsIPC, savePluginSettingsIPC,
   loadWidgetSettingsIPC, saveWidgetSettingsIPC,
 } from './ipc';
-import type { PanelSide, TabStyle } from './types';
+import type { PanelSide, TabStyle, FilterMode } from './types';
 
 const LS_KEY = 'fgg_store_settings';
 
@@ -16,6 +16,7 @@ interface PluginConfig {
   pollIntervalMin: number;
   notifyOnGrab: boolean;
   hideOwned: boolean;
+  filterMode: FilterMode;
 }
 
 export const cfg: PluginConfig = {
@@ -28,15 +29,18 @@ export const cfg: PluginConfig = {
   pollIntervalMin: 30,
   notifyOnGrab: true,
   hideOwned: false,
+  filterMode: 'games',
 };
 
 export let initialWidgetRaw = '';
 
-const VALID_PANEL_SIDES: PanelSide[] = ['left', 'right'];
-const VALID_TAB_STYLES: TabStyle[]   = ['slim', 'large', 'floating'];
+const VALID_PANEL_SIDES: PanelSide[]  = ['left', 'right'];
+const VALID_TAB_STYLES: TabStyle[]    = ['slim', 'large', 'floating'];
+const VALID_FILTER_MODES: FilterMode[] = ['games', 'all'];
 
-function isPanelSide(v: any): v is PanelSide { return VALID_PANEL_SIDES.indexOf(v) !== -1; }
-function isTabStyle(v: any):  v is TabStyle  { return VALID_TAB_STYLES.indexOf(v)  !== -1; }
+function isPanelSide(v: any):  v is PanelSide  { return VALID_PANEL_SIDES.indexOf(v)  !== -1; }
+function isTabStyle(v: any):   v is TabStyle   { return VALID_TAB_STYLES.indexOf(v)   !== -1; }
+function isFilterMode(v: any): v is FilterMode { return VALID_FILTER_MODES.indexOf(v) !== -1; }
 
 function applyInto(target: PluginConfig, src: any): void {
   if (!src || typeof src !== 'object') return;
@@ -52,6 +56,7 @@ function applyInto(target: PluginConfig, src: any): void {
   }
   if (typeof src.notifyOnGrab === 'boolean') target.notifyOnGrab = src.notifyOnGrab;
   if (typeof src.hideOwned   === 'boolean') target.hideOwned    = src.hideOwned;
+  if (isFilterMode(src.filterMode))          target.filterMode   = src.filterMode;
 }
 
 function loadFromLocalStorage(): void {
@@ -73,6 +78,7 @@ function snapshotForLocalStorage() {
     pollIntervalMin: cfg.pollIntervalMin,
     notifyOnGrab:    cfg.notifyOnGrab,
     hideOwned:       cfg.hideOwned,
+    filterMode:      cfg.filterMode,
   };
 }
 
@@ -83,6 +89,7 @@ function widgetOnlyPayload() {
     showOverlay: cfg.showOverlay,
     panelSide:   cfg.panelSide,
     tabStyle:    cfg.tabStyle,
+    filterMode:  cfg.filterMode,
   };
 }
 

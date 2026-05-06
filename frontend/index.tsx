@@ -56,6 +56,11 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 interface FreeGame {
   appid: number;
   name:  string;
+  type?: string;
+}
+
+function isAutoClaimable(game: FreeGame): boolean {
+  return !game.type || game.type === 'game' || game.type === 'unknown';
 }
 
 interface GrabbedEntry {
@@ -448,6 +453,19 @@ async function startPolling(): Promise<void> {
           log(`${game.name} — already in library, skipping`);
         }
         grabbedSet.add(game.appid);
+        return;
+      }
+
+      if (!isAutoClaimable(game)) {
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — skipping auto-claim (type=${game.type})`);
+        }
+        if (settings.notifyOnGrab) {
+          showFreeGameNotification(game, () => {
+            (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
+          });
+        }
         return;
       }
 
