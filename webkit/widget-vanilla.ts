@@ -225,62 +225,28 @@ export function injectVanillaWidget(): void {
   const arrowEl      = tabBtn.querySelector<SVGPolylineElement>('#fgg-arrow')!;
   const tabBadgeEl   = tabBtn.querySelector<HTMLElement>('#fgg-tab-badge')!;
   const filterBtnEl  = $<HTMLElement>('#fgg-filter-btn')!;
-  const filterPopEl  = $<HTMLElement>('#fgg-filter-pop')!;
 
   function updateFilterBtnState() {
-    filterPopEl.querySelectorAll<HTMLButtonElement>('[data-fgg-filter]').forEach((opt) => {
-      opt.classList.toggle('active', opt.getAttribute('data-fgg-filter') === cfg.filterMode);
-      opt.setAttribute('aria-checked', opt.getAttribute('data-fgg-filter') === cfg.filterMode ? 'true' : 'false');
-    });
+    filterBtnEl.setAttribute('aria-label', cfg.filterMode === 'games' ? 'Filter: Games' : 'Filter: All');
+    filterBtnEl.classList.toggle('is-all', cfg.filterMode === 'all');
   }
 
-  function setFilterPopOpen(open: boolean) {
-    if (open) {
-      filterPopEl.removeAttribute('hidden');
-      filterBtnEl.classList.add('is-open');
-      filterBtnEl.setAttribute('aria-expanded', 'true');
-      filterPopEl.style.left = '8px';
-      filterPopEl.style.right = '';
-    } else {
-      filterPopEl.setAttribute('hidden', '');
-      filterBtnEl.classList.remove('is-open');
-      filterBtnEl.setAttribute('aria-expanded', 'false');
-    }
-  }
-
-  function toggleFilterPop(e: Event) {
+  function toggleFilter(e: Event) {
     e.preventDefault();
     e.stopPropagation();
-    const isHidden = filterPopEl.hasAttribute('hidden');
-    setFilterPopOpen(isHidden);
+    if (activeTab === 'settings') return;
+    const next = cfg.filterMode === 'games' ? 'all' : 'games';
+    cfg.filterMode = next;
+    saveSettings();
+    refreshFooter();
+    logIPC({ payload: `Filter mode changed: ${next}` }).catch(() => {});
+    activeTab = 'games';
+    render();
   }
 
-  filterBtnEl.addEventListener('click', toggleFilterPop);
+  filterBtnEl.addEventListener('click', toggleFilter);
   filterBtnEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') toggleFilterPop(e);
-  });
-
-  filterPopEl.addEventListener('click', (e) => e.stopPropagation());
-  filterPopEl.querySelectorAll<HTMLButtonElement>('[data-fgg-filter]').forEach((opt) => {
-    opt.addEventListener('click', () => {
-      const mode = opt.getAttribute('data-fgg-filter');
-      if (mode !== 'games' && mode !== 'all') return;
-      setFilterPopOpen(false);
-      if (cfg.filterMode === mode) return;
-      cfg.filterMode = mode;
-      saveSettings();
-      refreshFooter();
-      logIPC({ payload: `Filter mode changed: ${mode}` }).catch(() => {});
-      activeTab = 'games';
-      render();
-    });
-  });
-
-  document.addEventListener('mousedown', (e) => {
-    if (filterPopEl.hasAttribute('hidden')) return;
-    const t = e.target as Node | null;
-    if (t && (filterPopEl.contains(t) || filterBtnEl.contains(t))) return;
-    setFilterPopOpen(false);
+    if (e.key === 'Enter' || e.key === ' ') toggleFilter(e);
   });
 
   function visibleByFilter(list: FreeGame[]): FreeGame[] {
@@ -463,6 +429,9 @@ export function injectVanillaWidget(): void {
 
     refreshGamesBadge();
     updateFilterBtnState();
+    filterBtnEl.classList.toggle('is-dimmed', activeTab === 'settings');
+    filterBtnEl.setAttribute('tabindex', activeTab === 'settings' ? '-1' : '0');
+    filterBtnEl.setAttribute('aria-disabled', activeTab === 'settings' ? 'true' : 'false');
 
     if (activeTab === 'games') {
       renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
@@ -592,7 +561,6 @@ export function injectVanillaWidget(): void {
 
   let lastWidgetJson = initialWidgetRaw;
   const settingsPoll = setInterval(() => {
-    if (!opened) return;
     loadWidgetSettingsIPC()
       .then((raw) => {
         if (raw === lastWidgetJson) return;
@@ -1019,6 +987,14 @@ const PANEL_CSS = `
     color: #fff;
     background: rgba(255,255,255,0.20);
   }
+  .fgg-filter-btn.is-dimmed {
+    color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
+  }
+  .fgg-filter-btn.is-dimmed .fgg-filter-badge {
+    opacity: 0.35;
+  }
   .fgg-filter-btn svg {
     width: 12px; height: 12px;
     display: block;
@@ -1150,13 +1126,9 @@ function panelMarkup(): string {
     </div>
 
     <div class="fgg-tabs">
-      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span><span id="fgg-filter-btn" class="fgg-filter-btn" role="button" tabindex="0" aria-label="Filter" aria-haspopup="menu" aria-expanded="false">${SVG_FUNNEL}<span id="fgg-games-badge" class="fgg-filter-badge"></span></span></button>
+      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span><span id="fgg-filter-btn" class="fgg-filter-btn" role="button" tabindex="0" aria-label="Filter: Games">${SVG_FUNNEL}<span id="fgg-games-badge" class="fgg-filter-badge"></span></span></button>
       <button id="fgg-tab-settings" class="fgg-tab">${SVG_GEAR}<span>SETTINGS</span></button>
       <div id="fgg-tab-indicator" class="fgg-tab-indicator"></div>
-      <div id="fgg-filter-pop" class="fgg-filter-pop" role="menu" aria-label="Filter free items" hidden>
-        <button class="fgg-filter-opt" role="menuitemradio" data-fgg-filter="games">Games</button>
-        <button class="fgg-filter-opt" role="menuitemradio" data-fgg-filter="all">All</button>
-      </div>
     </div>
 
     <div id="fgg-body"></div>
@@ -1403,6 +1375,7 @@ function renderSettings(
     cfg.hideOwned = !cfg.hideOwned;
     animateToggle(e.currentTarget as HTMLButtonElement, cfg.hideOwned);
     persistAndRefresh();
+    rerender();
     logIPC({ payload: `Hide owned toggled: ${cfg.hideOwned ? 'ON' : 'OFF'}` }).catch(() => {});
   });
 
