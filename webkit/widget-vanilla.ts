@@ -234,6 +234,7 @@ export function injectVanillaWidget(): void {
   function toggleFilter(e: Event) {
     e.preventDefault();
     e.stopPropagation();
+    if (activeTab === 'settings') return;
     const next = cfg.filterMode === 'games' ? 'all' : 'games';
     cfg.filterMode = next;
     saveSettings();
@@ -429,6 +430,8 @@ export function injectVanillaWidget(): void {
     refreshGamesBadge();
     updateFilterBtnState();
     filterBtnEl.classList.toggle('is-dimmed', activeTab === 'settings');
+    filterBtnEl.setAttribute('tabindex', activeTab === 'settings' ? '-1' : '0');
+    filterBtnEl.setAttribute('aria-disabled', activeTab === 'settings' ? 'true' : 'false');
 
     if (activeTab === 'games') {
       renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
