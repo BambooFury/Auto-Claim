@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.0](https://github.com/BambooFury/Auto-Claim/compare/v1.3.6...v1.4.0) (2026-05-06)
+
+
+### Features
+
+* **settings:** add configurable indicator color with 5 presets and custom palette ([2ece4ea](https://github.com/BambooFury/Auto-Claim/commit/2ece4eaac665cefa8c64567a5bb6812f5d37c3e5))
+* **welcome:** add filter feature row and bump SEEN_FLAG to v3 ([1a9d663](https://github.com/BambooFury/Auto-Claim/commit/1a9d663882314206f87737009bfb54b40716d1b5))
+* **widget:** add Games/All filter with type-aware classification ([4d39ae1](https://github.com/BambooFury/Auto-Claim/commit/4d39ae15606ca79a817c51e82df53549dcbf6bf5))
+* **widget:** add pulsing notification indicator on tab arrow for unc… ([89161bf](https://github.com/BambooFury/Auto-Claim/commit/89161bf4f7aac1ff6eb1b9799a2c766d4235ef7d))
+* **widget:** add pulsing notification indicator on tab arrow for unclaimed free games ([6f11ab6](https://github.com/BambooFury/Auto-Claim/commit/6f11ab60a97b2a5c1aabc29cc96adc67327e53e5))
+
+
+### Bug Fixes
+
+* **backend:** tighten input validation across IPC save handlers ([653ab1f](https://github.com/BambooFury/Auto-Claim/commit/653ab1fea5e9820b88adfd1a2de76b37b908fee1))
+* **plugin:** route initial scan through triggerScan to avoid losing user scan requests at startup ([800a178](https://github.com/BambooFury/Auto-Claim/commit/800a178a5d1b7eee12266cec30da0b908055ee53))
+* **plugin:** suppress notifications for non-game free items (DLC, music, demo) ([7339338](https://github.com/BambooFury/Auto-Claim/commit/73393384805b5c76df0ba2a733220d6453c84af7))
+* **webkit:** validate claim response in silentClaim to avoid false-positive ownership ([4f9a2f8](https://github.com/BambooFury/Auto-Claim/commit/4f9a2f8d7e6f3489cb657dd8798d9396a0041f3c))
+* **widget:** refresh new-game indicator on unchanged cache polls ([bb0580d](https://github.com/BambooFury/Auto-Claim/commit/bb0580d60bc8639bdab4dc635b6d10d71686bf6b))
+* **widget:** stop card flicker by skipping full re-render on unchanged cache ([675318e](https://github.com/BambooFury/Auto-Claim/commit/675318e6490c797b7308c5a85b3edeb6327f822d))
+
 ## [1.3.6](https://github.com/BambooFury/Auto-Claim/compare/v1.3.5...v1.3.6) (2026-05-05)
 
 
