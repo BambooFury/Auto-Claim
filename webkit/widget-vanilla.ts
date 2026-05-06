@@ -177,6 +177,8 @@ export function injectVanillaWidget(): void {
   let claimTotal = 0;
   let ownedSet  = new Set<number>();
   let refreshing = false;
+  let lastLibFetchMs = 0;
+  const LIB_RECHECK_MS = 30_000;
 
   const $ = <T extends Element = HTMLElement>(sel: string) =>
     panel.querySelector(sel) as T | null;
@@ -294,12 +296,37 @@ export function injectVanillaWidget(): void {
       const unchanged =
         next.length === games.length &&
         next.every((g, i) => g.appid === games[i]?.appid && g.name === games[i]?.name);
-      if (unchanged) return;
+
+      if (unchanged) {
+        updateNewIndicator();
+        if (opened && activeTab === 'games') render();
+
+        const stillPending = games.some(
+          (g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid),
+        );
+        if (stillPending && Date.now() - lastLibFetchMs > LIB_RECHECK_MS && games.length > 0) {
+          const fresh = await checkLibraryAsync(games.map((g) => g.appid))
+            .catch((): Set<number> | null => null);
+          if (fresh) {
+            let changed = false;
+            fresh.forEach((id: number) => {
+              if (!ownedSet.has(id)) { ownedSet.add(id); changed = true; }
+            });
+            lastLibFetchMs = Date.now();
+            if (changed) {
+              updateNewIndicator();
+              if (opened && activeTab === 'games') render();
+            }
+          }
+        }
+        return;
+      }
 
       games = next;
       ownedSet = next.length > 0
         ? await checkLibraryAsync(next.map((g) => g.appid)).catch(() => new Set<number>())
         : new Set<number>();
+      lastLibFetchMs = Date.now();
 
       updateNewIndicator();
 
