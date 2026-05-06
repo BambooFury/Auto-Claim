@@ -509,8 +509,6 @@ async function startPolling(): Promise<void> {
     }
   }
 
-  await runOneScan();
-
   let scanInProgress = false;
   let scanQueued = false;
   const triggerScan = async (reason: string): Promise<boolean> => {
@@ -540,6 +538,8 @@ async function startPolling(): Promise<void> {
   try {
     lastScanSeq = parseInt(await withTimeout(popScanRequest(), 2000, '0'), 10) || 0;
   } catch { lastScanSeq = 0; }
+
+  await triggerScan('initial');
 
   _trackInterval(async () => {
     try {
