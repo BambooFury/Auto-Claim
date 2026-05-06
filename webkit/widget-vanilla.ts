@@ -142,7 +142,8 @@ export function injectVanillaWidget(): void {
       '<polyline id="fgg-arrow" points="' + arrowPoints(isLeft, false) + '"' +
       ' stroke="' + palette.arrow + '" stroke-width="2"' +
       ' stroke-linecap="round" stroke-linejoin="round"></polyline>' +
-    '</svg>';
+    '</svg>' +
+    '<span id="fgg-tab-badge" class="fgg-tab-badge" aria-hidden="true"></span>';
 
   const panel = document.createElement('div');
   Object.assign(panel.style, {
@@ -187,6 +188,24 @@ export function injectVanillaWidget(): void {
   const gamesTabBtn  = $<HTMLButtonElement>('#fgg-tab-games')!;
   const setsTabBtn   = $<HTMLButtonElement>('#fgg-tab-settings')!;
   const arrowEl      = tabBtn.querySelector<SVGPolylineElement>('#fgg-arrow')!;
+  const tabBadgeEl   = tabBtn.querySelector<HTMLElement>('#fgg-tab-badge')!;
+
+  function updateNewIndicator() {
+    const newCnt = games.reduce((acc, g) => {
+      return acc + (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid) ? 0 : 1);
+    }, 0);
+    tabBadgeEl.style.display = newCnt > 0 ? 'block' : 'none';
+  }
+
+  function positionTabBadge() {
+    if (isLeft) {
+      tabBadgeEl.style.left  = '';
+      tabBadgeEl.style.right = '-3px';
+    } else {
+      tabBadgeEl.style.right = '';
+      tabBadgeEl.style.left  = '-3px';
+    }
+  }
 
   function refreshFooter() {
     if (busyClaim) {
@@ -243,6 +262,7 @@ export function injectVanillaWidget(): void {
 
       if (result.ok) {
         ownedSet.add(g.appid);
+        updateNewIndicator();
         if (cfg.notifyOnGrab) {
           pushToastIPC({ payload: JSON.stringify({ appid: g.appid, name: g.name }) })
             .catch(() => {});
@@ -260,6 +280,7 @@ export function injectVanillaWidget(): void {
     claimTotal    = 0;
     claimDone     = 0;
     refreshFooter();
+    updateNewIndicator();
     render();
   }
 
@@ -279,6 +300,8 @@ export function injectVanillaWidget(): void {
       ownedSet = next.length > 0
         ? await checkLibraryAsync(next.map((g) => g.appid)).catch(() => new Set<number>())
         : new Set<number>();
+
+      updateNewIndicator();
 
       if (opened && activeTab === 'games') render();
       if (cfg.autoAdd && next.length > 0) void runAutoClaim();
@@ -419,6 +442,7 @@ export function injectVanillaWidget(): void {
     }
 
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
+    positionTabBadge();
     dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
     render();
   }
@@ -492,6 +516,43 @@ const PANEL_CSS = `
   @keyframes fgg-pulse   { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
   @keyframes fgg-glow    { 0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.3); }
                            50%      { box-shadow: 0 0 14px rgba(255,255,255,0.5); } }
+
+  @keyframes fgg-tab-ping {
+    0%   { transform: scale(0.85); opacity: 0.85; }
+    80%  { transform: scale(2.6);  opacity: 0;    }
+    100% { transform: scale(2.6);  opacity: 0;    }
+  }
+  @keyframes fgg-tab-badge-glow {
+    0%, 100% { box-shadow: 0 0 6px rgba(255,154,60,0.55), inset 0 0 2px rgba(255,255,255,0.45); }
+    50%      { box-shadow: 0 0 12px rgba(255,154,60,0.95), inset 0 0 2px rgba(255,255,255,0.55); }
+  }
+
+  .fgg-tab-badge {
+    position: absolute;
+    top: -3px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffc14d 0%, #ff7a3c 100%);
+    pointer-events: none;
+    display: none;
+    animation: fgg-tab-badge-glow 2s ease-in-out infinite;
+  }
+  .fgg-tab-badge::before,
+  .fgg-tab-badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+  .fgg-tab-badge::before {
+    background: rgba(255,154,60,0.55);
+    animation: fgg-tab-ping 1.6s cubic-bezier(0,0,0.2,1) infinite;
+    z-index: 0;
+  }
+  .fgg-tab-badge::after {
+    background: linear-gradient(135deg, #ffc14d 0%, #ff7a3c 100%);
+    z-index: 1;
+  }
 
   .fgg-card { animation: fgg-fade-in .25s ease both; }
 
