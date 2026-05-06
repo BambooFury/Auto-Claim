@@ -459,12 +459,7 @@ async function startPolling(): Promise<void> {
       if (!isAutoClaimable(game)) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — skipping auto-claim (type=${game.type})`);
-        }
-        if (settings.notifyOnGrab) {
-          showFreeGameNotification(game, () => {
-            (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
-          });
+          log(`${game.name} — skipping (type=${game.type}, not a game)`);
         }
         return;
       }
