@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2](https://github.com/BambooFury/Auto-Claim/compare/v1.4.1...v1.4.2) (2026-05-07)
+
+
+### Bug Fixes
+
+* ignore claim_jobs.json ([f5ff83b](https://github.com/BambooFury/Auto-Claim/commit/f5ff83ba4249580d22c250f657e37753175730fa))
+* silent claim queue via webkit, real-time indicator and badge updates ([53d3a35](https://github.com/BambooFury/Auto-Claim/commit/53d3a35f224724dbe874d722e56da65ed97b725e))
+
 ## [1.4.1](https://github.com/BambooFury/Auto-Claim/compare/v1.4.0...v1.4.1) (2026-05-06)
 
 
