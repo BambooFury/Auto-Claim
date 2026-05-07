@@ -238,6 +238,9 @@ export function injectVanillaWidget(): void {
     const next = cfg.filterMode === 'games' ? 'all' : 'games';
     cfg.filterMode = next;
     saveSettings();
+    updateFilterBtnState();
+    updateNewIndicator();
+    refreshGamesBadge();
     refreshFooter();
     logIPC({ payload: `Filter mode changed: ${next}` }).catch(() => {});
     activeTab = 'games';
@@ -589,11 +592,18 @@ export function injectVanillaWidget(): void {
               && w.tabStyle !== cfg.tabStyle) {
             cfg.tabStyle = w.tabStyle; changed = true;
           }
+          let filterChanged = false;
           if ((w.filterMode === 'games' || w.filterMode === 'all') && w.filterMode !== cfg.filterMode) {
-            cfg.filterMode = w.filterMode; changed = true;
+            cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
           }
 
           if (changed) applyChrome();
+          if (filterChanged) {
+            updateFilterBtnState();
+            updateNewIndicator();
+            refreshGamesBadge();
+            if (opened && activeTab === 'games') render();
+          }
         } catch {}
       })
       .catch(() => {});
