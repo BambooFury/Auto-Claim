@@ -185,6 +185,8 @@ local PENDING_FILE      = PLUGIN_DIR .. "\\claim_pending.json"
 local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
+local CLAIM_JOBS_FILE   = PLUGIN_DIR .. "\\claim_jobs.json"
+local CLAIM_JOB_TTL     = 300
 
 _G.__autoclaim_scan_seq      = _G.__autoclaim_scan_seq or 0
 _G.__autoclaim_scan_done_seq = _G.__autoclaim_scan_done_seq or 0
@@ -527,6 +529,117 @@ function release_claim_lock_ipc(data)
     locks[appid] = nil
     _write_claim_locks(locks)
     return 1
+end
+
+local function _json_escape(s)
+    if type(s) ~= "string" then return "" end
+    s = s:gsub("\\", "\\\\")
+    s = s:gsub('"', '\\"')
+    s = s:gsub("\n", "\\n")
+    s = s:gsub("\r", "\\r")
+    s = s:gsub("\t", "\\t")
+    s = s:gsub("[%z\1-\31]", function(c) return string.format("\\u%04x", string.byte(c)) end)
+    return s
+end
+
+local function _read_claim_jobs()
+    local raw = read_file(CLAIM_JOBS_FILE) or "{}"
+    local ok, data = pcall(cjson.decode, raw)
+    if ok and type(data) == "table" and type(data.jobs) == "table" then
+        return data.jobs
+    end
+    return {}
+end
+
+local function _prune_claim_jobs(jobs, now)
+    for k, v in pairs(jobs) do
+        if type(v) ~= "table" or type(v.ts) ~= "number" or now - v.ts > CLAIM_JOB_TTL then
+            jobs[k] = nil
+        end
+    end
+    return jobs
+end
+
+local function _write_claim_jobs(jobs)
+    local chunks = {}
+    for appid, job in pairs(jobs) do
+        if type(job) == "table" and job.state then
+            local reason = job.reason or ""
+            local ts = tostring(math.floor(tonumber(job.ts) or 0))
+            chunks[#chunks + 1] =
+                '"' .. tostring(appid) .. '":{' ..
+                '"state":"' .. _json_escape(tostring(job.state)) .. '",' ..
+                '"reason":"' .. _json_escape(tostring(reason)) .. '",' ..
+                '"ts":' .. ts ..
+                '}'
+        end
+    end
+    write_file(CLAIM_JOBS_FILE, '{"jobs":{' .. table.concat(chunks, ",") .. '}}')
+end
+
+function enqueue_claim_job_ipc(data)
+    local payload = extract_payload(data)
+    local appid = tostring(tonumber(payload) or "")
+    if appid == "" then return 0 end
+
+    local now = os.time()
+    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
+    local existing = jobs[appid]
+    if existing and (existing.state == "ok" or existing.state == "fail") then
+        return 1
+    end
+    if not existing or existing.state ~= "pending" then
+        jobs[appid] = { state = "pending", reason = "", ts = now }
+        _write_claim_jobs(jobs)
+    end
+    return 1
+end
+
+function pop_pending_claim_jobs_ipc()
+    local now = os.time()
+    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
+    local out = {}
+    for appid, job in pairs(jobs) do
+        if type(job) == "table" and job.state == "pending" then
+            out[#out + 1] = '"' .. tostring(appid) .. '"'
+        end
+    end
+    _write_claim_jobs(jobs)
+    return "[" .. table.concat(out, ",") .. "]"
+end
+
+function complete_claim_job_ipc(data)
+    local payload = extract_payload(data)
+    if not payload or payload == "" then return 0 end
+
+    local ok, parsed = pcall(cjson.decode, payload)
+    if not ok or type(parsed) ~= "table" then return 0 end
+
+    local appid = tostring(tonumber(parsed.appid) or "")
+    if appid == "" then return 0 end
+
+    local state = tostring(parsed.state or "")
+    if state ~= "ok" and state ~= "fail" then return 0 end
+
+    local reason = tostring(parsed.reason or "")
+    local now = os.time()
+    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
+    jobs[appid] = { state = state, reason = reason, ts = now }
+    _write_claim_jobs(jobs)
+    return 1
+end
+
+function read_claim_job_ipc(data)
+    local payload = extract_payload(data)
+    local appid = tostring(tonumber(payload) or "")
+    if appid == "" then return "{}" end
+
+    local now = os.time()
+    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
+    local job = jobs[appid]
+    if not job then return "{}" end
+    return '{"state":"' .. _json_escape(tostring(job.state)) .. '",' ..
+           '"reason":"' .. _json_escape(tostring(job.reason or "")) .. '"}'
 end
 
 local function claim_subid(subid, sessionid_override, appid_hint)

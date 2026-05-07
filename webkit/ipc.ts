@@ -24,3 +24,6 @@ export const popScanDoneIPC = callable<Empty, string>('pop_scan_done_ipc');
 
 export const tryAcquireClaimLockIPC = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 export const releaseClaimLockIPC    = callable<StrIn, number>('release_claim_lock_ipc');
+
+export const popPendingClaimJobsIPC = callable<Empty, string>('pop_pending_claim_jobs_ipc');
+export const completeClaimJobIPC    = callable<StrIn, number>('complete_claim_job_ipc');
