@@ -19,6 +19,9 @@ const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
 const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 
+const enqueueClaimJob   = callable<StrIn, number>('enqueue_claim_job_ipc');
+const readClaimJob      = callable<StrIn, string>('read_claim_job_ipc');
+
 const STORE_LS_KEY = 'fgg_store_settings';
 
 const _autoclaimIntervals: Array<ReturnType<typeof setInterval>> = [];
@@ -247,50 +250,74 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
   }
 }
 
-async function _addGameToLibraryLocked(appid: number): Promise<boolean> {
-  let result = '0|no result';
+interface QueueClaimResult { state: 'ok' | 'fail' | 'timeout'; reason: string }
+
+const QUEUE_POLL_MS      = 500;
+const QUEUE_TIMEOUT_MS   = 8000;
+
+async function tryClaimViaQueue(appid: number): Promise<QueueClaimResult> {
   try {
-    result = await withTimeout(
-      claimFreeGameLua({ payload: String(appid) }),
-      30000,
-      '0|timeout',
-    );
+    await enqueueClaimJob({ payload: String(appid) });
   } catch (e) {
-    log(`[${appid}] backend claim exception: ${String(e)}`);
+    return { state: 'timeout', reason: 'enqueue failed: ' + String(e) };
   }
 
-  let [status, reason] = (result || '0|').split('|');
-  if (status === '1') {
-    log(`[${appid}] silent claim ok (${reason})`);
+  const deadline = Date.now() + QUEUE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, QUEUE_POLL_MS));
+    let raw = '';
+    try { raw = await readClaimJob({ payload: String(appid) }); } catch { continue; }
+    if (!raw || raw === '{}') continue;
+    try {
+      const data = JSON.parse(raw);
+      if (data && (data.state === 'ok' || data.state === 'fail')) {
+        return { state: data.state, reason: String(data.reason || '') };
+      }
+    } catch {}
+  }
+  return { state: 'timeout', reason: 'no widget response' };
+}
+
+async function _addGameToLibraryLocked(appid: number): Promise<boolean> {
+  const queueRes = await tryClaimViaQueue(appid);
+
+  if (queueRes.state === 'ok') {
+    log(`[${appid}] silent claim ok via widget queue`);
     return true;
   }
 
-  log(`[${appid}] silent claim failed: ${reason}`);
+  if (queueRes.state === 'fail') {
+    const r = (queueRes.reason || '').toLowerCase();
+    const cookieIssue =
+      r.indexOf('no cookies')      !== -1 ||
+      r.indexOf('no sessionid')    !== -1 ||
+      r.indexOf('session expired') !== -1;
 
-  const r = (reason || '').toLowerCase();
-  const cookieIssue =
-    r.indexOf('no cookies')      !== -1 ||
-    r.indexOf('no sessionid')    !== -1 ||
-    r.indexOf('session expired') !== -1;
-  if (!cookieIssue) return false;
+    if (!cookieIssue) {
+      log(`[${appid}] silent claim refused: ${queueRes.reason}`);
+      return false;
+    }
+    log(`[${appid}] widget session expired — falling back to store flow`);
+  } else {
+    log(`[${appid}] no widget reachable (timeout) — falling back to store flow`);
+  }
 
-  log(`[${appid}] cookies stale — opening store to refresh session`);
   if (await addViaShowStore(appid)) return true;
 
   try {
-    result = await withTimeout(
+    const result = await withTimeout(
       claimFreeGameLua({ payload: String(appid) }),
-      30000,
+      8000,
       '0|timeout',
     );
-    [status, reason] = (result || '0|').split('|');
+    const [status, reason] = (result || '0|').split('|');
     if (status === '1') {
-      log(`[${appid}] silent claim ok after cookie refresh`);
+      log(`[${appid}] silent claim ok via lua after store refresh`);
       return true;
     }
-    log(`[${appid}] retry after cookie refresh still failed: ${reason}`);
+    log(`[${appid}] lua retry after store refresh failed: ${reason}`);
   } catch (e) {
-    log(`[${appid}] retry exception: ${String(e)}`);
+    log(`[${appid}] lua retry exception: ${String(e)}`);
   }
   return false;
 }

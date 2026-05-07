@@ -3,6 +3,7 @@ import {
   loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
   requestScanIPC, popScanDoneIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
+  popPendingClaimJobsIPC, completeClaimJobIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
@@ -238,6 +239,9 @@ export function injectVanillaWidget(): void {
     const next = cfg.filterMode === 'games' ? 'all' : 'games';
     cfg.filterMode = next;
     saveSettings();
+    updateFilterBtnState();
+    updateNewIndicator();
+    refreshGamesBadge();
     refreshFooter();
     logIPC({ payload: `Filter mode changed: ${next}` }).catch(() => {});
     activeTab = 'games';
@@ -589,11 +593,18 @@ export function injectVanillaWidget(): void {
               && w.tabStyle !== cfg.tabStyle) {
             cfg.tabStyle = w.tabStyle; changed = true;
           }
+          let filterChanged = false;
           if ((w.filterMode === 'games' || w.filterMode === 'all') && w.filterMode !== cfg.filterMode) {
-            cfg.filterMode = w.filterMode; changed = true;
+            cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
           }
 
           if (changed) applyChrome();
+          if (filterChanged) {
+            updateFilterBtnState();
+            updateNewIndicator();
+            refreshGamesBadge();
+            if (opened && activeTab === 'games') render();
+          }
         } catch {}
       })
       .catch(() => {});
@@ -604,7 +615,77 @@ export function injectVanillaWidget(): void {
     if (!opened) return;
     void softRefresh();
   }, 5000);
-  _fggIntervals.push(settingsPoll, cachePoll);
+
+  let draining = false;
+  async function drainClaimQueue() {
+    if (draining) return;
+    draining = true;
+    try {
+      let raw = '';
+      try { raw = await popPendingClaimJobsIPC(); } catch { return; }
+      let appids: number[] = [];
+      try {
+        const parsed = JSON.parse(raw || '[]');
+        if (Array.isArray(parsed)) {
+          appids = parsed
+            .map((x) => parseInt(String(x), 10))
+            .filter((n) => Number.isFinite(n) && n > 0);
+        }
+      } catch { return; }
+      if (appids.length === 0) return;
+
+      for (const appid of appids) {
+        const acquired = await tryAcquireClaimLockIPC({ payload: String(appid) }).catch(() => 0);
+        if (!acquired) {
+          continue;
+        }
+
+        let res;
+        try {
+          res = await silentClaim(appid);
+        } catch (e) {
+          res = { ok: false, reason: String(e) };
+        } finally {
+          await releaseClaimLockIPC({ payload: String(appid) }).catch(() => {});
+        }
+
+        await completeClaimJobIPC({
+          payload: JSON.stringify({
+            appid,
+            state:  res.ok ? 'ok' : 'fail',
+            reason: res.reason || (res.ok ? 'ok' : 'unknown'),
+          }),
+        }).catch(() => {});
+
+        logIPC({ payload: `[${appid}] queue claim ${res.ok ? 'ok' : 'fail'} (${res.reason})` })
+          .catch(() => {});
+
+        if (res.ok) {
+          ownedSet.add(appid);
+          if (cfg.notifyOnGrab) {
+            const game = games.find((g) => g.appid === appid);
+            if (game) {
+              pushToastIPC({ payload: JSON.stringify({ appid, name: game.name }) }).catch(() => {});
+            }
+          }
+        } else if (res.reason === 'session expired' || res.reason === 'no sessionid') {
+          break;
+        }
+
+        await sleep(800);
+      }
+
+      updateNewIndicator();
+      refreshGamesBadge();
+    } finally {
+      draining = false;
+    }
+  }
+
+  const claimQueuePoll = setInterval(() => { void drainClaimQueue(); }, 2000);
+  void drainClaimQueue();
+
+  _fggIntervals.push(settingsPoll, cachePoll, claimQueuePoll);
 
   window.addEventListener('beforeunload', () => {
     while (_fggIntervals.length) clearInterval(_fggIntervals.pop()!);

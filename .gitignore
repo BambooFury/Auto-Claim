@@ -13,3 +13,4 @@ settings.json
 widget_settings.json
 pending_toasts.json
 claim_inflight.json
+claim_jobs.json
