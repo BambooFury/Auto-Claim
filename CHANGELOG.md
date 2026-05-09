@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.3](https://github.com/BambooFury/Auto-Claim/compare/v1.4.2...v1.4.3) (2026-05-09)
+
+
+### Bug Fixes
+
+* filter toggle feedback toast ([5433d56](https://github.com/BambooFury/Auto-Claim/commit/5433d5691a1a102179b759779c4c358d73e4c067))
+* locale-independent claim button detection ([3b3d766](https://github.com/BambooFury/Auto-Claim/commit/3b3d766e8e485cb7141db9b3ec4f76b2651ee93b))
+
+
+### Refactoring
+
+* extract panel CSS and HTML templates into asset files ([2c98230](https://github.com/BambooFury/Auto-Claim/commit/2c98230f8b506b8399271dd1b2427f8378f36561))
+* extract SVG icons into separate .svg files ([791fa6b](https://github.com/BambooFury/Auto-Claim/commit/791fa6bb72ad9d9d961daa9dac9c1dd9677baa23))
+* extract welcome modal SVG icons, CSS and HTML into separate files ([e5688ed](https://github.com/BambooFury/Auto-Claim/commit/e5688edd5c4437bb451c75a5390586a8a5d3422c))
+
 ## [1.4.2](https://github.com/BambooFury/Auto-Claim/compare/v1.4.1...v1.4.2) (2026-05-07)
 
 
