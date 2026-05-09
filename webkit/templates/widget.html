@@ -1,0 +1,40 @@
+<style id="fgg-style"></style>
+
+<div class="fgg-header">
+  <div class="fgg-header-info">
+    <div class="fgg-icon-box">{{SVG_GIFT}}</div>
+    <div>
+      <div class="fgg-title">Auto Claim</div>
+      <div class="fgg-subtitle">Auto-claims free Steam games</div>
+    </div>
+  </div>
+  <button id="fgg-close" class="fgg-close">✕</button>
+</div>
+
+<div class="fgg-tabs">
+  <button id="fgg-tab-games" class="fgg-tab active">
+    {{SVG_GIFT}}
+    <span>FREE GAMES</span>
+    <span id="fgg-filter-btn" class="fgg-filter-btn" role="button" tabindex="0" aria-label="Filter: Games">
+      {{SVG_FUNNEL}}
+      <span id="fgg-games-badge" class="fgg-filter-badge"></span>
+    </span>
+  </button>
+  <button id="fgg-tab-settings" class="fgg-tab">
+    {{SVG_GEAR}}
+    <span>SETTINGS</span>
+  </button>
+  <div id="fgg-tab-indicator" class="fgg-tab-indicator"></div>
+</div>
+
+<div id="fgg-body-wrap">
+  <div id="fgg-filter-toast" class="fgg-filter-toast" role="status" aria-live="polite"></div>
+  <div id="fgg-body"></div>
+</div>
+
+<div class="fgg-footer">
+  <div class="fgg-footer-info">
+    <div id="fgg-footer-dot"></div>
+    <span id="fgg-footer">Active · every {{POLL_INTERVAL}} min</span>
+  </div>
+</div>

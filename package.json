@@ -1,6 +1,9 @@
 {
 	"scripts": {
+		"build:assets": "node scripts/build-assets.mjs",
+		"predev": "npm run build:assets",
 		"dev": "millennium-ttc --build dev",
+		"prebuild": "npm run build:assets",
 		"build": "millennium-ttc --build prod"
 	},
 	"devDependencies": {
