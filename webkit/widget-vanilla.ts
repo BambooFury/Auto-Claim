@@ -226,6 +226,23 @@ export function injectVanillaWidget(): void {
   const arrowEl      = tabBtn.querySelector<SVGPolylineElement>('#fgg-arrow')!;
   const tabBadgeEl   = tabBtn.querySelector<HTMLElement>('#fgg-tab-badge')!;
   const filterBtnEl  = $<HTMLElement>('#fgg-filter-btn')!;
+  const filterToastEl = $<HTMLElement>('#fgg-filter-toast')!;
+
+  const FILTER_TOAST_LABELS: Record<'games' | 'all', string> = {
+    games: 'Games only',
+    all:   'All free items',
+  };
+  let filterToastTimer: ReturnType<typeof setTimeout> | null = null;
+  function showFilterToast(mode: 'games' | 'all') {
+    filterToastEl.innerHTML = `${SVG_FUNNEL}<span>${FILTER_TOAST_LABELS[mode]}</span>`;
+    filterToastEl.classList.remove('is-visible');
+    void filterToastEl.offsetWidth;
+    filterToastEl.classList.add('is-visible');
+    if (filterToastTimer) clearTimeout(filterToastTimer);
+    filterToastTimer = setTimeout(() => {
+      filterToastEl.classList.remove('is-visible');
+    }, 1500);
+  }
 
   function updateFilterBtnState() {
     filterBtnEl.setAttribute('aria-label', cfg.filterMode === 'games' ? 'Filter: Games' : 'Filter: All');
@@ -243,6 +260,7 @@ export function injectVanillaWidget(): void {
     updateNewIndicator();
     refreshGamesBadge();
     refreshFooter();
+    showFilterToast(next);
     logIPC({ payload: `Filter mode changed: ${next}` }).catch(() => {});
     activeTab = 'games';
     render();
@@ -1145,6 +1163,45 @@ const PANEL_CSS = `
     font-weight: 700;
   }
 
+  #fgg-body-wrap {
+    position: relative;
+  }
+
+  .fgg-filter-toast {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(20,20,22,0.96);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    color: rgba(255,255,255,0.88);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    z-index: 5;
+  }
+  .fgg-filter-toast svg {
+    width: 11px; height: 11px;
+    color: rgba(255,255,255,0.6);
+    flex-shrink: 0;
+  }
+  .fgg-filter-toast.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+
   #fgg-body {
     padding: 14px 16px;
     display: flex; flex-direction: column; gap: 0;
@@ -1212,7 +1269,10 @@ function panelMarkup(): string {
       <div id="fgg-tab-indicator" class="fgg-tab-indicator"></div>
     </div>
 
-    <div id="fgg-body"></div>
+    <div id="fgg-body-wrap">
+      <div id="fgg-filter-toast" class="fgg-filter-toast" role="status" aria-live="polite"></div>
+      <div id="fgg-body"></div>
+    </div>
 
     <div class="fgg-footer">
       <div class="fgg-footer-info">
