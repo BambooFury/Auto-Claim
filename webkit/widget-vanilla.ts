@@ -5,6 +5,11 @@ import {
   WIDGET_EMPTY_TEMPLATE,
   WIDGET_CARD_TEMPLATE,
   WIDGET_SETTINGS_TEMPLATE,
+  SVG_GIFT,
+  SVG_RADAR,
+  SVG_GEAR,
+  SVG_CHECK,
+  SVG_FUNNEL,
 } from './_assets.generated';
 import {
   loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
@@ -94,42 +99,6 @@ function resolveIndicatorHex(value: string | undefined, fallback: string): strin
   return INDICATOR_PRESET_HEX[value] || fallback;
 }
 
-const SVG_GIFT = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 7v14"></path>
-    <path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"></path>
-    <path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"></path>
-    <rect x="3" y="7" width="18" height="4" rx="1"></rect>
-  </svg>
-`;
-
-const SVG_RADAR = `
-  <svg class="fgg-radar" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="24" cy="24" r="4" fill="none" stroke="currentColor" stroke-width="1.5" class="fgg-radar-pulse"/>
-    <circle cx="24" cy="24" r="4" fill="none" stroke="currentColor" stroke-width="1.5" class="fgg-radar-pulse fgg-radar-pulse-2"/>
-    <circle cx="24" cy="24" r="9" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3"/>
-    <circle cx="24" cy="24" r="3.2" fill="currentColor" class="fgg-radar-dot"/>
-  </svg>
-`;
-
-const SVG_GEAR = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051 2.34 2.34 0 0 0 9.67 4.136"></path>
-    <circle cx="12" cy="12" r="3"></circle>
-  </svg>
-`;
-
-const SVG_CHECK = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M20 6 9 17l-5-5"/>
-  </svg>
-`;
-
-const SVG_FUNNEL = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>
-  </svg>
-`;
 
 export function injectVanillaWidget(): void {
   if (document.getElementById(ROOT_ID)) return;
