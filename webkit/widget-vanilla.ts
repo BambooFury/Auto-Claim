@@ -1,4 +1,11 @@
-import { silentClaim } from './claim';
+﻿import { silentClaim } from './claim';
+import {
+  WIDGET_CSS_TEMPLATE,
+  WIDGET_HTML_TEMPLATE,
+  WIDGET_EMPTY_TEMPLATE,
+  WIDGET_CARD_TEMPLATE,
+  WIDGET_SETTINGS_TEMPLATE,
+} from './_assets.generated';
 import {
   loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
   requestScanIPC, popScanDoneIPC,
@@ -194,6 +201,8 @@ export function injectVanillaWidget(): void {
   else        panel.style.right = pOff + 'px';
 
   panel.innerHTML = panelMarkup();
+  const styleEl = panel.querySelector<HTMLStyleElement>('#fgg-style');
+  if (styleEl) styleEl.textContent = PANEL_CSS;
 
   const dim = document.createElement('div');
   Object.assign(dim.style, {
@@ -715,572 +724,21 @@ function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
 }
 
-const PANEL_CSS = `
-  @keyframes fgg-spin    { to { transform: rotate(360deg); } }
-  @keyframes fgg-fade-in { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
-  @keyframes fgg-pulse   { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
-  @keyframes fgg-glow    { 0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.3); }
-                           50%      { box-shadow: 0 0 14px rgba(255,255,255,0.5); } }
-
-  @keyframes fgg-tab-ping {
-    0%   { transform: scale(0.85); opacity: 0.85; }
-    80%  { transform: scale(2.6);  opacity: 0;    }
-    100% { transform: scale(2.6);  opacity: 0;    }
-  }
-  @keyframes fgg-tab-badge-glow {
-    0%, 100% { box-shadow: 0 0 6px var(--fgg-indicator-soft, rgba(255,122,60,0.55)), inset 0 0 2px rgba(255,255,255,0.45); }
-    50%      { box-shadow: 0 0 12px var(--fgg-indicator-strong, rgba(255,122,60,0.95)), inset 0 0 2px rgba(255,255,255,0.55); }
-  }
-
-  .fgg-tab-badge {
-    position: absolute;
-    top: -3px;
-    width: 9px; height: 9px;
-    border-radius: 50%;
-    background: var(--fgg-indicator-color, #ff7a3c);
-    pointer-events: none;
-    display: none;
-    animation: fgg-tab-badge-glow 2s ease-in-out infinite;
-  }
-  .fgg-tab-badge::before,
-  .fgg-tab-badge::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-  }
-  .fgg-tab-badge::before {
-    background: var(--fgg-indicator-soft, rgba(255,122,60,0.55));
-    animation: fgg-tab-ping 1.6s cubic-bezier(0,0,0.2,1) infinite;
-    z-index: 0;
-  }
-  .fgg-tab-badge::after {
-    background: var(--fgg-indicator-color, #ff7a3c);
-    z-index: 1;
-  }
-
-  .fgg-card { animation: fgg-fade-in .25s ease both; }
-
-  .fgg-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 36px 16px;
-    gap: 10px;
-    text-align: center;
-  }
-  .fgg-empty-icon {
-    width: 56px; height: 56px;
-    border-radius: 16px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255,255,255,0.4);
-  }
-  .fgg-empty-icon svg           { width: 26px; height: 26px; }
-  .fgg-empty-icon svg.fgg-radar { width: 44px; height: 44px; overflow: visible; }
-  .fgg-empty-title              { color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 600; }
-  .fgg-empty-desc               { color: rgba(255,255,255,0.35); font-size: 11px; line-height: 1.5; }
-
-  .fgg-radar-pulse {
-    opacity: 0;
-    animation: fgg-radar-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
-  }
-  .fgg-radar-pulse-2 { animation-delay: 1.1s; }
-  .fgg-radar-dot     { animation: fgg-radar-blink 1.8s ease-in-out infinite; }
-
-  @keyframes fgg-radar-ping {
-    0%   { r: 3;  opacity: 0.85; }
-    70%  { r: 19; opacity: 0.15; }
-    100% { r: 22; opacity: 0;    }
-  }
-  @keyframes fgg-radar-blink {
-    0%, 100% { opacity: 1;    }
-    50%      { opacity: 0.45; }
-  }
-
-  .fgg-card {
-    position: relative;
-    overflow: hidden;
-    border-radius: 12px;
-    border: 1px solid var(--fgg-edge, rgba(255,255,255,0.08));
-    background: #0f0f0f;
-    margin-bottom: 8px;
-    box-shadow: var(--fgg-glow, none);
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-  .fgg-card-frame {
-    position: relative;
-    height: 68px;
-    overflow: hidden;
-  }
-  .fgg-card-bg {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    object-position: center 30%;
-    filter: brightness(0.55) saturate(1.1);
-  }
-  .fgg-card-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(90deg,
-      rgba(15,15,15,0.92) 0%,
-      rgba(15,15,15,0.55) 45%,
-      rgba(15,15,15,0.15) 100%);
-  }
-  .fgg-card-accent {
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: var(--fgg-accent, rgba(255,255,255,0.28));
-  }
-  .fgg-card.claiming .fgg-card-accent { animation: fgg-pulse 1.2s ease-in-out infinite; }
-
-  .fgg-card-content {
-    position: absolute; inset: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 14px 0 16px;
-  }
-  .fgg-card-thumb {
-    width: 64px; height: 30px;
-    object-fit: cover;
-    border-radius: 6px;
-    flex-shrink: 0;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.65);
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .fgg-card-text { flex: 1; min-width: 0; }
-  .fgg-card-name {
-    color: #fff;
-    font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .fgg-card-status {
-    color: rgba(255,255,255,0.55);
-    font-size: 10px;
-    margin-top: 3px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .fgg-card-dot {
-    display: inline-block;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--fgg-dot, #fff);
-    box-shadow: 0 0 6px var(--fgg-dot-shadow, rgba(255,255,255,0.5));
-  }
-  .fgg-card.claiming .fgg-card-dot { animation: fgg-pulse 1s ease-in-out infinite; }
-
-  .fgg-check {
-    flex-shrink: 0;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: rgba(85,204,85,0.15);
-    border: 1px solid rgba(85,204,85,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #55cc55;
-  }
-  .fgg-check svg { width: 14px; height: 14px; }
-  .fgg-spinner {
-    flex-shrink: 0;
-    width: 24px; height: 24px;
-    border: 2px solid rgba(255,255,255,0.12);
-    border-top-color: rgba(255,255,255,0.85);
-    border-radius: 50%;
-    animation: fgg-spin 0.8s linear infinite;
-  }
-  .fgg-open-btn {
-    flex-shrink: 0;
-    padding: 6px 13px;
-    font-size: 11px;
-    font-weight: 600;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.10);
-    border: 1px solid rgba(255,255,255,0.18);
-    color: rgba(255,255,255,0.95);
-    cursor: pointer;
-  }
-
-  .fgg-toggle {
-    width: 44px; height: 24px;
-    border-radius: 12px;
-    border: none;
-    cursor: pointer;
-    position: relative;
-    background: rgba(255,255,255,0.15);
-    transition: background 0.22s ease;
-  }
-  .fgg-toggle.on { background: linear-gradient(135deg, #55cc55, #2a8a2a); }
-  .fgg-toggle-knob {
-    position: absolute;
-    top: 4px; left: 4px;
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    transition: left 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .fgg-toggle.on .fgg-toggle-knob { left: 24px; }
-
-  .fgg-hint-card {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    margin-bottom: 10px;
-  }
-  .fgg-hint-label {
-    color: rgba(255,255,255,0.3);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .fgg-hint-text {
-    color: rgba(255,255,255,0.4);
-    font-size: 11px;
-    line-height: 1.5;
-  }
-  .fgg-hint-text strong { color: rgba(255,255,255,0.6); }
-
-  .fgg-set-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
-  }
-  .fgg-set-row.column {
-    display: block;
-    align-items: stretch;
-  }
-  .fgg-set-title { color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500; }
-  .fgg-set-desc  { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 3px; }
-  .fgg-set-row.column .fgg-set-title { margin-bottom: 3px; }
-  .fgg-set-row.column .fgg-set-desc  { margin-top: 0; margin-bottom: 8px; }
-
-  .fgg-int-btns { display: flex; gap: 6px; }
-  .fgg-int-btn {
-    flex: 1;
-    padding: 7px 0;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 400;
-    background: rgba(255,255,255,0.07);
-    color: rgba(255,255,255,0.5);
-  }
-  .fgg-int-btn.active {
-    font-weight: 700;
-    background: rgba(255,255,255,0.18);
-    color: #fff;
-  }
-
-  .fgg-action-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%;
-    padding: 9px 12px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.07);
-    color: rgba(255,255,255,0.85);
-    font-size: 12px; font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, opacity 0.15s;
-  }
-  .fgg-action-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
-  .fgg-action-btn:disabled { opacity: 0.55; cursor: progress; }
-  .fgg-action-icon {
-    display: inline-block;
-    font-size: 14px;
-    transition: transform 0.4s ease;
-  }
-  .fgg-action-btn.busy .fgg-action-icon {
-    animation: fgg-spin 1s linear infinite;
-  }
-  .fgg-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #1a1a1a 0%, #0e0e0e 100%);
-  }
-  .fgg-header-info { display: flex; align-items: center; gap: 11px; }
-  .fgg-icon-box {
-    width: 32px; height: 32px;
-    border-radius: 9px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.08);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    color: rgba(255,255,255,0.95);
-  }
-  .fgg-icon-box svg { width: 16px; height: 16px; }
-  .fgg-title    { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: 0.01em; }
-  .fgg-subtitle { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; }
-  .fgg-close {
-    background: none; border: none;
-    color: rgba(255,255,255,0.45);
-    cursor: pointer;
-    font-size: 18px; line-height: 1;
-    padding: 4px 8px;
-    border-radius: 6px;
-  }
-
-  .fgg-tabs {
-    display: flex;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    position: relative;
-  }
-  .fgg-tab {
-    flex: 1;
-    padding: 11px 4px;
-    background: none; border: none;
-    color: rgba(255,255,255,0.35);
-    font-size: 11px; font-weight: 700; letter-spacing: .05em;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: color 0.2s;
-  }
-  .fgg-tab.active { color: rgba(255,255,255,0.95); }
-  .fgg-tab svg    { width: 13px; height: 13px; }
-  .fgg-tab-indicator {
-    position: absolute; bottom: -1px; left: 0;
-    width: 50%; height: 2px;
-    background: var(--fgg-tab-accent, rgba(255,255,255,0.95));
-    box-shadow: 0 0 8px var(--fgg-tab-accent-glow, rgba(255,255,255,0.25));
-    transition: left 0.25s ${SMOOTH};
-  }
-
-  .fgg-filter-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 8px;
-    width: 22px; height: 22px;
-    padding: 0;
-    border: none;
-    background: rgba(255,255,255,0.10);
-    color: rgba(255,255,255,0.65);
-    border-radius: 5px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-  }
-  .fgg-filter-btn:hover,
-  .fgg-filter-btn.is-open {
-    color: #fff;
-    background: rgba(255,255,255,0.20);
-  }
-  .fgg-filter-btn.is-dimmed {
-    color: rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.05);
-    pointer-events: none;
-  }
-  .fgg-filter-btn.is-dimmed .fgg-filter-badge {
-    opacity: 0.35;
-  }
-  .fgg-filter-btn svg {
-    width: 12px; height: 12px;
-    display: block;
-    pointer-events: none;
-  }
-  .fgg-filter-badge {
-    position: absolute;
-    top: -6px;
-    right: -7px;
-    min-width: 9px;
-    height: 13px;
-    padding: 0 4px;
-    border-radius: 7px;
-    background: #d9d9d9;
-    color: #1a1a1a;
-    box-shadow: 0 0 0 2px #0d0d0d;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 13px;
-    text-align: center;
-    pointer-events: none;
-    display: none;
-    box-sizing: content-box;
-  }
-  .fgg-filter-badge.is-shown { display: inline-block; }
-  .fgg-filter-badge.is-zero {
-    background: #55cc55;
-    color: #0d0d0d;
-  }
-
-  .fgg-filter-pop {
-    position: absolute;
-    top: calc(100% + 6px);
-    z-index: 10;
-    background: #161616;
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 999px;
-    padding: 3px;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.55);
-    animation: fgg-fade-in 0.15s ease both;
-    display: inline-flex;
-    flex-direction: row;
-    gap: 2px;
-    width: max-content;
-  }
-  .fgg-filter-pop[hidden] { display: none; }
-  .fgg-filter-opt {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.6);
-    padding: 6px 16px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    white-space: nowrap;
-  }
-  .fgg-filter-opt:hover {
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.9);
-  }
-  .fgg-filter-opt.active {
-    background: rgba(255,255,255,0.14);
-    color: #fff;
-    font-weight: 700;
-  }
-
-  #fgg-body-wrap {
-    position: relative;
-  }
-
-  .fgg-filter-toast {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-6px);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgba(20,20,22,0.96);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-    color: rgba(255,255,255,0.88);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
-    z-index: 5;
-  }
-  .fgg-filter-toast svg {
-    width: 11px; height: 11px;
-    color: rgba(255,255,255,0.6);
-    flex-shrink: 0;
-  }
-  .fgg-filter-toast.is-visible {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  #fgg-body {
-    padding: 14px 16px;
-    display: flex; flex-direction: column; gap: 0;
-    max-height: 360px;
-    overflow-y: auto; overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.12) transparent;
-  }
-  #fgg-body.is-settings {
-    max-height: none;
-    overflow-y: visible;
-    padding-bottom: 4px;
-  }
-  #fgg-body.is-settings .fgg-set-row:last-child { padding-bottom: 0; }
-  #fgg-body::-webkit-scrollbar             { width: 6px; }
-  #fgg-body::-webkit-scrollbar-track       { background: transparent; margin: 6px 0; }
-  #fgg-body::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.12); border-radius: 3px; transition: background 0.15s; }
-  #fgg-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-
-  .fgg-footer {
-    padding: 9px 14px;
-    border-top: 1px solid rgba(255,255,255,0.06);
-    background: rgba(0,0,0,0.25);
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 8px;
-  }
-  .fgg-footer-info {
-    display: flex; align-items: center; gap: 8px;
-    min-width: 0;
-  }
-  #fgg-footer-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #55cc55;
-    box-shadow: 0 0 6px #55cc55;
-    flex-shrink: 0;
-  }
-  #fgg-footer {
-    font-size: 11px;
-    color: rgba(255,255,255,0.55);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-`;
+const PANEL_CSS = WIDGET_CSS_TEMPLATE;
 
 function panelMarkup(): string {
-  return `
-    <style>${PANEL_CSS}</style>
+  return WIDGET_HTML_TEMPLATE
+    .replace(/\{\{SVG_GIFT\}\}/g,      SVG_GIFT)
+    .replace(/\{\{SVG_FUNNEL\}\}/g,    SVG_FUNNEL)
+    .replace(/\{\{SVG_GEAR\}\}/g,      SVG_GEAR)
+    .replace(/\{\{POLL_INTERVAL\}\}/g, String(cfg.pollIntervalMin));
+}
 
-    <div class="fgg-header">
-      <div class="fgg-header-info">
-        <div class="fgg-icon-box">${SVG_GIFT}</div>
-        <div>
-          <div class="fgg-title">Auto Claim</div>
-          <div class="fgg-subtitle">Auto-claims free Steam games</div>
-        </div>
-      </div>
-      <button id="fgg-close" class="fgg-close">✕</button>
-    </div>
-
-    <div class="fgg-tabs">
-      <button id="fgg-tab-games"    class="fgg-tab active">${SVG_GIFT}<span>FREE GAMES</span><span id="fgg-filter-btn" class="fgg-filter-btn" role="button" tabindex="0" aria-label="Filter: Games">${SVG_FUNNEL}<span id="fgg-games-badge" class="fgg-filter-badge"></span></span></button>
-      <button id="fgg-tab-settings" class="fgg-tab">${SVG_GEAR}<span>SETTINGS</span></button>
-      <div id="fgg-tab-indicator" class="fgg-tab-indicator"></div>
-    </div>
-
-    <div id="fgg-body-wrap">
-      <div id="fgg-filter-toast" class="fgg-filter-toast" role="status" aria-live="polite"></div>
-      <div id="fgg-body"></div>
-    </div>
-
-    <div class="fgg-footer">
-      <div class="fgg-footer-info">
-        <div id="fgg-footer-dot"></div>
-        <span id="fgg-footer">Active · every ${cfg.pollIntervalMin} min</span>
-      </div>
-    </div>
-  `;
+function renderEmpty(message: string): string {
+  return WIDGET_EMPTY_TEMPLATE
+    .replace(/\{\{SVG_RADAR\}\}/g,     SVG_RADAR)
+    .replace(/\{\{MESSAGE\}\}/g,       message)
+    .replace(/\{\{POLL_INTERVAL\}\}/g, String(cfg.pollIntervalMin));
 }
 
 function renderGames(
@@ -1291,13 +749,7 @@ function renderGames(
   claimingAppid: number,
 ): void {
   if (games.length === 0) {
-    bodyEl.innerHTML = `
-      <div class="fgg-empty">
-        <div class="fgg-empty-icon">${SVG_RADAR}</div>
-        <div class="fgg-empty-title">All caught up</div>
-        <div class="fgg-empty-desc">No free items detected right now.<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
-      </div>
-    `;
+    bodyEl.innerHTML = renderEmpty('No free items detected right now.');
     return;
   }
 
@@ -1313,21 +765,21 @@ function renderGames(
       : (cfg.filterMode === 'games'
           ? 'No free games right now.'
           : 'No free items right now.');
-    bodyEl.innerHTML = `
-      <div class="fgg-empty">
-        <div class="fgg-empty-icon">${SVG_RADAR}</div>
-        <div class="fgg-empty-title">All caught up</div>
-        <div class="fgg-empty-desc">${emptyMsg}<br/>Next scan in ${cfg.pollIntervalMin} min.</div>
-      </div>
-    `;
+    bodyEl.innerHTML = renderEmpty(emptyMsg);
     return;
   }
 
   const cardsHtml = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
   const overflowHtml = visibleGames.length > 8
-    ? `<div class="fgg-empty-desc" style="text-align:center;padding:6px 0 2px;">+${visibleGames.length - 8} more not shown</div>`
+    ? `<div class="fgg-overflow-note">+${visibleGames.length - 8} more not shown</div>`
     : '';
   bodyEl.innerHTML = cardsHtml + overflowHtml;
+
+  bodyEl.querySelectorAll<HTMLElement>('[data-style]').forEach((el) => {
+    const style = el.getAttribute('data-style');
+    if (style) el.style.cssText = style;
+    el.removeAttribute('data-style');
+  });
 
   bodyEl.querySelectorAll<HTMLElement>('.fgg-card').forEach((card) => {
     const owned = card.classList.contains('owned');
@@ -1399,26 +851,17 @@ function buildCard(
   ];
   if (cardGlow) vars.push(`--fgg-glow:${cardGlow}`);
 
-  return `
-    <div class="${cls}" data-owned="${owned ? 1 : 0}" data-claiming="${isClaim ? 1 : 0}" style="${vars.join(';')}">
-      <div class="fgg-card-frame">
-        <img class="fgg-card-bg" src="${heroSrc}" data-fallback-src="${heroBack}"/>
-        <div class="fgg-card-overlay"></div>
-        <div class="fgg-card-accent"></div>
-        <div class="fgg-card-content">
-          <img class="fgg-card-thumb" src="${headerSrc}"/>
-          <div class="fgg-card-text">
-            <div class="fgg-card-name">${escapeHtml(g.name)}</div>
-            <div class="fgg-card-status">
-              <span class="fgg-card-dot"></span>
-              ${status}
-            </div>
-          </div>
-          ${trailing}
-        </div>
-      </div>
-    </div>
-  `;
+  return WIDGET_CARD_TEMPLATE
+    .replace(/\{\{CLS\}\}/g,            cls)
+    .replace(/\{\{OWNED\}\}/g,          owned   ? '1' : '0')
+    .replace(/\{\{CLAIMING\}\}/g,       isClaim ? '1' : '0')
+    .replace(/\{\{STYLE_VARS\}\}/g,     vars.join(';'))
+    .replace(/\{\{HERO_SRC\}\}/g,       heroSrc)
+    .replace(/\{\{HERO_FALLBACK\}\}/g,  heroBack)
+    .replace(/\{\{HEADER_SRC\}\}/g,     headerSrc)
+    .replace(/\{\{NAME\}\}/g,           escapeHtml(g.name))
+    .replace(/\{\{STATUS\}\}/g,         status)
+    .replace(/\{\{TRAILING\}\}/g,       trailing);
 }
 
 function renderSettings(
@@ -1438,55 +881,11 @@ function renderSettings(
     return `<button class="fgg-int-btn${active}" data-interval="${m}">${m} min</button>`;
   }).join('');
 
-  bodyEl.innerHTML = `
-    <div class="fgg-hint-card">
-      <div class="fgg-hint-label">Widget appearance</div>
-      <div class="fgg-hint-text">
-        Change button color, side and style in the
-        <strong>Steam plugin settings</strong> panel.
-      </div>
-    </div>
-
-    <div class="fgg-set-row">
-      <div>
-        <div class="fgg-set-title">Auto-add to library</div>
-        <div class="fgg-set-desc">Grab games automatically on scan</div>
-      </div>
-      ${toggleHtml('fgg-autoadd', cfg.autoAdd)}
-    </div>
-
-    <div class="fgg-set-row">
-      <div>
-        <div class="fgg-set-title">Notify on grab</div>
-        <div class="fgg-set-desc">Show toast when a game is added to library</div>
-      </div>
-      ${toggleHtml('fgg-notifygrab', cfg.notifyOnGrab)}
-    </div>
-
-    <div class="fgg-set-row">
-      <div>
-        <div class="fgg-set-title">Hide owned games</div>
-        <div class="fgg-set-desc">Don't show already owned games in Free Games tab</div>
-      </div>
-      ${toggleHtml('fgg-hideowned', cfg.hideOwned)}
-    </div>
-
-    <div class="fgg-set-row column">
-      <div class="fgg-set-title">Scan interval</div>
-      <div class="fgg-set-desc">How often to check for free games</div>
-      <div class="fgg-int-btns">${intervalsHtml}</div>
-    </div>
-
-    <div class="fgg-set-row column">
-      <div class="fgg-set-title">Manual scan</div>
-      <div class="fgg-set-desc">Run a free games check immediately</div>
-      <button id="fgg-scan-now" class="fgg-action-btn">
-        <span class="fgg-action-icon">⟳</span>
-        <span>Scan now</span>
-      </button>
-      <div id="fgg-scan-result" style="margin-top:6px;font-size:11px;line-height:1.4;min-height:16px;color:rgba(255,255,255,0.35);"></div>
-    </div>
-  `;
+  bodyEl.innerHTML = WIDGET_SETTINGS_TEMPLATE
+    .replace(/\{\{TOGGLE_AUTOADD\}\}/g,    toggleHtml('fgg-autoadd',    cfg.autoAdd))
+    .replace(/\{\{TOGGLE_NOTIFYGRAB\}\}/g, toggleHtml('fgg-notifygrab', cfg.notifyOnGrab))
+    .replace(/\{\{TOGGLE_HIDEOWNED\}\}/g,  toggleHtml('fgg-hideowned',  cfg.hideOwned))
+    .replace(/\{\{INTERVALS\}\}/g,         intervalsHtml);
 
   function animateToggle(btn: HTMLButtonElement, on: boolean) {
     btn.classList.toggle('on', on);

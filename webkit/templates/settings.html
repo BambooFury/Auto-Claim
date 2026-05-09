@@ -1,0 +1,47 @@
+<div class="fgg-hint-card">
+  <div class="fgg-hint-label">Widget appearance</div>
+  <div class="fgg-hint-text">
+    Change button color, side and style in the
+    <strong>Steam plugin settings</strong> panel.
+  </div>
+</div>
+
+<div class="fgg-set-row">
+  <div>
+    <div class="fgg-set-title">Auto-add to library</div>
+    <div class="fgg-set-desc">Grab games automatically on scan</div>
+  </div>
+  {{TOGGLE_AUTOADD}}
+</div>
+
+<div class="fgg-set-row">
+  <div>
+    <div class="fgg-set-title">Notify on grab</div>
+    <div class="fgg-set-desc">Show toast when a game is added to library</div>
+  </div>
+  {{TOGGLE_NOTIFYGRAB}}
+</div>
+
+<div class="fgg-set-row">
+  <div>
+    <div class="fgg-set-title">Hide owned games</div>
+    <div class="fgg-set-desc">Don't show already owned games in Free Games tab</div>
+  </div>
+  {{TOGGLE_HIDEOWNED}}
+</div>
+
+<div class="fgg-set-row column">
+  <div class="fgg-set-title">Scan interval</div>
+  <div class="fgg-set-desc">How often to check for free games</div>
+  <div class="fgg-int-btns">{{INTERVALS}}</div>
+</div>
+
+<div class="fgg-set-row column">
+  <div class="fgg-set-title">Manual scan</div>
+  <div class="fgg-set-desc">Run a free games check immediately</div>
+  <button id="fgg-scan-now" class="fgg-action-btn">
+    <span class="fgg-action-icon">⟳</span>
+    <span>Scan now</span>
+  </button>
+  <div id="fgg-scan-result" class="fgg-scan-result"></div>
+</div>
