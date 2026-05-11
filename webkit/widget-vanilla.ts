@@ -1,4 +1,4 @@
-import { silentClaim } from './claim';
+﻿import { silentClaim } from './claim';
 import {
   WIDGET_CSS_TEMPLATE,
   WIDGET_HTML_TEMPLATE,
@@ -735,11 +735,17 @@ function renderGames(
   });
 
   bodyEl.querySelectorAll<HTMLImageElement>('img[data-fallback-src]').forEach((img) => {
-    img.addEventListener('error', () => {
+    const swapOrHide = () => {
       const fb = img.getAttribute('data-fallback-src');
-      img.removeAttribute('data-fallback-src');
-      if (fb) img.src = fb;
-    }, { once: true });
+      if (fb) {
+        img.removeAttribute('data-fallback-src');
+        img.src = fb;
+      } else {
+        img.style.display = 'none';
+      }
+    };
+    img.addEventListener('error', swapOrHide);
+    if (img.complete && img.naturalWidth === 0) swapOrHide();
   });
 }
 
@@ -769,10 +775,11 @@ function buildCard(
     trailing = `<button class="fgg-open-btn" data-open-app="${g.appid}">Open</button>`;
   }
 
-  const cdn       = 'https://cdn.akamai.steamstatic.com/steam/apps';
-  const heroSrc   = `${cdn}/${g.appid}/library_hero.jpg`;
-  const heroBack  = `${cdn}/${g.appid}/page_bg_generated_v6b.jpg`;
-  const headerSrc = `${cdn}/${g.appid}/header.jpg`;
+  const cdn        = 'https://cdn.akamai.steamstatic.com/steam/apps';
+  const heroSrc    = `${cdn}/${g.appid}/library_hero.jpg`;
+  const heroBack   = `${cdn}/${g.appid}/page_bg_generated_v6b.jpg`;
+  const headerSrc  = g.header  || `${cdn}/${g.appid}/header.jpg`;
+  const headerBack = g.capsule || `${cdn}/${g.appid}/capsule_231x87.jpg`;
 
   const cls = `fgg-card${isClaim ? ' claiming' : ''}${owned ? ' owned' : ''}`;
   const vars = [
@@ -790,8 +797,9 @@ function buildCard(
     .replace(/\{\{STYLE_VARS\}\}/g,     vars.join(';'))
     .replace(/\{\{HERO_SRC\}\}/g,       heroSrc)
     .replace(/\{\{HERO_FALLBACK\}\}/g,  heroBack)
-    .replace(/\{\{HEADER_SRC\}\}/g,     headerSrc)
-    .replace(/\{\{NAME\}\}/g,           escapeHtml(g.name))
+    .replace(/\{\{HEADER_SRC\}\}/g,      headerSrc)
+    .replace(/\{\{HEADER_FALLBACK\}\}/g, headerBack)
+    .replace(/\{\{NAME\}\}/g,            escapeHtml(g.name))
     .replace(/\{\{STATUS\}\}/g,         status)
     .replace(/\{\{TRAILING\}\}/g,       trailing);
 }

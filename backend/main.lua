@@ -580,6 +580,12 @@ local function _fetch_free_games_impl()
                 if entry and entry.data then
                     local app_type = entry.data.type
                     detected_type = app_type
+                    if type(entry.data.header_image) == "string" then
+                        g.header = entry.data.header_image
+                    end
+                    if type(entry.data.capsule_image) == "string" then
+                        g.capsule = entry.data.capsule_image
+                    end
                     local is_free = entry.data.is_free == true
                     local price_final = nil
                     if entry.data.price_overview and type(entry.data.price_overview.final) == "number" then
@@ -613,9 +619,16 @@ local function _fetch_free_games_impl()
     for _, g in ipairs(accepted_items) do
         local safe_name = _json_escape_string(g.name)
         local safe_type = _json_escape_string(g.type or "unknown")
+        local extra = ""
+        if type(g.header) == "string" and g.header ~= "" then
+            extra = extra .. ',"header":"' .. _json_escape_string(g.header) .. '"'
+        end
+        if type(g.capsule) == "string" and g.capsule ~= "" then
+            extra = extra .. ',"capsule":"' .. _json_escape_string(g.capsule) .. '"'
+        end
         chunks[#chunks + 1] = '{"appid":' .. g.appid ..
             ',"name":"' .. safe_name ..
-            '","type":"' .. safe_type .. '"}'
+            '","type":"' .. safe_type .. '"' .. extra .. '}'
     end
     local json_out = "[" .. table.concat(chunks, ",") .. "]"
     write_file(CACHE_FILE, json_out)

@@ -53,9 +53,11 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 }
 
 interface FreeGame {
-  appid: number;
-  name:  string;
-  type?: string;
+  appid:   number;
+  name:    string;
+  type?:   string;
+  header?: string;
+  capsule?: string;
 }
 
 function isAutoClaimable(game: FreeGame): boolean {
@@ -116,8 +118,8 @@ function syncStoreSettings(s: Settings, w: WidgetSettings): void {
   } catch {}
 }
 
-const HEADER_URL = (id: number) =>
-  `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`;
+const HEADER_URL = (g: FreeGame) =>
+  g.header || g.capsule || `https://cdn.akamai.steamstatic.com/steam/apps/${g.appid}/header.jpg`;
 
 function isAlreadyInLibrary(appid: number): boolean {
   try {
@@ -149,7 +151,7 @@ function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
     title: 'Free Game Available!',
     body:  `${game.name} is 100% off — grab it now!`,
     logo: React.createElement('img', {
-      src: HEADER_URL(game.appid),
+      src: HEADER_URL(game),
       style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' },
     }),
     onClick,
