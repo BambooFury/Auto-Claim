@@ -191,10 +191,27 @@ export function injectVanillaWidget(): void {
   let lastLibFetchMs = 0;
   const LIB_RECHECK_MS = 30_000;
 
-  const SEEN_LS_KEY = 'fgg_seen_appids';
+  const SEEN_LS_LEGACY_KEY = 'fgg_seen_appids';
+  function getCurrentSteamId(): string {
+    try {
+      const m = document.cookie.match(/steamLoginSecure=(\d+)/);
+      return m ? m[1] : '';
+    } catch { return ''; }
+  }
+  function getSeenLsKey(): string {
+    const sid = getCurrentSteamId();
+    return sid ? `${SEEN_LS_LEGACY_KEY}_${sid}` : SEEN_LS_LEGACY_KEY;
+  }
   let seenSet = new Set<number>();
   try {
-    const raw = localStorage.getItem(SEEN_LS_KEY);
+    const key = getSeenLsKey();
+    let raw = localStorage.getItem(key);
+    if (!raw && key !== SEEN_LS_LEGACY_KEY) {
+      raw = localStorage.getItem(SEEN_LS_LEGACY_KEY);
+      if (raw) {
+        try { localStorage.setItem(key, raw); } catch {}
+      }
+    }
     if (raw) {
       const arr = JSON.parse(raw);
       if (Array.isArray(arr)) seenSet = new Set(arr.filter((v) => typeof v === 'number'));
@@ -202,7 +219,7 @@ export function injectVanillaWidget(): void {
   } catch {}
 
   function saveSeenSet() {
-    try { localStorage.setItem(SEEN_LS_KEY, JSON.stringify(Array.from(seenSet))); } catch {}
+    try { localStorage.setItem(getSeenLsKey(), JSON.stringify(Array.from(seenSet))); } catch {}
   }
 
   function markVisibleAsSeen() {
