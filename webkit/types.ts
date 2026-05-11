@@ -2,6 +2,8 @@ export type FreeGame = {
   appid: number;
   name: string;
   type?: string;
+  header?: string;
+  capsule?: string;
 };
 
 export type PanelSide = 'left' | 'right';

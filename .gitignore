@@ -6,13 +6,11 @@ dist/
 *.zip
 
 steam_cookies.json
-grabbed.json
+grabbed*.json
 free_games_cache.json
-claim_pending.json
 settings.json
 widget_settings.json
 pending_toasts.json
 claim_inflight.json
-claim_jobs.json
 
 webkit/_assets.generated.ts

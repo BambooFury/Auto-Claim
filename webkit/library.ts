@@ -22,10 +22,19 @@ export function isInLibrary(appid: number): boolean {
   try {
     const appStore = (window as any).appStore;
     const fn = appStore && appStore.GetAppOverviewByAppID;
-    if (typeof fn === 'function') {
-      const ov = fn.call(appStore, appid);
-      if (ov && (ov.local_per_client_data || ov.appid)) return true;
+    if (typeof fn !== 'function') return false;
+    const ov = fn.call(appStore, appid);
+    if (!ov) return false;
+
+    if (ov.installed === true) return true;
+
+    const lpcd = ov.local_per_client_data;
+    if (lpcd) {
+      if (lpcd.is_owned === true)  return true;
+      if (lpcd.installed === true) return true;
     }
+
+    if (Array.isArray(ov.licenses) && ov.licenses.length > 0) return true;
   } catch {}
 
   return false;

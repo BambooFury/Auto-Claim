@@ -12,10 +12,9 @@ import {
   SVG_FUNNEL,
 } from './_assets.generated';
 import {
-  loadFreeGamesCacheIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
+  loadFreeGamesCacheIPC, loadGrabbedIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
   requestScanIPC, popScanDoneIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
-  popPendingClaimJobsIPC, completeClaimJobIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
@@ -192,6 +191,46 @@ export function injectVanillaWidget(): void {
   let lastLibFetchMs = 0;
   const LIB_RECHECK_MS = 30_000;
 
+  const SEEN_LS_LEGACY_KEY = 'fgg_seen_appids';
+  function getCurrentSteamId(): string {
+    try {
+      const m = document.cookie.match(/steamLoginSecure=(\d+)/);
+      return m ? m[1] : '';
+    } catch { return ''; }
+  }
+  function getSeenLsKey(): string {
+    const sid = getCurrentSteamId();
+    return sid ? `${SEEN_LS_LEGACY_KEY}_${sid}` : SEEN_LS_LEGACY_KEY;
+  }
+  let seenSet = new Set<number>();
+  try {
+    const key = getSeenLsKey();
+    let raw = localStorage.getItem(key);
+    if (!raw && key !== SEEN_LS_LEGACY_KEY) {
+      raw = localStorage.getItem(SEEN_LS_LEGACY_KEY);
+      if (raw) {
+        try { localStorage.setItem(key, raw); } catch {}
+      }
+    }
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) seenSet = new Set(arr.filter((v) => typeof v === 'number'));
+    }
+  } catch {}
+
+  function saveSeenSet() {
+    try { localStorage.setItem(getSeenLsKey(), JSON.stringify(Array.from(seenSet))); } catch {}
+  }
+
+  function markVisibleAsSeen() {
+    let changed = false;
+    for (const g of games) {
+      if (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)) continue;
+      if (!seenSet.has(g.appid)) { seenSet.add(g.appid); changed = true; }
+    }
+    if (changed) saveSeenSet();
+  }
+
   const $ = <T extends Element = HTMLElement>(sel: string) =>
     panel.querySelector(sel) as T | null;
 
@@ -256,7 +295,9 @@ export function injectVanillaWidget(): void {
   function updateNewIndicator() {
     const list = visibleByFilter(games);
     const newCnt = list.reduce((acc, g) => {
-      return acc + (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid) ? 0 : 1);
+      if (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)) return acc;
+      if (seenSet.has(g.appid)) return acc;
+      return acc + 1;
     }, 0);
     tabBadgeEl.style.display = newCnt > 0 ? 'block' : 'none';
   }
@@ -310,6 +351,8 @@ export function injectVanillaWidget(): void {
 
   async function runAutoClaim() {
     if (busyClaim) return;
+    if (!cfg.autoAdd) return;
+    if (cfg.filterMode === 'all') return;
     const todo = games.filter((g) =>
       isClaimableGame(g) && !ownedSet.has(g.appid) && !isInLibrary(g.appid),
     );
@@ -321,6 +364,12 @@ export function injectVanillaWidget(): void {
     refreshFooter();
 
     for (const g of todo) {
+
+      if (!cfg.autoAdd) {
+        logIPC({ payload: 'auto-add toggled OFF mid-run — stopping queue' }).catch(() => {});
+        break;
+      }
+
       claimingAppid = g.appid;
       render();
 
@@ -370,6 +419,25 @@ export function injectVanillaWidget(): void {
     render();
   }
 
+
+  async function mergeGrabbedIntoOwned(target: Set<number>): Promise<boolean> {
+    try {
+      const raw = await loadGrabbedIPC();
+      const list = JSON.parse(raw || '[]');
+      if (!Array.isArray(list)) return false;
+      let changed = false;
+      for (const entry of list) {
+        if (!entry || entry.added !== true) continue;
+        const id = parseInt(String(entry.appid), 10);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        if (!target.has(id)) { target.add(id); changed = true; }
+      }
+      return changed;
+    } catch {
+      return false;
+    }
+  }
+
   async function softRefresh() {
     if (busyClaim || refreshing) return;
     refreshing = true;
@@ -382,8 +450,12 @@ export function injectVanillaWidget(): void {
         next.every((g, i) => g.appid === games[i]?.appid && g.name === games[i]?.name);
 
       if (unchanged) {
+
+        const grabbedChanged = await mergeGrabbedIntoOwned(ownedSet);
+
         updateNewIndicator();
         refreshGamesBadge();
+        if (grabbedChanged && opened && activeTab === 'games') render();
 
         const stillPending = games.some(
           (g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid),
@@ -410,12 +482,14 @@ export function injectVanillaWidget(): void {
       ownedSet = next.length > 0
         ? await checkLibraryAsync(next.map((g) => g.appid)).catch(() => new Set<number>())
         : new Set<number>();
+
+      await mergeGrabbedIntoOwned(ownedSet);
       lastLibFetchMs = Date.now();
 
       updateNewIndicator();
 
       if (opened && activeTab === 'games') render();
-      if (cfg.autoAdd && next.length > 0) void runAutoClaim();
+      if (cfg.autoAdd && cfg.filterMode !== 'all' && next.length > 0) void runAutoClaim();
     } catch {} finally {
       refreshing = false;
     }
@@ -449,6 +523,8 @@ export function injectVanillaWidget(): void {
     opened = next;
 
     if (next) {
+      markVisibleAsSeen();
+      updateNewIndicator();
       loadWidgetSettingsIPC()
         .then((raw) => {
           try {
@@ -612,76 +688,8 @@ export function injectVanillaWidget(): void {
     void softRefresh();
   }, 5000);
 
-  let draining = false;
-  async function drainClaimQueue() {
-    if (draining) return;
-    draining = true;
-    try {
-      let raw = '';
-      try { raw = await popPendingClaimJobsIPC(); } catch { return; }
-      let appids: number[] = [];
-      try {
-        const parsed = JSON.parse(raw || '[]');
-        if (Array.isArray(parsed)) {
-          appids = parsed
-            .map((x) => parseInt(String(x), 10))
-            .filter((n) => Number.isFinite(n) && n > 0);
-        }
-      } catch { return; }
-      if (appids.length === 0) return;
 
-      for (const appid of appids) {
-        const acquired = await tryAcquireClaimLockIPC({ payload: String(appid) }).catch(() => 0);
-        if (!acquired) {
-          continue;
-        }
-
-        let res;
-        try {
-          res = await silentClaim(appid);
-        } catch (e) {
-          res = { ok: false, reason: String(e) };
-        } finally {
-          await releaseClaimLockIPC({ payload: String(appid) }).catch(() => {});
-        }
-
-        await completeClaimJobIPC({
-          payload: JSON.stringify({
-            appid,
-            state:  res.ok ? 'ok' : 'fail',
-            reason: res.reason || (res.ok ? 'ok' : 'unknown'),
-          }),
-        }).catch(() => {});
-
-        logIPC({ payload: `[${appid}] queue claim ${res.ok ? 'ok' : 'fail'} (${res.reason})` })
-          .catch(() => {});
-
-        if (res.ok) {
-          ownedSet.add(appid);
-          if (cfg.notifyOnGrab) {
-            const game = games.find((g) => g.appid === appid);
-            if (game) {
-              pushToastIPC({ payload: JSON.stringify({ appid, name: game.name }) }).catch(() => {});
-            }
-          }
-        } else if (res.reason === 'session expired' || res.reason === 'no sessionid') {
-          break;
-        }
-
-        await sleep(800);
-      }
-
-      updateNewIndicator();
-      refreshGamesBadge();
-    } finally {
-      draining = false;
-    }
-  }
-
-  const claimQueuePoll = setInterval(() => { void drainClaimQueue(); }, 2000);
-  void drainClaimQueue();
-
-  _fggIntervals.push(settingsPoll, cachePoll, claimQueuePoll);
+  _fggIntervals.push(settingsPoll, cachePoll);
 
   window.addEventListener('beforeunload', () => {
     while (_fggIntervals.length) clearInterval(_fggIntervals.pop()!);
@@ -772,11 +780,17 @@ function renderGames(
   });
 
   bodyEl.querySelectorAll<HTMLImageElement>('img[data-fallback-src]').forEach((img) => {
-    img.addEventListener('error', () => {
+    const swapOrHide = () => {
       const fb = img.getAttribute('data-fallback-src');
-      img.removeAttribute('data-fallback-src');
-      if (fb) img.src = fb;
-    }, { once: true });
+      if (fb) {
+        img.removeAttribute('data-fallback-src');
+        img.src = fb;
+      } else {
+        img.style.display = 'none';
+      }
+    };
+    img.addEventListener('error', swapOrHide);
+    if (img.complete && img.naturalWidth === 0) swapOrHide();
   });
 }
 
@@ -806,10 +820,11 @@ function buildCard(
     trailing = `<button class="fgg-open-btn" data-open-app="${g.appid}">Open</button>`;
   }
 
-  const cdn       = 'https://cdn.akamai.steamstatic.com/steam/apps';
-  const heroSrc   = `${cdn}/${g.appid}/library_hero.jpg`;
-  const heroBack  = `${cdn}/${g.appid}/page_bg_generated_v6b.jpg`;
-  const headerSrc = `${cdn}/${g.appid}/header.jpg`;
+  const cdn        = 'https://cdn.akamai.steamstatic.com/steam/apps';
+  const heroSrc    = `${cdn}/${g.appid}/library_hero.jpg`;
+  const heroBack   = `${cdn}/${g.appid}/page_bg_generated_v6b.jpg`;
+  const headerSrc  = g.header  || `${cdn}/${g.appid}/header.jpg`;
+  const headerBack = g.capsule || `${cdn}/${g.appid}/capsule_231x87.jpg`;
 
   const cls = `fgg-card${isClaim ? ' claiming' : ''}${owned ? ' owned' : ''}`;
   const vars = [
@@ -827,8 +842,9 @@ function buildCard(
     .replace(/\{\{STYLE_VARS\}\}/g,     vars.join(';'))
     .replace(/\{\{HERO_SRC\}\}/g,       heroSrc)
     .replace(/\{\{HERO_FALLBACK\}\}/g,  heroBack)
-    .replace(/\{\{HEADER_SRC\}\}/g,     headerSrc)
-    .replace(/\{\{NAME\}\}/g,           escapeHtml(g.name))
+    .replace(/\{\{HEADER_SRC\}\}/g,      headerSrc)
+    .replace(/\{\{HEADER_FALLBACK\}\}/g, headerBack)
+    .replace(/\{\{NAME\}\}/g,            escapeHtml(g.name))
     .replace(/\{\{STATUS\}\}/g,         status)
     .replace(/\{\{TRAILING\}\}/g,       trailing);
 }

@@ -27,7 +27,7 @@ export const cfg: PluginConfig = {
   showOverlay: false,
   panelSide: 'left',
   tabStyle: 'large',
-  autoAdd: true,
+  autoAdd: false,
   pollIntervalMin: 30,
   notifyOnGrab: true,
   hideOwned: false,
