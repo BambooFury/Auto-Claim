@@ -189,7 +189,6 @@ end
 local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
 local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
 local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
-local COOKIES_FILE      = PLUGIN_DIR .. "\\steam_cookies.json"
 local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
@@ -364,13 +363,6 @@ function load_free_games_cache_ipc()
 end
 
 function save_cookies_ipc(data)
-    local payload = extract_payload(data)
-    if not _is_valid_json_payload(payload, "object") then return 0 end
-    write_file(COOKIES_FILE, payload)
-    return 1
-end
-
-
 
 function push_toast_ipc(data)
     local payload = extract_payload(data)

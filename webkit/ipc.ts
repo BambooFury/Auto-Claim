@@ -12,8 +12,6 @@ export const saveWidgetSettingsIPC = callable<StrIn, number>('save_widget_settin
 export const loadFreeGamesCacheIPC = callable<Empty, string>('load_free_games_cache_ipc');
 export const loadGrabbedIPC        = callable<Empty, string>('load_grabbed_ipc');
 
-export const saveCookiesIPC = callable<StrIn, number>('save_cookies_ipc');
-
 export const pushToastIPC = callable<StrIn, number>('push_toast_ipc');
 
 export const logIPC = callable<StrIn, number>('log_plugin');

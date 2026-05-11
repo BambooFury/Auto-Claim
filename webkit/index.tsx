@@ -1,4 +1,3 @@
-import { captureCookiesToBackend } from './cookies';
 import { initSettingsFromLua } from './settings';
 import { showWelcomeIfFirstTime } from './welcome-modal';
 import { injectVanillaWidget } from './widget-vanilla';
@@ -32,7 +31,6 @@ async function handleStorefront(): Promise<void> {
 }
 
 export default async function WebkitMain(): Promise<void> {
-  captureCookiesToBackend();
   if (!isStorefront()) return;
   await handleStorefront();
 }
