@@ -191,6 +191,29 @@ export function injectVanillaWidget(): void {
   let lastLibFetchMs = 0;
   const LIB_RECHECK_MS = 30_000;
 
+  const SEEN_LS_KEY = 'fgg_seen_appids';
+  let seenSet = new Set<number>();
+  try {
+    const raw = localStorage.getItem(SEEN_LS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) seenSet = new Set(arr.filter((v) => typeof v === 'number'));
+    }
+  } catch {}
+
+  function saveSeenSet() {
+    try { localStorage.setItem(SEEN_LS_KEY, JSON.stringify(Array.from(seenSet))); } catch {}
+  }
+
+  function markVisibleAsSeen() {
+    let changed = false;
+    for (const g of games) {
+      if (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)) continue;
+      if (!seenSet.has(g.appid)) { seenSet.add(g.appid); changed = true; }
+    }
+    if (changed) saveSeenSet();
+  }
+
   const $ = <T extends Element = HTMLElement>(sel: string) =>
     panel.querySelector(sel) as T | null;
 
@@ -255,7 +278,9 @@ export function injectVanillaWidget(): void {
   function updateNewIndicator() {
     const list = visibleByFilter(games);
     const newCnt = list.reduce((acc, g) => {
-      return acc + (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid) ? 0 : 1);
+      if (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)) return acc;
+      if (seenSet.has(g.appid)) return acc;
+      return acc + 1;
     }, 0);
     tabBadgeEl.style.display = newCnt > 0 ? 'block' : 'none';
   }
@@ -480,6 +505,8 @@ export function injectVanillaWidget(): void {
     opened = next;
 
     if (next) {
+      markVisibleAsSeen();
+      updateNewIndicator();
       loadWidgetSettingsIPC()
         .then((raw) => {
           try {
