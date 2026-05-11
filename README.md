@@ -14,8 +14,7 @@ The plugin adds a **side-tab button** on the Steam storefront, vertically center
 - Skips DLCs, soundtracks and skin packs automatically
 - Survives account switches — auto-detects stale cookies and re-captures them
 - Configurable scan interval — 30, 60, or 120 minutes
-- Auto-add or notify-only mode
-- Enabled by default, no setup required
+- Auto-add or notify-only mode (auto-add is **off by default** — enable it in Plugin Settings or via the side-tab widget)
 
 ## Prerequisites
 
