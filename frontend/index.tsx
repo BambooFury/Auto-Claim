@@ -10,17 +10,13 @@ const saveGrabbed       = callable<StrIn, number>('save_grabbed_ipc');
 const loadSettings      = callable<Empty, string>('load_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
 const fetchFreeGames    = callable<Empty, string>('fetch_free_games_backend');
-const claimFreeGameLua  = callable<StrIn, string>('claim_free_game_backend');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
-const setPendingClaim   = callable<StrIn, number>('set_pending_claim_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
 const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
 const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
-
-const enqueueClaimJob   = callable<StrIn, number>('enqueue_claim_job_ipc');
-const readClaimJob      = callable<StrIn, string>('read_claim_job_ipc');
+const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
@@ -128,15 +124,20 @@ function isAlreadyInLibrary(appid: number): boolean {
     const store = (window as any).appStore;
     const ov = store?.GetAppOverviewByAppID?.(appid);
     if (!ov) return false;
+
+
     if (ov.installed === true) return true;
     const lpcd = ov.local_per_client_data;
-    if (lpcd && (lpcd.installed === true || lpcd.is_owned === true)) return true;
-    const apps = store?.allApps;
-    if (Array.isArray(apps)) {
-      for (const a of apps) {
-        if (a && a.appid === appid) return true;
-      }
+    if (lpcd) {
+      if (lpcd.is_owned === true)  return true;
+      if (lpcd.installed === true) return true;
+
+      if (lpcd.is_owned !== false) return true;
     }
+
+
+    if (Array.isArray(ov.licenses) && ov.licenses.length > 0) return true;
+
     return false;
   } catch {
     return false;
@@ -159,79 +160,132 @@ function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
   });
 }
 
-function getCurrentStoreUrl(): string {
-  const sc  = (window as any).SteamClient;
-  const mgr = sc?.MainWindowBrowserManager || (window as any).MainWindowBrowserManager;
-  try { return mgr?.m_browser?.GetURL?.() || mgr?.GetCurrentURL?.() || mgr?.m_lastLocation || ''; } catch { return ''; }
-}
-
-function navigateBack(prevUrl: string): void {
-  const sc  = (window as any).SteamClient;
-  const mgr = sc?.MainWindowBrowserManager || (window as any).MainWindowBrowserManager;
-
-  const isCheckoutPage = (u: string) =>
-    !!u && (u.indexOf('/checkout/') !== -1 || u.indexOf('/addfreelicense') !== -1);
-
-  const usable = prevUrl && !isCheckoutPage(prevUrl) ? prevUrl : '';
-
-  if (usable) {
-    log(`navigateBack -> ${usable}`);
-    let ok = false;
-    try { mgr?.LoadURL?.(usable); ok = true; } catch (e) { log(`LoadURL failed: ${String(e)}`); }
-    if (!ok) {
-      try { mgr?.m_browser?.LoadURL?.(usable); ok = true; } catch (e) { log(`m_browser.LoadURL failed: ${String(e)}`); }
-    }
-    if (ok) return;
-  }
-
-  log('navigateBack -> fallback steam://nav/library');
-  try { sc?.URL?.ExecuteSteamURL?.('steam://nav/library'); return; } catch (e) { log(`ExecuteSteamURL nav failed: ${String(e)}`); }
-  try { sc?.URL?.ExecuteSteamURL?.('steam://open/library'); return; } catch (e) { log(`ExecuteSteamURL open failed: ${String(e)}`); }
-  try { mgr?.LoadURL?.('steam://nav/library'); return; } catch (e) { log(`mgr.LoadURL nav failed: ${String(e)}`); }
-}
-
-async function addViaShowStore(appid: number): Promise<boolean> {
+async function addViaHiddenPopup(appid: number): Promise<boolean> {
   const sc = (window as any).SteamClient;
-
-  const prevUrl = getCurrentStoreUrl();
-  if (prevUrl) log(`[${appid}] saved prevUrl: ${prevUrl}`);
-
-  try { await setPendingClaim({ payload: String(appid) }); } catch {}
-
-  let opened = false;
-  const SHOWSTORE_ATTEMPTS = 3;
-  for (let attempt = 0; attempt < SHOWSTORE_ATTEMPTS && !opened; attempt++) {
-    try {
-      sc.Apps.ShowStore(appid, 0);
-      opened = true;
-      log(`[${appid}] ShowStore opened (attempt ${attempt + 1})`);
-    } catch (e) {
-      log(`[${appid}] ShowStore attempt ${attempt + 1} failed: ${String(e)}`);
-      const backoff = 1000 * Math.pow(2, attempt);
-      await new Promise((r) => setTimeout(r, backoff));
-    }
-  }
-
-  if (!opened) {
-    try { await setPendingClaim({ payload: '' }); } catch {}
+  const bv = sc?.BrowserView;
+  if (!bv || typeof bv.CreatePopup !== 'function') {
+    log(`[${appid}] hidden-popup: SteamClient.BrowserView.CreatePopup unavailable`);
     return false;
   }
 
-  const SHOWSTORE_TIMEOUT_S = 25;
-  const POLL_MS = 500;
-  const polls = Math.floor((SHOWSTORE_TIMEOUT_S * 1000) / POLL_MS);
+  let popupResult: { strCreateURL: string; browserView: any } | null = null;
+  try {
+    popupResult = bv.CreatePopup({
+      strInitialURL: `https://store.steampowered.com/app/${appid}/?cc=us&l=english`,
+      bOnlyAllowTrustedPopups: false,
+    });
+  } catch (e) {
+    log(`[${appid}] hidden-popup: CreatePopup threw: ${String(e)}`);
+    return false;
+  }
+
+  if (!popupResult || !popupResult.browserView) {
+    log(`[${appid}] hidden-popup: CreatePopup returned no browserView`);
+    return false;
+  }
+
+  const { strCreateURL, browserView: popup } = popupResult;
+
+  let popupWindow: Window | null = null;
+  try {
+    popupWindow = window.open(
+      strCreateURL,
+      `fgg-claim-${appid}`,
+      'width=1,height=1,left=-32000,top=-32000,toolbar=0,menubar=0,location=0,status=0,scrollbars=0,resizable=0',
+    );
+  } catch {}
+
+  try { popup.SetBounds(-32000, -32000, 400, 300); } catch {}
+  try { popup.SetFocus(false); } catch {}
+
+  let claimTriggered = false;
+  let succeeded = false;
+
+  const triggerClaim = () => {
+    if (claimTriggered) return;
+    claimTriggered = true;
+    try {
+      const js =
+        `(function() {` +
+        `  try {` +
+        `    var sub = null;` +
+        `    var html = document.documentElement.outerHTML || '';` +
+        `    var pats = [` +
+        `      /javascript:AddFreeLicense\\(\\s*(\\d+)\\s*\\)/,` +
+        `      /javascript:addToCart\\(\\s*(\\d+)\\s*\\)/,` +
+        `      /\\bAddFreeLicense\\(\\s*(\\d+)\\s*\\)/,` +
+        `      /\\baddToCart\\(\\s*(\\d+)\\s*\\)/,` +
+        `      /data-ds-add-free-sub="(\\d+)"/,` +
+        `      /id="add_to_cart_submit_(\\d+)"/,` +
+        `      /name="subid"\\s+value="(\\d+)"/,` +
+        `    ];` +
+        `    for (var i = 0; i < pats.length && !sub; i++) {` +
+        `      var m = html.match(pats[i]);` +
+        `      if (m) sub = parseInt(m[1], 10);` +
+        `    }` +
+        `    if (!sub) { document.title = 'fgg:no_subid'; return; }` +
+        `    if (typeof AddFreeLicense === 'function') {` +
+        `      AddFreeLicense(sub);` +
+        `      document.title = 'fgg:addfreelicense_called:' + sub;` +
+        `    } else if (typeof addToCart === 'function') {` +
+        `      addToCart(sub);` +
+        `      document.title = 'fgg:addtocart_called:' + sub;` +
+        `    } else if (window.ShoppingCart && window.ShoppingCart.AddSubsToCart) {` +
+        `      window.ShoppingCart.AddSubsToCart([sub]);` +
+        `      document.title = 'fgg:shoppingcart_called:' + sub;` +
+        `    } else {` +
+        `      document.title = 'fgg:no_claim_global';` +
+        `    }` +
+        `  } catch (e) {` +
+        `    document.title = 'fgg:exception:' + (e && e.message ? e.message : String(e));` +
+        `  }` +
+        `})(); void 0;`;
+      popup.LoadURL(`javascript:${js}`);
+    } catch (e) {
+      log(`[${appid}] hidden-popup: addToCart trigger threw: ${String(e)}`);
+    }
+  };
+
+  const onFinishedRequest = (currentURL: string) => {
+    if (currentURL && currentURL.indexOf(`/app/${appid}`) !== -1) {
+      setTimeout(triggerClaim, 800);
+    }
+  };
+  try { popup.on?.('finished-request', onFinishedRequest); } catch {}
+
+  setTimeout(() => {
+    try {
+      if (typeof popup.LoadURL === 'function') {
+        popup.LoadURL(`https://store.steampowered.com/app/${appid}/?cc=us&l=english`);
+      }
+    } catch {}
+  }, 500);
+
+  const TIMEOUT_MS = 30_000;
+  const POLL_MS    = 500;
+  const polls      = Math.floor(TIMEOUT_MS / POLL_MS);
   for (let i = 0; i < polls; i++) {
     await new Promise((r) => setTimeout(r, POLL_MS));
     if (isAlreadyInLibrary(appid)) {
-      log(`[${appid}] detected in library after ${(i + 1) * POLL_MS / 1000}s`);
-      await new Promise((r) => setTimeout(r, 1500));
-      navigateBack(prevUrl);
-      return true;
+      succeeded = true;
+      break;
     }
   }
-  log(`[${appid}] ShowStore fallback timed out after ${SHOWSTORE_TIMEOUT_S}s`);
-  navigateBack(prevUrl);
-  return false;
+
+  if (!succeeded) {
+    log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
+  }
+
+  try { popup.off?.('finished-request', onFinishedRequest); } catch {}
+
+  try {
+    if (popupWindow && !popupWindow.closed) popupWindow.close();
+  } catch {}
+  try {
+    if (typeof bv.Destroy === 'function') bv.Destroy(popup);
+  } catch {}
+
+  return succeeded;
 }
 
 async function addGameToLibrary(appid: number): Promise<boolean> {
@@ -250,75 +304,9 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
   }
 }
 
-interface QueueClaimResult { state: 'ok' | 'fail' | 'timeout'; reason: string }
-
-const QUEUE_POLL_MS      = 500;
-const QUEUE_TIMEOUT_MS   = 8000;
-
-async function tryClaimViaQueue(appid: number): Promise<QueueClaimResult> {
-  try {
-    await enqueueClaimJob({ payload: String(appid) });
-  } catch (e) {
-    return { state: 'timeout', reason: 'enqueue failed: ' + String(e) };
-  }
-
-  const deadline = Date.now() + QUEUE_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, QUEUE_POLL_MS));
-    let raw = '';
-    try { raw = await readClaimJob({ payload: String(appid) }); } catch { continue; }
-    if (!raw || raw === '{}') continue;
-    try {
-      const data = JSON.parse(raw);
-      if (data && (data.state === 'ok' || data.state === 'fail')) {
-        return { state: data.state, reason: String(data.reason || '') };
-      }
-    } catch {}
-  }
-  return { state: 'timeout', reason: 'no widget response' };
-}
-
 async function _addGameToLibraryLocked(appid: number): Promise<boolean> {
-  const queueRes = await tryClaimViaQueue(appid);
-
-  if (queueRes.state === 'ok') {
-    log(`[${appid}] silent claim ok via widget queue`);
-    return true;
-  }
-
-  if (queueRes.state === 'fail') {
-    const r = (queueRes.reason || '').toLowerCase();
-    const cookieIssue =
-      r.indexOf('no cookies')      !== -1 ||
-      r.indexOf('no sessionid')    !== -1 ||
-      r.indexOf('session expired') !== -1;
-
-    if (!cookieIssue) {
-      log(`[${appid}] silent claim refused: ${queueRes.reason}`);
-      return false;
-    }
-    log(`[${appid}] widget session expired — falling back to store flow`);
-  } else {
-    log(`[${appid}] no widget reachable (timeout) — falling back to store flow`);
-  }
-
-  if (await addViaShowStore(appid)) return true;
-
-  try {
-    const result = await withTimeout(
-      claimFreeGameLua({ payload: String(appid) }),
-      8000,
-      '0|timeout',
-    );
-    const [status, reason] = (result || '0|').split('|');
-    if (status === '1') {
-      log(`[${appid}] silent claim ok via lua after store refresh`);
-      return true;
-    }
-    log(`[${appid}] lua retry after store refresh failed: ${reason}`);
-  } catch (e) {
-    log(`[${appid}] lua retry exception: ${String(e)}`);
-  }
+  if (await addViaHiddenPopup(appid)) return true;
+  log(`[${appid}] hidden popup claim failed — leaving game unclaimed (will retry next scan)`);
   return false;
 }
 
@@ -504,11 +492,18 @@ async function startPolling(): Promise<void> {
 
       log(`Free game detected: ${game.name} (${game.appid})`);
 
-      if (settings.autoAdd) {
+
+      let liveSettings: Settings = settings;
+      try {
+        const raw = await withTimeout(loadSettings(), 1000, '');
+        if (raw) liveSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(raw) });
+      } catch {}
+
+      if (liveSettings.autoAdd) {
         const added = await addGameToLibrary(game.appid);
         if (added) {
           await recordGrabbed(game, true);
-          if (settings.notifyOnGrab) {
+          if (liveSettings.notifyOnGrab) {
             showFreeGameNotification(game, () => {
               (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
             });
@@ -521,6 +516,7 @@ async function startPolling(): Promise<void> {
         return;
       }
 
+      log(`${game.name} — auto-add OFF, showing notification only`);
       showFreeGameNotification(game, async () => {
         const added = await addGameToLibrary(game.appid);
         await recordGrabbed(game, added);
@@ -575,6 +571,41 @@ async function startPolling(): Promise<void> {
       scanQueued = false;
     }
   };
+
+
+  const STEAM_ID_BASE = '76561197960265728';
+  let knownSid = '';
+  try {
+    (window as any).SteamClient?.User?.RegisterForCurrentUserChanges?.((user: any) => {
+      const sid = String(user?.strSteamID || '');
+      if (!sid || sid === knownSid) return;
+      if (sid === STEAM_ID_BASE) {
+        log('ignoring phantom user change (accountID=0, Steam not logged in yet)');
+        return;
+      }
+      const isFirstRealLogin = knownSid === '';
+      knownSid = sid;
+      log(`Steam account: ${sid}`);
+      void setCurrentSteamId({ payload: sid })
+        .catch((e) => log(`set_current_steamid_ipc failed: ${String(e)}`))
+        .then(() => {
+
+          skipLogged.clear();
+          grabbedSet = new Set<number>();
+          if (scanInProgress) {
+
+            log('queueing re-scan for new account (scan in progress)');
+            scanQueued = true;
+          } else {
+            const reason = isFirstRealLogin ? 'post-login' : 'account-change';
+            log(`triggering ${reason} scan for ${sid}`);
+            void triggerScan(reason);
+          }
+        });
+    });
+  } catch (e) {
+    log(`RegisterForCurrentUserChanges unavailable: ${String(e)}`);
+  }
 
   let lastScanSeq = 0;
   try {

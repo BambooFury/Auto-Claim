@@ -2,6 +2,7 @@ import { callable } from '@steambrew/webkit';
 
 type StrIn = [{ payload: string }];
 type Empty = [];
+
 export const loadPluginSettingsIPC = callable<Empty, string>('load_settings_ipc');
 export const savePluginSettingsIPC = callable<StrIn, number>('save_settings_ipc');
 
@@ -9,11 +10,9 @@ export const loadWidgetSettingsIPC = callable<Empty, string>('load_widget_settin
 export const saveWidgetSettingsIPC = callable<StrIn, number>('save_widget_settings_ipc');
 
 export const loadFreeGamesCacheIPC = callable<Empty, string>('load_free_games_cache_ipc');
+export const loadGrabbedIPC        = callable<Empty, string>('load_grabbed_ipc');
 
 export const saveCookiesIPC = callable<StrIn, number>('save_cookies_ipc');
-
-export const getPendingClaimIPC   = callable<Empty, string>('get_pending_claim_ipc');
-export const clearPendingClaimIPC = callable<Empty, number>('clear_pending_claim_ipc');
 
 export const pushToastIPC = callable<StrIn, number>('push_toast_ipc');
 
@@ -25,5 +24,3 @@ export const popScanDoneIPC = callable<Empty, string>('pop_scan_done_ipc');
 export const tryAcquireClaimLockIPC = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 export const releaseClaimLockIPC    = callable<StrIn, number>('release_claim_lock_ipc');
 
-export const popPendingClaimJobsIPC = callable<Empty, string>('pop_pending_claim_jobs_ipc');
-export const completeClaimJobIPC    = callable<StrIn, number>('complete_claim_job_ipc');

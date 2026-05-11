@@ -177,16 +177,22 @@ local PLUGIN_DIR = (function()
 end)()
 
 local GRABBED_FILE      = PLUGIN_DIR .. "\\grabbed.json"
+
+local _current_steamid  = ""
+
+local function _grabbed_file_for_current_user()
+    if _current_steamid ~= "" and _current_steamid:match("^%d+$") then
+        return PLUGIN_DIR .. "\\grabbed_" .. _current_steamid .. ".json"
+    end
+    return GRABBED_FILE
+end
 local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
 local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
 local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
 local COOKIES_FILE      = PLUGIN_DIR .. "\\steam_cookies.json"
-local PENDING_FILE      = PLUGIN_DIR .. "\\claim_pending.json"
 local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
-local CLAIM_JOBS_FILE   = PLUGIN_DIR .. "\\claim_jobs.json"
-local CLAIM_JOB_TTL     = 300
 
 _G.__autoclaim_scan_seq      = _G.__autoclaim_scan_seq or 0
 _G.__autoclaim_scan_done_seq = _G.__autoclaim_scan_done_seq or 0
@@ -196,8 +202,6 @@ local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&
 local SEARCH_REGIONS = { "us", "de", "tr" }
 local GAMERPOWER_URL = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
 local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
-local PKGDETAILS_URL = STORE_HOST .. "/api/packagedetails"
-local CLAIM_URL      = STORE_HOST .. "/checkout/addfreelicense"
 
 local function _urlencode(s)
     return (s:gsub("[^%w%-_%.~]", function(c)
@@ -230,15 +234,6 @@ local function safe_http_get(url, opts)
     local ok, res = pcall(http.get, url, opts or {})
     if not ok then
         logger:warn("[AutoClaim] safe_http_get crashed: " .. tostring(res))
-        return nil
-    end
-    return res
-end
-
-local function safe_http_post(url, body, opts)
-    local ok, res = pcall(http.post, url, body, opts or {})
-    if not ok then
-        logger:warn("[AutoClaim] safe_http_post crashed: " .. tostring(res))
         return nil
     end
     return res
@@ -281,7 +276,25 @@ local function extract_payload(data)
 end
 
 function load_grabbed_ipc()
-    return read_file(GRABBED_FILE) or "[]"
+
+    return read_file(_grabbed_file_for_current_user()) or "[]"
+end
+
+function set_current_steamid_ipc(data)
+    local sid = extract_payload(data) or ""
+
+    if sid == "76561197960265728" then
+        _current_steamid = ""
+    elseif sid:match("^%d+$") then
+        _current_steamid = sid
+    else
+        _current_steamid = ""
+    end
+    return 1
+end
+
+function get_current_steamid_ipc()
+    return _current_steamid
 end
 
 local function _is_array_table(t)
@@ -319,7 +332,7 @@ end
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
-    write_file(GRABBED_FILE, payload)
+    write_file(_grabbed_file_for_current_user(), payload)
     return 1
 end
 
@@ -356,26 +369,7 @@ function save_cookies_ipc(data)
     return 1
 end
 
-function set_pending_claim_ipc(data)
-    local payload = extract_payload(data)
-    if not payload or payload == "" then
-        os.remove(PENDING_FILE)
-        return 1
-    end
-    local appid = tonumber(payload)
-    if not appid or appid <= 0 then return 0 end
-    write_file(PENDING_FILE, tostring(appid))
-    return 1
-end
 
-function get_pending_claim_ipc()
-    return read_file(PENDING_FILE) or ""
-end
-
-function clear_pending_claim_ipc()
-    os.remove(PENDING_FILE)
-    return 1
-end
 
 function push_toast_ipc(data)
     local payload = extract_payload(data)
@@ -443,38 +437,6 @@ function pop_scan_done_ipc()
     return tostring(_G.__autoclaim_scan_done_seq or 0)
 end
 
-local _cookie_cache = { ts = 0, raw_hash = "", header = "", sid = "" }
-local _COOKIE_CACHE_TTL = 30
-
-local function load_cookie_header()
-    local now = os.time()
-    local raw = read_file(COOKIES_FILE)
-    if not raw then return "", "" end
-
-    if _cookie_cache.raw_hash == raw and now - _cookie_cache.ts < _COOKIE_CACHE_TTL then
-        return _cookie_cache.header, _cookie_cache.sid
-    end
-
-    local ok, data = pcall(cjson.decode, raw)
-    if not ok or type(data) ~= "table" then return "", "" end
-
-    local pairs_list = {}
-    local sid = ""
-    for k, v in pairs(data) do
-        if type(k) == "string" and type(v) == "string" and v ~= "" then
-            pairs_list[#pairs_list + 1] = k .. "=" .. v
-            if k == "sessionid" then sid = v end
-        end
-    end
-
-    local header = table.concat(pairs_list, "; ")
-    _cookie_cache.ts       = now
-    _cookie_cache.raw_hash = raw
-    _cookie_cache.header   = header
-    _cookie_cache.sid      = sid
-    return header, sid
-end
-
 function log_plugin(data)
     local payload = extract_payload(data)
     if payload and payload ~= "" then
@@ -529,268 +491,6 @@ function release_claim_lock_ipc(data)
     locks[appid] = nil
     _write_claim_locks(locks)
     return 1
-end
-
-local function _json_escape(s)
-    if type(s) ~= "string" then return "" end
-    s = s:gsub("\\", "\\\\")
-    s = s:gsub('"', '\\"')
-    s = s:gsub("\n", "\\n")
-    s = s:gsub("\r", "\\r")
-    s = s:gsub("\t", "\\t")
-    s = s:gsub("[%z\1-\31]", function(c) return string.format("\\u%04x", string.byte(c)) end)
-    return s
-end
-
-local function _read_claim_jobs()
-    local raw = read_file(CLAIM_JOBS_FILE) or "{}"
-    local ok, data = pcall(cjson.decode, raw)
-    if ok and type(data) == "table" and type(data.jobs) == "table" then
-        return data.jobs
-    end
-    return {}
-end
-
-local function _prune_claim_jobs(jobs, now)
-    for k, v in pairs(jobs) do
-        if type(v) ~= "table" or type(v.ts) ~= "number" or now - v.ts > CLAIM_JOB_TTL then
-            jobs[k] = nil
-        end
-    end
-    return jobs
-end
-
-local function _write_claim_jobs(jobs)
-    local chunks = {}
-    for appid, job in pairs(jobs) do
-        if type(job) == "table" and job.state then
-            local reason = job.reason or ""
-            local ts = tostring(math.floor(tonumber(job.ts) or 0))
-            chunks[#chunks + 1] =
-                '"' .. tostring(appid) .. '":{' ..
-                '"state":"' .. _json_escape(tostring(job.state)) .. '",' ..
-                '"reason":"' .. _json_escape(tostring(reason)) .. '",' ..
-                '"ts":' .. ts ..
-                '}'
-        end
-    end
-    write_file(CLAIM_JOBS_FILE, '{"jobs":{' .. table.concat(chunks, ",") .. '}}')
-end
-
-function enqueue_claim_job_ipc(data)
-    local payload = extract_payload(data)
-    local appid = tostring(tonumber(payload) or "")
-    if appid == "" then return 0 end
-
-    local now = os.time()
-    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
-    local existing = jobs[appid]
-    if existing and (existing.state == "ok" or existing.state == "fail") then
-        return 1
-    end
-    if not existing or existing.state ~= "pending" then
-        jobs[appid] = { state = "pending", reason = "", ts = now }
-        _write_claim_jobs(jobs)
-    end
-    return 1
-end
-
-function pop_pending_claim_jobs_ipc()
-    local now = os.time()
-    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
-    local out = {}
-    for appid, job in pairs(jobs) do
-        if type(job) == "table" and job.state == "pending" then
-            out[#out + 1] = '"' .. tostring(appid) .. '"'
-        end
-    end
-    _write_claim_jobs(jobs)
-    return "[" .. table.concat(out, ",") .. "]"
-end
-
-function complete_claim_job_ipc(data)
-    local payload = extract_payload(data)
-    if not payload or payload == "" then return 0 end
-
-    local ok, parsed = pcall(cjson.decode, payload)
-    if not ok or type(parsed) ~= "table" then return 0 end
-
-    local appid = tostring(tonumber(parsed.appid) or "")
-    if appid == "" then return 0 end
-
-    local state = tostring(parsed.state or "")
-    if state ~= "ok" and state ~= "fail" then return 0 end
-
-    local reason = tostring(parsed.reason or "")
-    local now = os.time()
-    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
-    jobs[appid] = { state = state, reason = reason, ts = now }
-    _write_claim_jobs(jobs)
-    return 1
-end
-
-function read_claim_job_ipc(data)
-    local payload = extract_payload(data)
-    local appid = tostring(tonumber(payload) or "")
-    if appid == "" then return "{}" end
-
-    local now = os.time()
-    local jobs = _prune_claim_jobs(_read_claim_jobs(), now)
-    local job = jobs[appid]
-    if not job then return "{}" end
-    return '{"state":"' .. _json_escape(tostring(job.state)) .. '",' ..
-           '"reason":"' .. _json_escape(tostring(job.reason or "")) .. '"}'
-end
-
-local function claim_subid(subid, sessionid_override, appid_hint)
-    if not subid or subid == "" or subid == "-1" then
-        return false, "no subid"
-    end
-
-    local cookie_header, stored_sid = load_cookie_header()
-    local sessionid = (sessionid_override and sessionid_override ~= "")
-        and sessionid_override
-        or  stored_sid
-
-    if cookie_header == "" then
-        return false, "no cookies — open Steam Store once so the widget can capture them"
-    end
-    if sessionid == "" then
-        return false, "no sessionid in stored cookies"
-    end
-
-    local body    = "action=add_to_cart&sessionid=" .. sessionid .. "&subid=" .. subid
-    local referer = appid_hint
-        and (STORE_HOST .. "/app/" .. appid_hint .. "/")
-        or  (STORE_HOST .. "/")
-
-    local res, err = safe_http_post(CLAIM_URL, body, {
-        timeout = 15,
-        headers = {
-            ["Content-Type"]      = "application/x-www-form-urlencoded",
-            ["Referer"]           = referer,
-            ["Origin"]            = STORE_HOST,
-            ["Cookie"]            = cookie_header,
-            ["X-Requested-With"]  = "XMLHttpRequest",
-        },
-    })
-
-    if not res then
-        return false, "http error: " .. tostring(err)
-    end
-    if res.status == 401 or res.status == 403 then
-        return false, "session expired"
-    end
-    if res.status ~= 200 then
-        return false, "http " .. tostring(res.status)
-    end
-
-    local ok_decode, parsed = pcall(cjson.decode, res.body)
-    if ok_decode and type(parsed) == "table" then
-        if parsed.success == 1 or parsed.success == true then
-            return true, "ok"
-        end
-        if parsed.purchaseresultdetail then
-            return false, "purchase result " .. tostring(parsed.purchaseresultdetail)
-        end
-        return false, "claim refused"
-    end
-
-    if res.body:find('"success"%s*:%s*1') then
-        return true, "ok"
-    end
-    if res.body:find("g_steamID%s*=%s*false", 1, false)
-        or res.body:find('href="https://store%.steampowered%.com/login')
-        or res.body:find("<title>Sign In", 1, true) then
-        return false, "session expired"
-    end
-    return false, "claim refused"
-end
-
-local function _extract_subid_from_appdetails(body, appid)
-    local ok, parsed = pcall(cjson.decode, body)
-    if ok and type(parsed) == "table" then
-        local entry = parsed[tostring(appid)]
-        if type(entry) == "table" and entry.success and type(entry.data) == "table" then
-            local groups = entry.data.package_groups
-            if type(groups) == "table" then
-                for _, g in ipairs(groups) do
-                    if type(g) == "table" and type(g.subs) == "table" then
-                        for _, sub in ipairs(g.subs) do
-                            if type(sub) == "table"
-                                and (sub.is_free_license == true
-                                    or sub.price_in_cents_with_discount == 0) then
-                                if sub.packageid then
-                                    return tostring(sub.packageid)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    local subid = body:match('"price_in_cents_with_discount"%s*:%s*0%s*,%s*"packageid"%s*:%s*(%d+)')
-    if not subid then
-        subid = body:match('"packageid"%s*:%s*(%d+)%s*,[^{}]-"price_in_cents_with_discount"%s*:%s*0')
-    end
-    return subid
-end
-
-local function fetch_subid_for_appid(appid)
-    local candidates = {}
-    local seen = {}
-
-    for _, cc in ipairs(SEARCH_REGIONS) do
-        local url = APPDETAILS_URL
-            .. "?appids=" .. appid
-            .. "&filters=packages,package_groups,price_overview&cc=" .. cc
-
-        local res = safe_http_get(url, { timeout = 15 })
-        if res and res.status == 200 then
-            local subid = _extract_subid_from_appdetails(res.body, appid)
-            if subid then return subid end
-
-            for inner in res.body:gmatch('"packages"%s*:%s*%[([^%]]+)%]') do
-                for p in inner:gmatch("%d+") do
-                    if not seen[p] then
-                        seen[p] = true
-                        candidates[#candidates + 1] = p
-                    end
-                end
-            end
-        end
-    end
-
-    for _, pid in ipairs(candidates) do
-        local pres = safe_http_get(PKGDETAILS_URL .. "?packageids=" .. pid .. "&cc=us",
-                              { timeout = 10 })
-        if pres and pres.status == 200 then
-            local price = pres.body:match('"final"%s*:%s*(%d+)')
-            if price == "0" then
-                return pid
-            end
-        end
-    end
-
-    return nil
-end
-
-function claim_free_game_backend(data)
-    local payload = data
-    if type(data) == "table" then
-        payload = data.payload or data.appid or ""
-    end
-
-    local appid = tonumber(payload)
-    if not appid then return "0|invalid appid" end
-
-    local subid = fetch_subid_for_appid(appid)
-    if not subid then return "0|no free subid" end
-
-    local ok, reason = claim_subid(tostring(subid), nil, tostring(appid))
-    return (ok and "1|" or "0|") .. tostring(reason)
 end
 
 local function _fetch_free_games_impl()
