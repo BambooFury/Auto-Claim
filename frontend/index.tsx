@@ -411,7 +411,8 @@ async function startPolling(): Promise<void> {
   _trackInterval(() => { void drainPendingToasts(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
-  let grabbedSet = new Set<number>();
+  let grabbedSet  = new Set<number>();
+  let notifiedSet = new Set<number>();
   const skipLogged = new Set<number>();
 
   async function reloadState(): Promise<void> {
@@ -422,7 +423,8 @@ async function startPolling(): Promise<void> {
     try { settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
     try {
       const list: GrabbedEntry[] = JSON.parse(gRaw || '[]');
-      grabbedSet = new Set(list.filter((e) => e.added !== false).map((e) => e.appid));
+      grabbedSet  = new Set(list.filter((e) => e.added !== false).map((e) => e.appid));
+      notifiedSet = new Set(list.map((e) => e.appid));
     } catch {}
   }
 
@@ -443,12 +445,14 @@ async function startPolling(): Promise<void> {
 
         await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
         if (added) grabbedSet.add(game.appid);
+        notifiedSet.add(game.appid);
         return;
       } catch {
         await new Promise((r) => setTimeout(r, 2000));
       }
     }
     if (added) grabbedSet.add(game.appid);
+    notifiedSet.add(game.appid);
   }
 
   function shouldSkipByName(name: string): boolean {
@@ -512,39 +516,41 @@ async function startPolling(): Promise<void> {
         }
       } catch {}
 
-      if (widgetFilterMode === 'all') {
-        log(`${game.name} — filter='all', manual-claim only`);
+      const notifyOnly = widgetFilterMode === 'all' || !liveSettings.autoAdd;
+
+      if (notifyOnly) {
+        if (notifiedSet.has(game.appid)) {
+          if (!skipLogged.has(game.appid)) {
+            skipLogged.add(game.appid);
+            log(`${game.name} — already notified, skipping (manual-claim mode)`);
+          }
+          return;
+        }
+
+        const reason = widgetFilterMode === 'all' ? "filter='all'" : 'auto-add OFF';
+        log(`${game.name} — ${reason}, showing notification only`);
         showFreeGameNotification(game, async () => {
           const added = await addGameToLibrary(game.appid);
           await recordGrabbed(game, added);
           log(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
         });
+        await recordGrabbed(game, false);
         return;
       }
 
-      if (liveSettings.autoAdd) {
-        const added = await addGameToLibrary(game.appid);
-        if (added) {
-          await recordGrabbed(game, true);
-          if (liveSettings.notifyOnGrab) {
-            showFreeGameNotification(game, () => {
-              (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
-            });
-          }
-          log(`${game.name} — successfully added to library`);
-        } else {
-          await recordGrabbed(game, false);
-          log(`${game.name} — failed to add, will retry next scan`);
+      const added = await addGameToLibrary(game.appid);
+      if (added) {
+        await recordGrabbed(game, true);
+        if (liveSettings.notifyOnGrab) {
+          showFreeGameNotification(game, () => {
+            (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
+          });
         }
-        return;
+        log(`${game.name} — successfully added to library`);
+      } else {
+        await recordGrabbed(game, false);
+        log(`${game.name} — failed to add, will retry next scan`);
       }
-
-      log(`${game.name} — auto-add OFF, showing notification only`);
-      showFreeGameNotification(game, async () => {
-        const added = await addGameToLibrary(game.appid);
-        await recordGrabbed(game, added);
-        log(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
-      });
     } catch (e) {
       log(`processGame error for ${game.name}: ${String(e)}`);
     }
