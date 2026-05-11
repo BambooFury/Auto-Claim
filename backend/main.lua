@@ -362,8 +362,6 @@ function load_free_games_cache_ipc()
     return read_file(CACHE_FILE) or "[]"
 end
 
-function save_cookies_ipc(data)
-
 function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
