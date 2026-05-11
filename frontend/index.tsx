@@ -300,16 +300,12 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
   }
 
   try {
-    return await _addGameToLibraryLocked(appid);
+    if (await addViaHiddenPopup(appid)) return true;
+    log(`[${appid}] hidden popup claim failed — leaving game unclaimed (will retry next scan)`);
+    return false;
   } finally {
     await releaseClaimLock({ payload: String(appid) }).catch(() => {});
   }
-}
-
-async function _addGameToLibraryLocked(appid: number): Promise<boolean> {
-  if (await addViaHiddenPopup(appid)) return true;
-  log(`[${appid}] hidden popup claim failed — leaving game unclaimed (will retry next scan)`);
-  return false;
 }
 
 const SettingsPanel: React.FC = () => {
