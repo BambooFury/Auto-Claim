@@ -4,7 +4,7 @@ import {
   WELCOME_HTML_TEMPLATE,
 } from './_assets.generated';
 
-const SEEN_FLAG = 'fgg_welcomed_v4';
+const SEEN_FLAG = 'fgg_welcomed_v5';
 
 function alreadySeen(): boolean {
   try { return localStorage.getItem(SEEN_FLAG) === '1'; }
