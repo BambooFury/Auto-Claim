@@ -77,8 +77,7 @@ function _xhrPostForm(url: string, body: string, referer: string): Promise<Respo
       xhr.timeout = 15000;
       xhr.setRequestHeader('Content-Type',     'application/x-www-form-urlencoded');
       xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-
-      void referer;
+      try { xhr.setRequestHeader('Referer', referer); } catch {}
       xhr.onload = () => {
         const headers = new Headers();
         try {
