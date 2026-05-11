@@ -80,7 +80,7 @@ interface Settings {
 interface StoreSettingsSnapshot extends Settings, WidgetSettings {}
 
 const DEFAULTS: Settings = {
-  autoAdd:         true,
+  autoAdd:         false,
   pollIntervalMin: 30,
   notifyOnGrab:    true,
 };
