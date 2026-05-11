@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.5.0](https://github.com/BambooFury/Auto-Claim/compare/v1.4.3...v1.5.0) (2026-05-11)
+
+
+### Features
+
+* dedupe notifications for already-notified free games ([17cce8e](https://github.com/BambooFury/Auto-Claim/commit/17cce8e5e14ce89fef12d78f81ad56027fdea108))
+* default auto-add to OFF (opt-in) ([be473e9](https://github.com/BambooFury/Auto-Claim/commit/be473e9b1e256b8a8997321cf99922d96b91e2f6))
+* disable auto-claim when filter='all' (manual-only mode) ([ed2f875](https://github.com/BambooFury/Auto-Claim/commit/ed2f8751d18e5eba94f986f57cd8638504cf81a1))
+* invisible game claiming via hidden BrowserView ([08413c1](https://github.com/BambooFury/Auto-Claim/commit/08413c167a783bbce931ec8e0265f908305b78d6))
+* **welcome:** bump to v4 and describe fully invisible claiming ([feaf536](https://github.com/BambooFury/Auto-Claim/commit/feaf536398603323d8c46ddf05bc45b2099c4672))
+* **widget:** clear new-game indicator after opening panel ([2399b5a](https://github.com/BambooFury/Auto-Claim/commit/2399b5aff9d05baff813aa6155267ed7f2707022))
+
+
+### Bug Fixes
+
+* **backend:** remove orphan save_cookies_ipc stub causing Lua parse crash ([c56ff05](https://github.com/BambooFury/Auto-Claim/commit/c56ff051916a61597c36b436c9854f2999db7107))
+* **backend:** warn level + max bytes in oversized payload log ([690d497](https://github.com/BambooFury/Auto-Claim/commit/690d497d7b67a4c3cebeb97a8ba0a211854ad45e))
+* **claim:** set Referer header in XHR fallback for parity with fetch ([7cf1b08](https://github.com/BambooFury/Auto-Claim/commit/7cf1b0870f3ef2d00b7031ddcac7763468a8be0e))
+* **library:** tighten ownership check, remove fallthrough for undefined is_owned ([a47c50b](https://github.com/BambooFury/Auto-Claim/commit/a47c50b9a4de882b3383d3a24425b7996468982e))
+* load real Steam CDN image URLs for widget cards ([937ae16](https://github.com/BambooFury/Auto-Claim/commit/937ae1640d0cc98c36949610cbce523c64c4ea2d))
+* **security:** remove unused steam_cookies.json capture ([7b65bc9](https://github.com/BambooFury/Auto-Claim/commit/7b65bc9ca38bcb2b1aa7ba1dcd78e0370b1514fe))
+* **widget:** respect filter='all' in runAutoClaim and softRefresh ([e831449](https://github.com/BambooFury/Auto-Claim/commit/e831449fd13998908ef9115a65ccfb50e3afe7be))
+* **widget:** scope seen-appids set per Steam account ([579f05e](https://github.com/BambooFury/Auto-Claim/commit/579f05e6f827f028b0adfe9303c4f798899ecfdc))
+
+
+### Performance
+
+* cache widget filterMode once per scan instead of per game ([98d1fdd](https://github.com/BambooFury/Auto-Claim/commit/98d1fddda1beea6d3522eb37266f78fe382acb55))
+
+
+### Refactoring
+
+* inline _addGameToLibraryLocked (vestigial single-path wrapper) ([5422f2f](https://github.com/BambooFury/Auto-Claim/commit/5422f2fdd702f61f9a7af046d86f52d819837230))
+
+
+### Documentation
+
+* describe always-invisible claiming in README ([1cb766c](https://github.com/BambooFury/Auto-Claim/commit/1cb766ca3a341fd67a49510432e5b35c59c93461))
+* **README:** note auto-add is off by default ([f294d8c](https://github.com/BambooFury/Auto-Claim/commit/f294d8c4392ad19cc48e2ac1d932c7b9acdb8022))
+* **welcome:** bump to v5, clarify Games vs All filter modes ([37f8c8d](https://github.com/BambooFury/Auto-Claim/commit/37f8c8d146aff3ac4a9d5f0c537273350b0fe733))
+
 ## [1.4.3](https://github.com/BambooFury/Auto-Claim/compare/v1.4.2...v1.4.3) (2026-05-09)
 
 
