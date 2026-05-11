@@ -269,7 +269,8 @@ local function extract_payload(data)
     if type(data) == "table" then payload = data.payload
     else payload = data end
     if type(payload) == "string" and #payload > _MAX_IPC_PAYLOAD then
-        logger:info("[AutoClaim] dropped oversized IPC payload (" .. #payload .. " bytes)")
+        logger:warn("[AutoClaim] dropped oversized IPC payload (" .. #payload ..
+            " bytes, max " .. _MAX_IPC_PAYLOAD .. ")")
         return nil
     end
     return payload
