@@ -501,6 +501,27 @@ async function startPolling(): Promise<void> {
         if (raw) liveSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(raw) });
       } catch {}
 
+      let widgetFilterMode: 'games' | 'all' = 'games';
+      try {
+        const wRaw = await withTimeout(_loadWidgetIPC(), 1000, '');
+        if (wRaw) {
+          const w = JSON.parse(wRaw);
+          if (w && (w.filterMode === 'all' || w.filterMode === 'games')) {
+            widgetFilterMode = w.filterMode;
+          }
+        }
+      } catch {}
+
+      if (widgetFilterMode === 'all') {
+        log(`${game.name} — filter='all', manual-claim only`);
+        showFreeGameNotification(game, async () => {
+          const added = await addGameToLibrary(game.appid);
+          await recordGrabbed(game, added);
+          log(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
+        });
+        return;
+      }
+
       if (liveSettings.autoAdd) {
         const added = await addGameToLibrary(game.appid);
         if (added) {
