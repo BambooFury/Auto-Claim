@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.1](https://github.com/BambooFury/Auto-Claim/compare/v1.5.0...v1.5.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* **backend:** cap HTTP response body at 4MB to avoid huge allocs ([eeca1ba](https://github.com/BambooFury/Auto-Claim/commit/eeca1ba1da73d5b65c39323e7030e0bbc2d5c087))
+* **backend:** guard fetch_free_games_backend against re-entrant calls ([1cdd4d4](https://github.com/BambooFury/Auto-Claim/commit/1cdd4d489e22f13736f1ec0e3df03af6a7057a66))
+* **backend:** guard fetch_free_games_backend against re-entrant calls ([4a11ee5](https://github.com/BambooFury/Auto-Claim/commit/4a11ee548b246b1ab0e02e77e618853c21507498))
+
+
+### Maintenance
+
+* ignore parse_dump.py dev tool and .dmp files ([ce121e0](https://github.com/BambooFury/Auto-Claim/commit/ce121e0dd6e37ff9d6063f2ff43e363cbbd6bb45))
+
 ## [1.5.0](https://github.com/BambooFury/Auto-Claim/compare/v1.4.3...v1.5.0) (2026-05-11)
 
 
