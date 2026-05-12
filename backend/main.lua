@@ -626,8 +626,16 @@ local function _fetch_free_games_impl()
     return json_out
 end
 
+_G.__autoclaim_scan_running = _G.__autoclaim_scan_running or false
+
 function fetch_free_games_backend()
+    if _G.__autoclaim_scan_running then
+        logger:info("[AutoClaim] scan already in progress, returning cache")
+        return read_file(CACHE_FILE) or "[]"
+    end
+    _G.__autoclaim_scan_running = true
     local ok, result = pcall(_fetch_free_games_impl)
+    _G.__autoclaim_scan_running = false
     _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
     if not ok then
         logger:info("[AutoClaim] scan failed: " .. tostring(result))
