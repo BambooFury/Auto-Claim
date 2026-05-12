@@ -229,10 +229,17 @@ local function read_file(path)
     return body
 end
 
+local _MAX_HTTP_BODY = 4 * 1024 * 1024
+
 local function safe_http_get(url, opts)
     local ok, res = pcall(http.get, url, opts or {})
     if not ok then
         logger:warn("[AutoClaim] safe_http_get crashed: " .. tostring(res))
+        return nil
+    end
+    if res and type(res.body) == "string" and #res.body > _MAX_HTTP_BODY then
+        logger:warn("[AutoClaim] dropping oversized response from " .. url ..
+            " (" .. #res.body .. " bytes, max " .. _MAX_HTTP_BODY .. ")")
         return nil
     end
     return res
