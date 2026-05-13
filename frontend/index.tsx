@@ -2,6 +2,7 @@ import { definePlugin, callable, toaster } from '@steambrew/client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
 import { MIN_POLL_INTERVAL_MIN } from './constants';
+import { runScan } from './scanner';
 type Empty = [];
 type StrIn = [{ payload: string }];
 
@@ -9,7 +10,8 @@ const loadGrabbed       = callable<Empty, string>('load_grabbed_ipc');
 const saveGrabbed       = callable<StrIn, number>('save_grabbed_ipc');
 const loadSettings      = callable<Empty, string>('load_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
-const fetchFreeGames    = callable<Empty, string>('fetch_free_games_backend');
+const saveFreeGamesCache = callable<StrIn, number>('save_free_games_cache_ipc');
+const loadFreeGamesCache = callable<Empty, string>('load_free_games_cache_ipc');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
@@ -565,9 +567,40 @@ async function startPolling(): Promise<void> {
     log('Scanning Steam Store for 100% discounts...');
 
     try {
-      const raw = await withTimeout(fetchFreeGames(), 60000, '[]');
-      const games: FreeGame[] = JSON.parse(raw || '[]');
+      const scannerLog = {
+        info: (m: string) => log(m),
+        warn: (m: string) => log(m),
+      };
+      const result = await withTimeout(
+        runScan(scannerLog),
+        120000,
+        { games: [] as FreeGame[], anyOk: false } as { games: FreeGame[]; anyOk: boolean },
+      );
+
+      if (!result.anyOk) {
+        log('Scan: Steam search unreachable, keeping cached results');
+        try {
+          const cached = await withTimeout(loadFreeGamesCache(), 3000, '[]');
+          const games: FreeGame[] = JSON.parse(cached || '[]');
+          log(`Using cache — ${games.length} game(s)`);
+          for (const game of games) {
+            await processGame(game);
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+        } catch {}
+        return false;
+      }
+
+      const games: FreeGame[] = result.games;
       log(`Scan complete — ${games.length} free game(s) found`);
+
+      try {
+        await withTimeout(
+          saveFreeGamesCache({ payload: JSON.stringify(games) }),
+          3000,
+          0,
+        );
+      } catch {}
 
       for (const game of games) {
         await processGame(game);
