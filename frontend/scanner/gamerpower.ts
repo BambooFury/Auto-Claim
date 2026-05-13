@@ -86,7 +86,7 @@ export async function fetchGamerPowerHits(
     if (hit) {
       seen.add(hit.appid);
       out.push(hit);
-      log?.info(`[AutoClaim] GamerPower found: ${hit.appid} - ${hit.name}`);
+      log?.info(`GamerPower found: ${hit.appid} - ${hit.name}`);
     }
   }
 
