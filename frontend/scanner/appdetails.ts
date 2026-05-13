@@ -26,6 +26,7 @@ export async function verifyAndDecorate(
   const res = await safeFetch(url, 10000, log);
 
   if (!res || res.status !== 200) {
+    log?.info(`[scanner] appdetails ${hit.appid}: no response (status=${res?.status ?? 'null'})`);
     if (!hit.fromGamerPower) {
       return {
         appid: hit.appid,
@@ -37,10 +38,16 @@ export async function verifyAndDecorate(
   }
 
   const data = safeParse<AppDetailsResponse>(res.body, log, `(appdetails ${hit.appid})`);
-  if (!data) return null;
+  if (!data) {
+    log?.info(`[scanner] appdetails ${hit.appid}: JSON parse failed`);
+    return null;
+  }
 
   const entry = data[String(hit.appid)];
-  if (!entry || !entry.data) return null;
+  if (!entry || !entry.data) {
+    log?.info(`[scanner] appdetails ${hit.appid}: no data (success=${entry?.success})`);
+    return null;
+  }
 
   const d         = entry.data;
   const appType   = d.type;
@@ -58,7 +65,10 @@ export async function verifyAndDecorate(
     accepted = listable && currentlyFree;
   }
 
-  if (!accepted) return null;
+  if (!accepted) {
+    log?.info(`[scanner] appdetails ${hit.appid}: rejected type=${appType} isFree=${isFree} priceFinal=${d.price_overview?.final} fromGP=${hit.fromGamerPower}`);
+    return null;
+  }
 
   return {
     appid:   hit.appid,
