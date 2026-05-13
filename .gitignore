@@ -2,6 +2,7 @@ node_modules/
 .millennium/
 dist/
 .vscode/
+V2_PLAN.md
 
 *.zip
 
