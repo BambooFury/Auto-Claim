@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.5.2](https://github.com/BambooFury/Auto-Claim/compare/v1.5.1...v1.5.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* **scanner:** add TypeScript scanner modules (search/gamerpower/appdetails) ([f6644b2](https://github.com/BambooFury/Auto-Claim/commit/f6644b274fce278ef6454814dc29bf611d3c656a))
+* **scanner:** always bump scan_done_seq even on fallback/timeout ([602f474](https://github.com/BambooFury/Auto-Claim/commit/602f474adb1454b06afdf0ebd7b89a7876a7c98f))
+* **scanner:** move HTTP scan from Lua to TypeScript fetch ([73c26d2](https://github.com/BambooFury/Auto-Claim/commit/73c26d273a9b2e1dd4daf35624f0881ebea98b12))
+* **scanner:** proxy GamerPower fetch through Lua to bypass CORS ([975880f](https://github.com/BambooFury/Auto-Claim/commit/975880faad3f419f3c64eb9895b9b97f7bebf3c8))
+* **scanner:** proxy storesearch through Lua to bypass CORS ([c282c6e](https://github.com/BambooFury/Auto-Claim/commit/c282c6e240fdd8f084840d54e2d30c075614363e))
+
+
+### Maintenance
+
+* ignore local V2_PLAN.md from version control ([644ba09](https://github.com/BambooFury/Auto-Claim/commit/644ba09f29831c611e5c69bbdc77ec51819a3896))
+* **scanner:** add diagnostic logs to appdetails verification ([681348e](https://github.com/BambooFury/Auto-Claim/commit/681348e15ca061132b1658bc420022a325105d2d))
+* **scanner:** remove duplicate [AutoClaim] log prefix ([7170783](https://github.com/BambooFury/Auto-Claim/commit/7170783a8bca8e1627011eeec3f04929d4a03c21))
+
 ## [1.5.1](https://github.com/BambooFury/Auto-Claim/compare/v1.5.0...v1.5.1) (2026-05-12)
 
 
