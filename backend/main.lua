@@ -357,6 +357,31 @@ function fetch_gamerpower_ipc()
     return res.body
 end
 
+local _STORESEARCH_BASE     = "https://store.steampowered.com/api/storesearch/"
+local _STORESEARCH_BODY_MAX = 256 * 1024
+
+local function _urlencode(s)
+    return (s:gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", c:byte())
+    end))
+end
+
+function fetch_storesearch_ipc(data)
+    local term = extract_payload(data)
+    if type(term) ~= "string" or term == "" then return "" end
+    local url = _STORESEARCH_BASE .. "?term=" .. _urlencode(term) .. "&l=english&cc=us"
+    local ok, res = pcall(http.get, url, { timeout = 10 })
+    collectgarbage("collect")
+    if not ok then
+        logger:warn("[AutoClaim] storesearch http.get crashed: " .. tostring(res))
+        return ""
+    end
+    if not res or res.status ~= 200 then return "" end
+    if type(res.body) ~= "string" then return "" end
+    if #res.body > _STORESEARCH_BODY_MAX then return "" end
+    return res.body
+end
+
 function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end

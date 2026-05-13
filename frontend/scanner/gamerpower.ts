@@ -1,10 +1,11 @@
 import { callable } from '@steambrew/client';
 import type { ScanHit, ScannerLogger } from './types';
-import { STORE_HOST } from './types';
-import { safeFetch, safeParse } from './http';
+import { safeParse } from './http';
 
 type Empty = [];
+type StrIn = [{ payload: string }];
 const fetchGamerPowerIPC = callable<Empty, string>('fetch_gamerpower_ipc');
+const fetchStoreSearchIPC = callable<StrIn, string>('fetch_storesearch_ipc');
 
 interface GamerPowerEntry {
   title?: string;
@@ -34,11 +35,16 @@ async function resolveTitle(
   seen: Set<number>,
   log?: ScannerLogger,
 ): Promise<ScanHit | null> {
-  const url = STORE_HOST + '/api/storesearch/?term=' + encodeURIComponent(clean) + '&l=english&cc=us';
-  const res = await safeFetch(url, 10000, log);
-  if (!res || res.status !== 200) return null;
+  let body = '';
+  try {
+    body = await fetchStoreSearchIPC({ payload: clean });
+  } catch (e: any) {
+    log?.warn(`[scanner] storesearch IPC failed: ${e?.message || e}`);
+    return null;
+  }
+  if (!body) return null;
 
-  const data = safeParse<StoreSearchResponse>(res.body, log, '(storesearch)');
+  const data = safeParse<StoreSearchResponse>(body, log, '(storesearch)');
   if (!data || !Array.isArray(data.items) || !data.items[0]) return null;
 
   const item = data.items[0];
