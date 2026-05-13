@@ -21,5 +21,4 @@ export interface ScannerLogger {
 export const STORE_HOST     = 'https://store.steampowered.com';
 export const SEARCH_BASE    = STORE_HOST + '/search/results/?specials=1&maxprice=free&json=1&count=50&l=english';
 export const SEARCH_REGIONS = ['us', 'de', 'tr'] as const;
-export const GAMERPOWER_URL = 'https://www.gamerpower.com/api/giveaways?platform=steam&type=game';
 export const APPDETAILS_URL = STORE_HOST + '/api/appdetails';

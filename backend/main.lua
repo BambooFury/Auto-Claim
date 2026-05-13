@@ -1,5 +1,6 @@
 local logger     = require("logger")
 local millennium = require("millennium")
+local http       = require("http")
 local _PURE_LUA_JSON_NULL = {}
 
 local function _cp_to_utf8(code)
@@ -333,6 +334,27 @@ function save_free_games_cache_ipc(data)
     write_file(CACHE_FILE, payload)
     _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
     return 1
+end
+
+local _GAMERPOWER_URL      = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
+local _GAMERPOWER_BODY_MAX = 1 * 1024 * 1024
+
+function fetch_gamerpower_ipc()
+    local ok, res = pcall(http.get, _GAMERPOWER_URL, { timeout = 15 })
+    collectgarbage("collect")
+    if not ok then
+        logger:warn("[AutoClaim] GamerPower http.get crashed: " .. tostring(res))
+        return ""
+    end
+    if not res or res.status ~= 200 then
+        return ""
+    end
+    if type(res.body) ~= "string" then return "" end
+    if #res.body > _GAMERPOWER_BODY_MAX then
+        logger:warn("[AutoClaim] GamerPower body too large (" .. #res.body .. " bytes); dropping")
+        return ""
+    end
+    return res.body
 end
 
 function push_toast_ipc(data)

@@ -1,6 +1,10 @@
+import { callable } from '@steambrew/client';
 import type { ScanHit, ScannerLogger } from './types';
-import { GAMERPOWER_URL, STORE_HOST } from './types';
+import { STORE_HOST } from './types';
 import { safeFetch, safeParse } from './http';
+
+type Empty = [];
+const fetchGamerPowerIPC = callable<Empty, string>('fetch_gamerpower_ipc');
 
 interface GamerPowerEntry {
   title?: string;
@@ -52,10 +56,16 @@ export async function fetchGamerPowerHits(
   seen: Set<number>,
   log?: ScannerLogger,
 ): Promise<ScanHit[]> {
-  const res = await safeFetch(GAMERPOWER_URL, 15000, log);
-  if (!res || res.status !== 200) return [];
+  let body = '';
+  try {
+    body = await fetchGamerPowerIPC();
+  } catch (e: any) {
+    log?.warn(`[scanner] gamerpower IPC failed: ${e?.message || e}`);
+    return [];
+  }
+  if (!body) return [];
 
-  const data = safeParse<GamerPowerEntry[]>(res.body, log, '(gamerpower)');
+  const data = safeParse<GamerPowerEntry[]>(body, log, '(gamerpower)');
   if (!Array.isArray(data)) return [];
 
   const out: ScanHit[] = [];
