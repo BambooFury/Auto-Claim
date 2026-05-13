@@ -332,8 +332,12 @@ function save_free_games_cache_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
     write_file(CACHE_FILE, payload)
-    _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
     return 1
+end
+
+function bump_scan_done_ipc()
+    _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
+    return _G.__autoclaim_scan_done_seq
 end
 
 local _GAMERPOWER_URL      = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"

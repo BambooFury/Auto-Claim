@@ -12,6 +12,7 @@ const loadSettings      = callable<Empty, string>('load_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
 const saveFreeGamesCache = callable<StrIn, number>('save_free_games_cache_ipc');
 const loadFreeGamesCache = callable<Empty, string>('load_free_games_cache_ipc');
+const bumpScanDone       = callable<Empty, number>('bump_scan_done_ipc');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
@@ -610,6 +611,8 @@ async function startPolling(): Promise<void> {
     } catch (e) {
       log(`Scan error: ${String(e)}`);
       return false;
+    } finally {
+      try { await withTimeout(bumpScanDone(), 2000, 0); } catch {}
     }
   }
 
