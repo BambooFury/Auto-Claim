@@ -2,10 +2,9 @@ import { callable } from '@steambrew/client';
 import type { ScanHit, ScannerLogger } from './types';
 import { safeParse } from './http';
 
-type Empty = [];
-type StrIn = [{ payload: string }];
-const fetchGamerPowerIPC = callable<Empty, string>('fetch_gamerpower_ipc');
-const fetchStoreSearchIPC = callable<StrIn, string>('fetch_storesearch_ipc');
+const GAMERPOWER_API_URL = 'https://www.gamerpower.com/api/giveaways?platform=steam&type=game';
+
+const fetchUrlViaCurl = callable<[{ payload: string }], string>('fetch_url_via_curl_ipc');
 
 interface GamerPowerEntry {
   title?: string;
@@ -35,11 +34,15 @@ async function resolveTitle(
   seen: Set<number>,
   log?: ScannerLogger,
 ): Promise<ScanHit | null> {
+  const fullUrl =
+    'https://store.steampowered.com/api/storesearch/?term=' +
+    encodeURIComponent(clean) + '&l=english&cc=us';
+
   let body = '';
   try {
-    body = await fetchStoreSearchIPC({ payload: clean });
+    body = await fetchUrlViaCurl({ payload: fullUrl });
   } catch (e: any) {
-    log?.warn(`[scanner] storesearch IPC failed: ${e?.message || e}`);
+    log?.warn(`[scanner] storesearch curl IPC threw: ${e?.message || e}`);
     return null;
   }
   if (!body) return null;
@@ -64,15 +67,23 @@ export async function fetchGamerPowerHits(
 ): Promise<ScanHit[]> {
   let body = '';
   try {
-    body = await fetchGamerPowerIPC();
+    body = await fetchUrlViaCurl({ payload: GAMERPOWER_API_URL });
   } catch (e: any) {
-    log?.warn(`[scanner] gamerpower IPC failed: ${e?.message || e}`);
+    log?.warn(`[scanner] gamerpower curl IPC threw: ${e?.message || e}`);
     return [];
   }
-  if (!body) return [];
+  if (!body) {
+    log?.warn(`[scanner] gamerpower curl returned empty body`);
+    return [];
+  }
+  log?.info(`[scanner] gamerpower curl ok (${body.length} bytes)`);
 
   const data = safeParse<GamerPowerEntry[]>(body, log, '(gamerpower)');
-  if (!Array.isArray(data)) return [];
+  if (!Array.isArray(data)) {
+    log?.warn(`[scanner] gamerpower body did not parse as JSON array; first 120 chars: ${body.slice(0, 120)}`);
+    return [];
+  }
+  log?.info(`[scanner] gamerpower returned ${data.length} entries`);
 
   const out: ScanHit[] = [];
   const limit = Math.min(data.length, GAMERPOWER_LIMIT);
