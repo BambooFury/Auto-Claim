@@ -340,50 +340,190 @@ function bump_scan_done_ipc()
     return _G.__autoclaim_scan_done_seq
 end
 
-local _GAMERPOWER_URL      = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
-local _GAMERPOWER_BODY_MAX = 1 * 1024 * 1024
+local _CURL_MAX_BYTES = 8 * 1024 * 1024
+local _CURL_TIMEOUT_S = 15
+local _IS_WIN = package.config:sub(1, 1) == "\\"
 
-function fetch_gamerpower_ipc()
-    local ok, res = pcall(http.get, _GAMERPOWER_URL, { timeout = 15 })
-    collectgarbage("collect")
-    if not ok then
-        logger:warn("[AutoClaim] GamerPower http.get crashed: " .. tostring(res))
-        return ""
-    end
-    if not res or res.status ~= 200 then
-        return ""
-    end
-    if type(res.body) ~= "string" then return "" end
-    if #res.body > _GAMERPOWER_BODY_MAX then
-        logger:warn("[AutoClaim] GamerPower body too large (" .. #res.body .. " bytes); dropping")
-        return ""
-    end
-    return res.body
+local function _is_safe_http_url(url)
+    if type(url) ~= "string" or url == "" then return false end
+    if not url:match("^https?://[%w%.%-]+") then return false end
+    if url:find("[%c\"'`\r\n]") then return false end
+    return true
 end
 
-local _STORESEARCH_BASE     = "https://store.steampowered.com/api/storesearch/"
-local _STORESEARCH_BODY_MAX = 256 * 1024
+local _curl_ffi_fn = nil
 
-local function _urlencode(s)
-    return (s:gsub("[^%w%-_%.~]", function(c)
-        return string.format("%%%02X", c:byte())
-    end))
+local function _build_curl_ffi()
+    if not _IS_WIN then return false end
+
+    local ok_ffi, ffi = pcall(require, "ffi")
+    if not ok_ffi then return false end
+
+    pcall(ffi.cdef, [[
+        typedef int            BOOL;
+        typedef unsigned long  DWORD;
+        typedef void*          HANDLE;
+        typedef const wchar_t* LPCWSTR;
+        typedef wchar_t*       LPWSTR;
+        typedef void*          LPVOID;
+        typedef unsigned char* LPBYTE;
+
+        typedef struct _STARTUPINFOW {
+            DWORD          cb;
+            LPWSTR         lpReserved;
+            LPWSTR         lpDesktop;
+            LPWSTR         lpTitle;
+            DWORD          dwX;
+            DWORD          dwY;
+            DWORD          dwXSize;
+            DWORD          dwYSize;
+            DWORD          dwXCountChars;
+            DWORD          dwYCountChars;
+            DWORD          dwFillAttribute;
+            DWORD          dwFlags;
+            unsigned short wShowWindow;
+            unsigned short cbReserved2;
+            LPBYTE         lpReserved2;
+            HANDLE         hStdInput;
+            HANDLE         hStdOutput;
+            HANDLE         hStdError;
+        } STARTUPINFOW;
+
+        typedef struct _PROCESS_INFORMATION {
+            HANDLE hProcess;
+            HANDLE hThread;
+            DWORD  dwProcessId;
+            DWORD  dwThreadId;
+        } PROCESS_INFORMATION;
+
+        BOOL  CreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
+                             void* lpProcessAttributes, void* lpThreadAttributes,
+                             BOOL bInheritHandles, DWORD dwCreationFlags,
+                             LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory,
+                             STARTUPINFOW* lpStartupInfo,
+                             PROCESS_INFORMATION* lpProcessInformation);
+        DWORD WaitForSingleObject(HANDLE hHandle, DWORD dwMilliseconds);
+        BOOL  CloseHandle(HANDLE hObject);
+        int   MultiByteToWideChar(unsigned int CodePage, DWORD dwFlags,
+                                  const char* lpMultiByteStr, int cbMultiByte,
+                                  wchar_t* lpWideCharStr, int cchWideChar);
+    ]])
+
+    local ok_k32, kernel32 = pcall(ffi.load, "kernel32")
+    if not ok_k32 then return false end
+
+    if not pcall(function() return kernel32.CreateProcessW end) then return false end
+    if not pcall(function() return kernel32.MultiByteToWideChar end) then return false end
+
+    local CP_UTF8           = 65001
+    local CREATE_NO_WINDOW  = 0x08000000
+    local WAIT_TIMEOUT_MS   = (_CURL_TIMEOUT_S + 5) * 1000
+
+    local function utf8_to_wide(s)
+        local n = kernel32.MultiByteToWideChar(CP_UTF8, 0, s, -1, nil, 0)
+        if n <= 0 then return nil end
+        local buf = ffi.new("wchar_t[?]", n)
+        kernel32.MultiByteToWideChar(CP_UTF8, 0, s, -1, buf, n)
+        return buf
+    end
+
+    return function(url)
+        local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
+        local tmp = string.format("%s\\autoclaim_curl_%d_%d.tmp",
+                                  tmp_dir, os.time(), math.random(1, 1000000))
+
+        local cmdline = string.format(
+            'curl.exe -s -L --max-time %d ' ..
+            '-A "Mozilla/5.0 AutoClaim/1.5" ' ..
+            '-H "Accept: application/json" ' ..
+            '-o "%s" "%s"',
+            _CURL_TIMEOUT_S, tmp, url
+        )
+
+        local wcmd = utf8_to_wide(cmdline)
+        if not wcmd then return nil end
+
+        local si = ffi.new("STARTUPINFOW")
+        si.cb = ffi.sizeof("STARTUPINFOW")
+        local pi = ffi.new("PROCESS_INFORMATION")
+
+        local res = kernel32.CreateProcessW(
+            nil, wcmd, nil, nil, 0, CREATE_NO_WINDOW,
+            nil, nil, si, pi
+        )
+        if res == 0 then
+            os.remove(tmp)
+            return nil
+        end
+
+        kernel32.WaitForSingleObject(pi.hProcess, WAIT_TIMEOUT_MS)
+        kernel32.CloseHandle(pi.hProcess)
+        kernel32.CloseHandle(pi.hThread)
+
+        local f = io.open(tmp, "rb")
+        if not f then return "" end
+        local body = f:read("*a") or ""
+        f:close()
+        os.remove(tmp)
+        return body
+    end
 end
 
-function fetch_storesearch_ipc(data)
-    local term = extract_payload(data)
-    if type(term) ~= "string" or term == "" then return "" end
-    local url = _STORESEARCH_BASE .. "?term=" .. _urlencode(term) .. "&l=english&cc=us"
-    local ok, res = pcall(http.get, url, { timeout = 10 })
-    collectgarbage("collect")
-    if not ok then
-        logger:warn("[AutoClaim] storesearch http.get crashed: " .. tostring(res))
+local function _curl_ffi_get()
+    if _curl_ffi_fn == nil then
+        _curl_ffi_fn = _build_curl_ffi()
+    end
+    if _curl_ffi_fn == false then return nil end
+    return _curl_ffi_fn
+end
+
+local function _curl_popen(url)
+    local cmd
+    if _IS_WIN then
+        cmd = 'curl.exe -s -L --max-time ' .. _CURL_TIMEOUT_S ..
+              ' -A "Mozilla/5.0 AutoClaim/1.5"' ..
+              ' -H "Accept: application/json"' ..
+              ' "' .. url .. '" 2>NUL'
+    else
+        cmd = "curl -s -L --max-time " .. _CURL_TIMEOUT_S ..
+              " -A 'Mozilla/5.0 AutoClaim/1.5'" ..
+              " -H 'Accept: application/json'" ..
+              " '" .. url .. "' 2>/dev/null"
+    end
+    local f, err = io.popen(cmd, "r")
+    if not f then
+        logger:warn("[AutoClaim] io.popen failed: " .. tostring(err))
         return ""
     end
-    if not res or res.status ~= 200 then return "" end
-    if type(res.body) ~= "string" then return "" end
-    if #res.body > _STORESEARCH_BODY_MAX then return "" end
-    return res.body
+    local body = f:read("*a") or ""
+    f:close()
+    return body
+end
+
+function fetch_url_via_curl_ipc(data)
+    local url = extract_payload(data)
+    if not _is_safe_http_url(url) then return "" end
+
+    local body
+    local ffi_fn = _curl_ffi_get()
+    if ffi_fn then
+        body = ffi_fn(url)
+        if body == nil then
+            body = _curl_popen(url)
+        end
+    else
+        body = _curl_popen(url)
+    end
+
+    if not body or #body == 0 then
+        logger:warn("[AutoClaim] curl returned empty body for " .. url:sub(1, 100))
+        return ""
+    end
+    if #body > _CURL_MAX_BYTES then
+        logger:warn("[AutoClaim] curl body too large (" .. #body .. " bytes); dropping")
+        return ""
+    end
+    return body
 end
 
 function push_toast_ipc(data)
