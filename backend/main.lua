@@ -516,7 +516,12 @@ function fetch_url_via_curl_ipc(data)
     end
 
     if not body or #body == 0 then
-        logger:warn("[AutoClaim] curl returned empty body for " .. url:sub(1, 100))
+        local msg = "[AutoClaim] curl returned empty body for " .. url:sub(1, 100)
+        if url:find("gamerpower%.com", 1, false) then
+            logger:info(msg)
+        else
+            logger:warn(msg)
+        end
         return ""
     end
     if #body > _CURL_MAX_BYTES then
