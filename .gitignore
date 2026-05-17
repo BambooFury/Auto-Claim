@@ -6,6 +6,7 @@ V2_PLAN.md
 
 *.zip
 
+accounts/
 steam_cookies.json
 grabbed*.json
 free_games_cache.json
