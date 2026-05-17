@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.3](https://github.com/BambooFury/Auto-Claim/compare/v1.5.2...v1.5.3) (2026-05-17)
+
+
+### Bug Fixes
+
+* bypass Millennium luavm64 crash via curl over LuaJIT FFI ([ee49992](https://github.com/BambooFury/Auto-Claim/commit/ee4999280bcc80c1da4f835ed09604b4f639ed5c))
+
+
+### Maintenance
+
+* **gitignore:** ignore accounts/ folder ([7333cc4](https://github.com/BambooFury/Auto-Claim/commit/7333cc4c60b4256970b1bd1fd863bf1cd42f4632))
+
 ## [1.5.2](https://github.com/BambooFury/Auto-Claim/compare/v1.5.1...v1.5.2) (2026-05-13)
 
 
