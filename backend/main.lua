@@ -429,19 +429,22 @@ local function _build_curl_ffi()
 
     return function(url)
         local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
-        local tmp = string.format("%s\\autoclaim_curl_%d_%d.tmp",
-                                  tmp_dir, os.time(), math.random(1, 1000000))
+        local rnd = string.format("%d_%d", os.time(), math.random(1, 1000000))
+        local tmp_body = string.format("%s\\autoclaim_curl_%s.body", tmp_dir, rnd)
+        local tmp_err  = string.format("%s\\autoclaim_curl_%s.err",  tmp_dir, rnd)
 
         local cmdline = string.format(
-            'curl.exe -s -L --max-time %d ' ..
-            '-A "Mozilla/5.0 AutoClaim/1.5" ' ..
-            '-H "Accept: application/json" ' ..
-            '-o "%s" "%s"',
-            _CURL_TIMEOUT_S, tmp, url
+            'curl.exe -sS -L --max-time %d --retry 2 --retry-delay 1 ' ..
+            '-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
+            'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" ' ..
+            '-H "Accept: application/json, text/plain, */*" ' ..
+            '-H "Accept-Language: en-US,en;q=0.9" ' ..
+            '--stderr "%s" -o "%s" "%s"',
+            _CURL_TIMEOUT_S, tmp_err, tmp_body, url
         )
 
         local wcmd = utf8_to_wide(cmdline)
-        if not wcmd then return nil end
+        if not wcmd then return nil, "utf8_to_wide failed" end
 
         local si = ffi.new("STARTUPINFOW")
         si.cb = ffi.sizeof("STARTUPINFOW")
@@ -452,20 +455,37 @@ local function _build_curl_ffi()
             nil, nil, si, pi
         )
         if res == 0 then
-            os.remove(tmp)
-            return nil
+            os.remove(tmp_body)
+            os.remove(tmp_err)
+            return nil, "CreateProcessW failed (curl.exe not found?)"
         end
 
         kernel32.WaitForSingleObject(pi.hProcess, WAIT_TIMEOUT_MS)
         kernel32.CloseHandle(pi.hProcess)
         kernel32.CloseHandle(pi.hThread)
 
-        local f = io.open(tmp, "rb")
-        if not f then return "" end
-        local body = f:read("*a") or ""
-        f:close()
-        os.remove(tmp)
-        return body
+        local body = ""
+        local f = io.open(tmp_body, "rb")
+        if f then
+            body = f:read("*a") or ""
+            f:close()
+        end
+
+        local err_msg = nil
+        if #body == 0 then
+            local ef = io.open(tmp_err, "rb")
+            if ef then
+                err_msg = (ef:read("*a") or ""):gsub("%s+$", "")
+                ef:close()
+            end
+            if not err_msg or err_msg == "" then
+                err_msg = "empty body, no stderr"
+            end
+        end
+
+        os.remove(tmp_body)
+        os.remove(tmp_err)
+        return body, err_msg
     end
 end
 
@@ -478,45 +498,83 @@ local function _curl_ffi_get()
 end
 
 local function _curl_popen(url)
-    local cmd
+    local UA_WIN = '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
+                   'AppleWebKit/537.36 (KHTML, like Gecko) ' ..
+                   'Chrome/120.0.0.0 Safari/537.36"'
+    local UA_NIX = "'Mozilla/5.0 (X11; Linux x86_64) " ..
+                   "AppleWebKit/537.36 (KHTML, like Gecko) " ..
+                   "Chrome/120.0.0.0 Safari/537.36'"
+
+    local cmd, err_path
     if _IS_WIN then
-        cmd = 'curl.exe -s -L --max-time ' .. _CURL_TIMEOUT_S ..
-              ' -A "Mozilla/5.0 AutoClaim/1.5"' ..
-              ' -H "Accept: application/json"' ..
-              ' "' .. url .. '" 2>NUL'
+        local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
+        err_path = string.format("%s\\autoclaim_curl_popen_%d_%d.err",
+                                 tmp_dir, os.time(), math.random(1, 1000000))
+        cmd = 'curl.exe -sS -L --max-time ' .. _CURL_TIMEOUT_S ..
+              ' --retry 2 --retry-delay 1' ..
+              ' -A ' .. UA_WIN ..
+              ' -H "Accept: application/json, text/plain, */*"' ..
+              ' -H "Accept-Language: en-US,en;q=0.9"' ..
+              ' "' .. url .. '" 2> "' .. err_path .. '"'
     else
-        cmd = "curl -s -L --max-time " .. _CURL_TIMEOUT_S ..
-              " -A 'Mozilla/5.0 AutoClaim/1.5'" ..
-              " -H 'Accept: application/json'" ..
-              " '" .. url .. "' 2>/dev/null"
+        err_path = "/tmp/autoclaim_curl_popen_" .. os.time() .. "_" ..
+                   math.random(1, 1000000) .. ".err"
+        cmd = "curl -sS -L --max-time " .. _CURL_TIMEOUT_S ..
+              " --retry 2 --retry-delay 1" ..
+              " -A " .. UA_NIX ..
+              " -H 'Accept: application/json, text/plain, */*'" ..
+              " -H 'Accept-Language: en-US,en;q=0.9'" ..
+              " '" .. url .. "' 2> '" .. err_path .. "'"
     end
-    local f, err = io.popen(cmd, "r")
+
+    local f, popen_err = io.popen(cmd, "r")
     if not f then
-        logger:warn("[AutoClaim] io.popen failed: " .. tostring(err))
-        return ""
+        os.remove(err_path)
+        return "", "io.popen failed: " .. tostring(popen_err)
     end
     local body = f:read("*a") or ""
     f:close()
-    return body
+
+    local err_msg = nil
+    if #body == 0 then
+        local ef = io.open(err_path, "rb")
+        if ef then
+            err_msg = (ef:read("*a") or ""):gsub("%s+$", "")
+            ef:close()
+        end
+        if not err_msg or err_msg == "" then
+            err_msg = "empty body, no stderr"
+        end
+    end
+    os.remove(err_path)
+    return body, err_msg
 end
 
 function fetch_url_via_curl_ipc(data)
     local url = extract_payload(data)
     if not _is_safe_http_url(url) then return "" end
 
-    local body
+    local body, err_msg
     local ffi_fn = _curl_ffi_get()
     if ffi_fn then
-        body = ffi_fn(url)
+        body, err_msg = ffi_fn(url)
         if body == nil then
-            body = _curl_popen(url)
+            body, err_msg = _curl_popen(url)
         end
     else
-        body = _curl_popen(url)
+        body, err_msg = _curl_popen(url)
     end
 
     if not body or #body == 0 then
-        logger:warn("[AutoClaim] curl returned empty body for " .. url:sub(1, 100))
+        local reason = err_msg or "unknown"
+        if #reason > 300 then reason = reason:sub(1, 300) .. "..." end
+        local msg = "[AutoClaim] curl returned empty body for " ..
+                    url:sub(1, 100) .. " | " .. reason
+        if url:find("gamerpower%.com", 1, false) then
+            logger:info(msg)
+        else
+            logger:warn(msg)
+        end
         return ""
     end
     if #body > _CURL_MAX_BYTES then
