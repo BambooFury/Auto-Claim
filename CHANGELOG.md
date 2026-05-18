@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.4](https://github.com/BambooFury/Auto-Claim/compare/v1.5.3...v1.5.4) (2026-05-18)
+
+
+### Bug Fixes
+
+* silence gamerpower empty-body warning, add curl retries ([3f68b73](https://github.com/BambooFury/Auto-Claim/commit/3f68b733c34161a4c5472be8c9e6f86b38b0409b))
+* silence gamerpower empty-body warning, add curl retries ([629ab50](https://github.com/BambooFury/Auto-Claim/commit/629ab5091bf01d463a8680a4be2682ee1ed0fa9a))
+
 ## [1.5.3](https://github.com/BambooFury/Auto-Claim/compare/v1.5.2...v1.5.3) (2026-05-17)
 
 
