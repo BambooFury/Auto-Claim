@@ -72,15 +72,14 @@ export async function fetchGamerPowerHits(
     log?.warn(`[scanner] gamerpower curl IPC threw: ${e?.message || e}`);
     return [];
   }
-  if (!body) {
-    log?.warn(`[scanner] gamerpower curl returned empty body`);
+  if (!body || body.trim() === '') {
     return [];
   }
   log?.info(`[scanner] gamerpower curl ok (${body.length} bytes)`);
 
   const data = safeParse<GamerPowerEntry[]>(body, log, '(gamerpower)');
   if (!Array.isArray(data)) {
-    log?.warn(`[scanner] gamerpower body did not parse as JSON array; first 120 chars: ${body.slice(0, 120)}`);
+    log?.info(`[scanner] gamerpower ignored non-array response`);
     return [];
   }
   log?.info(`[scanner] gamerpower returned ${data.length} entries`);

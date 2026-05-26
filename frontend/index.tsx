@@ -22,6 +22,8 @@ const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
+const SCAN_REQUEST_LS_KEY = 'fgg_scan_request_seq';
+const SCAN_RESULT_LS_KEY = 'fgg_scan_result';
 
 const _autoclaimIntervals: Array<ReturnType<typeof setInterval>> = [];
 let _autoclaimNextScanTimer: ReturnType<typeof setTimeout> | null = null;
@@ -47,6 +49,16 @@ function _clearAutoclaimTimers(): void {
 const log = (msg: string) => {
   _logPluginIPC({ payload: msg }).catch(() => {});
 };
+
+function publishScanResult(games: FreeGame[], ok: boolean): void {
+  try {
+    localStorage.setItem(SCAN_RESULT_LS_KEY, JSON.stringify({
+      seq: Date.now(),
+      ok,
+      games,
+    }));
+  } catch {}
+}
 
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
@@ -588,7 +600,10 @@ async function startPolling(): Promise<void> {
             await processGame(game);
             await new Promise((r) => setTimeout(r, 1500));
           }
-        } catch {}
+          publishScanResult(games, false);
+        } catch {
+          publishScanResult([], false);
+        }
         return false;
       }
 
@@ -602,6 +617,7 @@ async function startPolling(): Promise<void> {
           0,
         );
       } catch {}
+      publishScanResult(games, true);
 
       for (const game of games) {
         await processGame(game);
@@ -610,6 +626,7 @@ async function startPolling(): Promise<void> {
       return true;
     } catch (e) {
       log(`Scan error: ${String(e)}`);
+      publishScanResult([], false);
       return false;
     } finally {
       try { await withTimeout(bumpScanDone(), 2000, 0); } catch {}
@@ -685,8 +702,9 @@ async function startPolling(): Promise<void> {
 
   _trackInterval(async () => {
     try {
-      const raw = await withTimeout(popScanRequest(), 2000, String(lastScanSeq));
-      const cur = parseInt(raw, 10) || 0;
+      const localSeq = parseInt(localStorage.getItem(SCAN_REQUEST_LS_KEY) || String(lastScanSeq), 10) || 0;
+      const backendSeq = parseInt(await withTimeout(popScanRequest(), 2000, String(lastScanSeq)), 10) || 0;
+      const cur = Math.max(localSeq, backendSeq);
       if (cur < lastScanSeq) {
         lastScanSeq = cur;
         return;
@@ -696,7 +714,7 @@ async function startPolling(): Promise<void> {
         void triggerScan('user requested');
       }
     } catch {}
-  }, 3000);
+  }, 10000);
 
   _trackInterval(async () => {
     try {

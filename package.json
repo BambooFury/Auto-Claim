@@ -22,9 +22,9 @@
 	"author": "BambooFury",
 	"license": "MIT",
 	"dependencies": {
-		"@steambrew/api": "^5.5.3",
-		"@steambrew/client": "^5.5.3",
-		"@steambrew/ttc": "^2.7.3",
-		"@steambrew/webkit": "^5.5.3"
+		"@steambrew/api": "^5.8.4",
+		"@steambrew/client": "^5.8.5",
+		"@steambrew/ttc": "^3.3.6",
+		"@steambrew/webkit": "^5.8.4"
 	}
 }
