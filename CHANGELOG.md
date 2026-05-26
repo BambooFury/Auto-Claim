@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.5](https://github.com/BambooFury/Auto-Claim/compare/v1.5.4...v1.5.5) (2026-05-26)
+
+
+### Bug Fixes
+
+* Fixing plugin crashes ([4b1d9ab](https://github.com/BambooFury/Auto-Claim/commit/4b1d9aba6e64b7a2007dfe77a0b59cbbda2ba0fa))
+* Fixing plugin crashes ([c624714](https://github.com/BambooFury/Auto-Claim/commit/c62471482ff8f1afccc9ed94ef7fe003e2f36b67))
+
 ## [1.5.4](https://github.com/BambooFury/Auto-Claim/compare/v1.5.3...v1.5.4) (2026-05-18)
 
 
