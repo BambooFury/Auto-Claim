@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.6](https://github.com/BambooFury/Auto-Claim/compare/v1.5.5...v1.5.6) (2026-05-26)
+
+
+### Bug Fixes
+
+* update moduleResolution to bundler for TypeScript 7.0 compatibility ([e48be1b](https://github.com/BambooFury/Auto-Claim/commit/e48be1b454902ffd3cd8551ce499c5fcc8f5c65c))
+* update moduleResolution to bundler for TypeScript 7.0 compatibility ([3d76f3e](https://github.com/BambooFury/Auto-Claim/commit/3d76f3e16796eab49213d2385e36ee157c794b54))
+
 ## [1.5.5](https://github.com/BambooFury/Auto-Claim/compare/v1.5.4...v1.5.5) (2026-05-26)
 
 
