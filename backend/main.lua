@@ -1,6 +1,5 @@
 local logger     = require("logger")
 local millennium = require("millennium")
-local http       = require("http")
 local _PURE_LUA_JSON_NULL = {}
 
 local function _cp_to_utf8(code)
@@ -157,17 +156,14 @@ local _pure_lua_json = {
 }
 
 local cjson = (function()
-    local ok, mod = pcall(require, "cjson.safe")
-    if ok and mod and type(mod.decode) == "function" then
-        logger:info("[AutoClaim] JSON backend: cjson.safe (native)")
-        return mod
+    local function try(name)
+        local ok, mod = pcall(require, name)
+        if ok and type(mod) == "table" and type(mod.decode) == "function" then
+            return mod
+        end
+        return nil
     end
-    local ok2, mod2 = pcall(require, "cjson")
-    if ok2 and mod2 and type(mod2.decode) == "function" then
-        logger:info("[AutoClaim] JSON backend: cjson (native)")
-        return mod2
-    end
-    return _pure_lua_json
+    return try("json") or try("cjson.safe") or try("cjson") or _pure_lua_json
 end)()
 local PLUGIN_DIR = (function()
     local src = debug.getinfo(1, "S").source or ""
@@ -570,9 +566,7 @@ function fetch_url_via_curl_ipc(data)
         if #reason > 300 then reason = reason:sub(1, 300) .. "..." end
         local msg = "[AutoClaim] curl returned empty body for " ..
                     url:sub(1, 100) .. " | " .. reason
-        if url:find("gamerpower%.com", 1, false) then
-            logger:info(msg)
-        else
+        if not url:find("gamerpower%.com", 1, false) then
             logger:warn(msg)
         end
         return ""

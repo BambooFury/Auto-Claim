@@ -13,7 +13,7 @@ import {
 } from './_assets.generated';
 import {
   loadFreeGamesCacheIPC, loadGrabbedIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
-  requestScanIPC, popScanDoneIPC,
+  requestScanIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
@@ -25,8 +25,36 @@ const ROOT_ID  = 'fgg-widget-root';
 const PANEL_W  = 340;
 const PANEL_RIGHT_OFFSET_WHEN_OPEN = 341;
 const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
+const SCAN_REQUEST_LS_KEY = 'fgg_scan_request_seq';
+const SCAN_RESULT_LS_KEY = 'fgg_scan_result';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
+
+interface ScanResultSnapshot {
+  seq: number;
+  ok: boolean;
+  games: FreeGame[];
+}
+
+function requestScanViaStorage(): void {
+  try {
+    localStorage.setItem(SCAN_REQUEST_LS_KEY, String(Date.now()));
+  } catch {}
+}
+
+function readScanResultSnapshot(): ScanResultSnapshot {
+  try {
+    const raw = localStorage.getItem(SCAN_RESULT_LS_KEY);
+    const parsed = JSON.parse(raw || '{}');
+    return {
+      seq: typeof parsed.seq === 'number' ? parsed.seq : 0,
+      ok: parsed.ok !== false,
+      games: Array.isArray(parsed.games) ? parsed.games : [],
+    };
+  } catch {
+    return { seq: 0, ok: false, games: [] };
+  }
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;')
@@ -884,7 +912,7 @@ function renderSettings(
     persistAndRefresh();
     logIPC({ payload: `Auto-add toggled: ${cfg.autoAdd ? 'ON' : 'OFF'}` }).catch(() => {});
     if (wasOff && cfg.autoAdd) {
-      requestScanIPC().catch(() => {});
+      requestScanViaStorage();
       logIPC({ payload: 'Auto-add turned ON — requesting immediate scan' }).catch(() => {});
     }
   });
@@ -927,16 +955,18 @@ function renderSettings(
       scanResult.textContent = 'Scanning…';
     }
 
-    let initialDoneSeq = '';
-    try { initialDoneSeq = await popScanDoneIPC(); } catch {}
+    const initialDoneSeq = readScanResultSnapshot().seq;
 
     try {
-      await requestScanIPC();
+      requestScanViaStorage();
+      requestScanIPC().catch(() => {});
       logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
     } catch {}
 
     const SCAN_DEADLINE_MS = 180_000;
-    const POLL_INTERVAL_MS = 1500;
+    const POLL_INTERVAL_MS = 5000;
+    const CACHE_FALLBACK_DELAY_MS = 25000;
+    const NO_CHANGE_RESULT_DELAY_MS = 45000;
     const startedAt = Date.now();
 
     const finish = (color: string, html: string, useText = false) => {
@@ -949,17 +979,17 @@ function renderSettings(
     };
 
     const poll = async () => {
-      let curSeq = '';
-      try { curSeq = await popScanDoneIPC(); } catch {}
+      const snapshot = readScanResultSnapshot();
+      const elapsed = Date.now() - startedAt;
 
-      if (curSeq && curSeq !== initialDoneSeq) {
-        let raw = '';
-        try { raw = await loadFreeGamesCacheIPC(); } catch {}
+      if (snapshot.seq && snapshot.seq !== initialDoneSeq) {
         try {
-          const found: FreeGame[] = JSON.parse(raw || '[]');
+          const found: FreeGame[] = snapshot.games;
           const newGames = found.filter((g) => !lastGames.some((lg) => lg.appid === g.appid));
           if (newGames.length > 0) {
             finish('#55cc55', newGames.map((g) => `• ${escapeHtml(g.name)}`).join('<br>'));
+          } else if (!snapshot.ok) {
+            finish('rgba(255,255,255,0.35)', 'Scan failed — try again later.', true);
           } else {
             finish('rgba(255,255,255,0.35)', 'No new free games found.', true);
           }
@@ -967,6 +997,22 @@ function renderSettings(
           finish('rgba(255,255,255,0.35)', 'Could not parse scan results.', true);
         }
         return;
+      }
+
+      if (elapsed >= CACHE_FALLBACK_DELAY_MS) {
+        try {
+          const raw = await loadFreeGamesCacheIPC();
+          const found: FreeGame[] = JSON.parse(raw || '[]');
+          const newGames = found.filter((g) => !lastGames.some((lg) => lg.appid === g.appid));
+          if (newGames.length > 0) {
+            finish('#55cc55', newGames.map((g) => `• ${escapeHtml(g.name)}`).join('<br>'));
+            return;
+          }
+          if (elapsed >= NO_CHANGE_RESULT_DELAY_MS) {
+            finish('rgba(255,255,255,0.35)', 'No new free games found.', true);
+            return;
+          }
+        } catch {}
       }
 
       if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
