@@ -717,15 +717,21 @@ async function startPolling(): Promise<void> {
 
   await triggerScan('initial');
 
+  const pollManualScanRequest = async () => {
+    const manualRequestedAt = await consumeManualScanRequest();
+    if (manualRequestedAt) {
+      pendingManualScanRequestAt = manualRequestedAt;
+      void triggerScan('manual button');
+    }
+  };
+
+  void pollManualScanRequest();
+  _trackInterval(() => { void pollManualScanRequest(); }, 3000);
+
   _trackInterval(async () => {
     try {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
       settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
-      const manualRequestedAt = await consumeManualScanRequest();
-      if (manualRequestedAt) {
-        pendingManualScanRequestAt = manualRequestedAt;
-        void triggerScan('manual button');
-      }
     } catch {}
   }, 30000);
 
