@@ -189,8 +189,6 @@ local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
 
-_G.__autoclaim_scan_seq      = _G.__autoclaim_scan_seq or 0
-_G.__autoclaim_scan_done_seq = _G.__autoclaim_scan_done_seq or 0
 
 local function read_file(path)
     local f = io.open(path, "r")
@@ -331,10 +329,6 @@ function save_free_games_cache_ipc(data)
     return 1
 end
 
-function bump_scan_done_ipc()
-    _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
-    return _G.__autoclaim_scan_done_seq
-end
 
 local _CURL_MAX_BYTES = 8 * 1024 * 1024
 local _CURL_TIMEOUT_S = 15
@@ -631,18 +625,6 @@ function pop_toasts_ipc()
     return read_file(TOASTS_FILE) or "[]"
 end
 
-function request_scan_ipc()
-    _G.__autoclaim_scan_seq = (_G.__autoclaim_scan_seq or 0) + 1
-    return 1
-end
-
-function pop_scan_request_ipc()
-    return tostring(_G.__autoclaim_scan_seq or 0)
-end
-
-function pop_scan_done_ipc()
-    return tostring(_G.__autoclaim_scan_done_seq or 0)
-end
 
 function log_plugin(data)
     local payload = extract_payload(data)
