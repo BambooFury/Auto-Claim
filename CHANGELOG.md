@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.7](https://github.com/BambooFury/Auto-Claim/compare/v1.5.6...v1.5.7) (2026-05-27)
+
+
+### Bug Fixes
+
+* poll scan now requests faster ([5ab417c](https://github.com/BambooFury/Auto-Claim/commit/5ab417c6115b11cddd85432ef5f1c7532125c76e))
+* remove legacy scan ipc ([a7645d3](https://github.com/BambooFury/Auto-Claim/commit/a7645d3bafd22283ecc77f3d7fd78f952b1e8188))
+* stabilize scan flow ([2d894dd](https://github.com/BambooFury/Auto-Claim/commit/2d894dd20bd11db8e63f2e62f61c4bf92a9e63e5))
+* stabilize scan flow ([53cf1ec](https://github.com/BambooFury/Auto-Claim/commit/53cf1ec73415a8e2a226579b57a60bbb1d655cd4))
+* wait for scan now results ([4ff3d1b](https://github.com/BambooFury/Auto-Claim/commit/4ff3d1b8554ee754c6aa0f81b727855d895b13d0))
+
 ## [1.5.6](https://github.com/BambooFury/Auto-Claim/compare/v1.5.5...v1.5.6) (2026-05-26)
 
 
