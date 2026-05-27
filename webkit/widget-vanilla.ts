@@ -28,16 +28,17 @@ const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
 
-async function queueManualScanRequest(): Promise<boolean> {
+async function queueManualScanRequest(): Promise<number> {
   try {
+    const requestedAt = Date.now();
     const raw = await loadWidgetSettingsIPC().catch(() => initialWidgetRaw || '{}');
     let current: any = {};
     try { current = JSON.parse(raw || '{}'); } catch {}
-    const next = { ...current, manualScanRequestedAt: Date.now() };
+    const next = { ...current, manualScanRequestedAt: requestedAt };
     await saveWidgetSettingsIPC({ payload: JSON.stringify(next) });
-    return true;
+    return requestedAt;
   } catch {
-    return false;
+    return 0;
   }
 }
 
@@ -897,7 +898,7 @@ function renderSettings(
     logIPC({ payload: `Auto-add toggled: ${cfg.autoAdd ? 'ON' : 'OFF'}` }).catch(() => {});
     if (wasOff && cfg.autoAdd) {
       void queueManualScanRequest();
-      logIPC({ payload: 'Auto-add turned ON  scan queued' }).catch(() => {});
+      logIPC({ payload: 'Auto-add turned ON - scan queued' }).catch(() => {});
     }
   });
 
@@ -936,19 +937,76 @@ function renderSettings(
     scanBtn.classList.add('busy');
     if (scanResult) {
       scanResult.style.color = 'rgba(255,255,255,0.35)';
-      scanResult.textContent = 'Scanning';
+      scanResult.textContent = 'Scanning...';
     }
 
+    const finish = (color: string, text: string) => {
+      scanBtn.disabled = false;
+      scanBtn.classList.remove('busy');
+      if (!scanResult) return;
+      scanResult.style.color = color;
+      scanResult.textContent = text;
+    };
+
+    let requestedAt = 0;
     try {
-      const queued = await queueManualScanRequest();
-      logIPC({ payload: queued ? 'Scan now button queued' : 'Scan now queue failed' }).catch(() => {});
+      requestedAt = await queueManualScanRequest();
+      logIPC({ payload: requestedAt ? 'Scan now button queued' : 'Scan now queue failed' }).catch(() => {});
     } catch {}
-    scanBtn.disabled = false;
-    scanBtn.classList.remove('busy');
-    if (scanResult) {
-      scanResult.style.color = 'rgba(255,255,255,0.55)';
-      scanResult.textContent = 'Scan queued  results will refresh automatically.';
+
+    if (!requestedAt) {
+      finish('rgba(255,255,255,0.35)', 'Could not queue scan - try again.');
+      return;
     }
+
+    if (scanResult) {
+      scanResult.style.color = 'rgba(255,255,255,0.45)';
+      scanResult.textContent = 'Scan queued. Waiting for results...';
+    }
+
+    const SCAN_DEADLINE_MS = 180_000;
+    const POLL_INTERVAL_MS = 3000;
+    const startedAt = Date.now();
+
+    const poll = async () => {
+      let done = false;
+      let ok = true;
+      try {
+        const raw = await loadWidgetSettingsIPC();
+        const w = JSON.parse(raw || '{}');
+        const completedRequestAt = typeof w?.manualScanCompletedRequestAt === 'number'
+          ? w.manualScanCompletedRequestAt
+          : 0;
+        done = completedRequestAt >= requestedAt;
+        ok = w?.manualScanCompletedOk !== false;
+      } catch {}
+
+      if (done) {
+        try {
+          const raw = await loadFreeGamesCacheIPC();
+          const found: FreeGame[] = JSON.parse(raw || '[]');
+          if (!ok) {
+            finish('rgba(255,255,255,0.35)', 'Scan failed - using cached results.');
+          } else if (found.length > 0) {
+            finish('#55cc55', `Scan complete - ${found.length} free game(s) found.`);
+          } else {
+            finish('rgba(255,255,255,0.35)', 'Scan complete - no free games found.');
+          }
+        } catch {
+          finish('rgba(255,255,255,0.35)', 'Scan complete - could not read results.');
+        }
+        return;
+      }
+
+      if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
+        finish('rgba(255,255,255,0.35)', 'Scan timed out - results will refresh automatically.');
+        return;
+      }
+
+      setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
+    };
+
+    setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
   });
 
 }

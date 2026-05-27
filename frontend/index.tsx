@@ -478,12 +478,12 @@ async function startPolling(): Promise<void> {
 
   let lastManualScanRequestAt = 0;
 
-  async function consumeManualScanRequest(): Promise<boolean> {
+  async function consumeManualScanRequest(): Promise<number> {
     try {
       const wRaw = await withTimeout(_loadWidgetIPC(), 1500, '{}');
       const w = JSON.parse(wRaw || '{}');
       const requestedAt = typeof w?.manualScanRequestedAt === 'number' ? w.manualScanRequestedAt : 0;
-      if (!requestedAt || requestedAt <= lastManualScanRequestAt) return false;
+      if (!requestedAt || requestedAt <= lastManualScanRequestAt) return 0;
       lastManualScanRequestAt = requestedAt;
 
       const next = { ...w };
@@ -491,10 +491,25 @@ async function startPolling(): Promise<void> {
       try {
         await withTimeout(_saveWidgetIPC({ payload: JSON.stringify(next) }), 1500, 0);
       } catch {}
-      return true;
+      return requestedAt;
     } catch {
-      return false;
+      return 0;
     }
+  }
+
+  async function publishManualScanCompletion(requestedAt: number, ok: boolean): Promise<void> {
+    if (!requestedAt) return;
+    try {
+      const wRaw = await withTimeout(_loadWidgetIPC(), 1500, '{}');
+      const w = JSON.parse(wRaw || '{}');
+      const next = {
+        ...w,
+        manualScanCompletedAt: Date.now(),
+        manualScanCompletedRequestAt: requestedAt,
+        manualScanCompletedOk: ok,
+      };
+      await withTimeout(_saveWidgetIPC({ payload: JSON.stringify(next) }), 1500, 0);
+    } catch {}
   }
 
   async function processGame(game: FreeGame): Promise<void> {
@@ -636,6 +651,7 @@ async function startPolling(): Promise<void> {
 
   let scanInProgress = false;
   let scanQueued = false;
+  let pendingManualScanRequestAt = 0;
   const triggerScan = async (reason: string): Promise<boolean> => {
     if (scanInProgress) {
       scanQueued = true;
@@ -651,6 +667,11 @@ async function startPolling(): Promise<void> {
         scanQueued = false;
         scanInProgress = false;
         return triggerScan('queued');
+      }
+      if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
+        const requestedAt = pendingManualScanRequestAt;
+        pendingManualScanRequestAt = 0;
+        await publishManualScanCompletion(requestedAt, result);
       }
       return result;
     } finally {
@@ -700,8 +721,9 @@ async function startPolling(): Promise<void> {
     try {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
       settings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
-      const manualRequested = await consumeManualScanRequest();
-      if (manualRequested) {
+      const manualRequestedAt = await consumeManualScanRequest();
+      if (manualRequestedAt) {
+        pendingManualScanRequestAt = manualRequestedAt;
         void triggerScan('manual button');
       }
     } catch {}
