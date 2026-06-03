@@ -16,7 +16,7 @@ import {
   saveWidgetSettingsIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
-import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
+import { isGameOwned, isInLibrary } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
 import { getTabColor } from './tab-colors';
 import type { FreeGame } from './types';
@@ -295,6 +295,9 @@ export function injectVanillaWidget(): void {
     logIPC({ payload: `Filter mode changed: ${next}` }).catch(() => {});
     activeTab = 'games';
     render();
+    if (next === 'games' && cfg.autoAdd) {
+      void runAutoClaim();
+    }
   }
 
   filterBtnEl.addEventListener('click', toggleFilter);
@@ -475,27 +478,13 @@ export function injectVanillaWidget(): void {
           (g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid),
         );
         if (stillPending && Date.now() - lastLibFetchMs > LIB_RECHECK_MS && games.length > 0) {
-          const fresh = await checkLibraryAsync(games.map((g) => g.appid))
-            .catch((): Set<number> | null => null);
-          if (fresh) {
-            let changed = false;
-            fresh.forEach((id: number) => {
-              if (!ownedSet.has(id)) { ownedSet.add(id); changed = true; }
-            });
-            lastLibFetchMs = Date.now();
-            if (changed) {
-              updateNewIndicator();
-              if (opened && activeTab === 'games') render();
-            }
-          }
+          lastLibFetchMs = Date.now();
         }
         return;
       }
 
       games = next;
-      ownedSet = next.length > 0
-        ? await checkLibraryAsync(next.map((g) => g.appid)).catch(() => new Set<number>())
-        : new Set<number>();
+      ownedSet = new Set<number>();
 
       await mergeGrabbedIntoOwned(ownedSet);
       lastLibFetchMs = Date.now();
@@ -524,7 +513,7 @@ export function injectVanillaWidget(): void {
     if (activeTab === 'games') {
       renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
     } else {
-      renderSettings(bodyEl, render, persistAndRefresh);
+      renderSettings(bodyEl, render, persistAndRefresh, () => void runAutoClaim(), queueManualScanRequest);
     }
   }
 
@@ -864,6 +853,8 @@ function renderSettings(
   bodyEl: HTMLElement,
   rerender: () => void,
   persistAndRefresh: () => void,
+  runAutoClaim: () => void,
+  queueManualScanRequest: () => Promise<number>,
 ): void {
   const toggleHtml = (id: string, value: boolean) =>
     `<button id="${id}" class="fgg-toggle${value ? ' on' : ''}" data-fgg-on="${value ? '1' : '0'}">
@@ -894,10 +885,17 @@ function renderSettings(
     persistAndRefresh();
     logIPC({ payload: `Auto-add toggled: ${cfg.autoAdd ? 'ON' : 'OFF'}` }).catch(() => {});
     if (wasOff && cfg.autoAdd) {
-      void queueManualScanRequest();
-      logIPC({ payload: 'Auto-add turned ON - scan queued' }).catch(() => {});
+      void runManualScanRequestAndClaim();
     }
   });
+
+  async function runManualScanRequestAndClaim() {
+    void queueManualScanRequest();
+    logIPC({ payload: 'Auto-add turned ON - scan queued' }).catch(() => {});
+    if (cfg.filterMode !== 'all') {
+      void runAutoClaim();
+    }
+  }
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-notifygrab')?.addEventListener('click', (e) => {
     cfg.notifyOnGrab = !cfg.notifyOnGrab;

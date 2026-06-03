@@ -50,7 +50,6 @@ export function isInLibrary(appid: number): boolean {
     if (lpcd) {
       if (lpcd.is_owned === true)  return true;
       if (lpcd.installed === true) return true;
-      if (lpcd.is_owned !== false) return true;
     }
 
     if (Array.isArray(ov.licenses) && ov.licenses.length > 0) return true;

@@ -21,6 +21,18 @@ const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
+const _globalGrabbedAppids = new Set<number>();
+
+async function _reloadGlobalGrabbed(): Promise<void> {
+  try {
+    const raw = await loadGrabbed();
+    const list: Array<{ appid: number }> = JSON.parse(raw || '[]');
+    for (const e of list) {
+      if (e && typeof e.appid === 'number') _globalGrabbedAppids.add(e.appid);
+    }
+  } catch {}
+}
+
 const _autoclaimIntervals: Array<ReturnType<typeof setInterval>> = [];
 let _autoclaimNextScanTimer: ReturnType<typeof setTimeout> | null = null;
 let _autoclaimPollingStarted = false;
@@ -135,8 +147,6 @@ function isAlreadyInLibrary(appid: number): boolean {
     if (lpcd) {
       if (lpcd.is_owned === true)  return true;
       if (lpcd.installed === true) return true;
-
-      if (lpcd.is_owned !== false) return true;
     }
 
 
@@ -149,6 +159,9 @@ function isAlreadyInLibrary(appid: number): boolean {
 }
 
 function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
+  if (_globalGrabbedAppids.has(game.appid)) return;
+  if (isAlreadyInLibrary(game.appid)) return;
+  _globalGrabbedAppids.add(game.appid);
   toaster.toast({
     title: 'Free Game Available!',
     body:  `${game.name} is 100% off — grab it now!`,
@@ -265,7 +278,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
     } catch {}
   }, 500);
 
-  const TIMEOUT_MS = 30_000;
+  const TIMEOUT_MS = 10_000;
   const POLL_MS    = 500;
   const polls      = Math.floor(TIMEOUT_MS / POLL_MS);
   for (let i = 0; i < polls; i++) {
@@ -277,7 +290,12 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
   }
 
   if (!succeeded) {
-    log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
+    if (claimTriggered) {
+      log(`[${appid}] hidden-popup: assuming success after claim trigger`);
+      succeeded = true;
+    } else {
+      log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
+    }
   }
 
   try { popup.off?.('finished-request', onFinishedRequest); } catch {}
@@ -384,18 +402,6 @@ async function waitForSteamReady(): Promise<void> {
   await new Promise((r) => setTimeout(r, 3000));
 }
 
-async function drainPendingToasts(): Promise<void> {
-  try {
-    const raw = await withTimeout(popToasts(), 3000, '[]');
-    const items: FreeGame[] = JSON.parse(raw || '[]');
-    for (const g of items) {
-      if (!g || typeof g.appid !== 'number') continue;
-      showFreeGameNotification(g, () => {
-        (window as any).SteamClient?.Apps?.ShowStore?.(g.appid, 0);
-      });
-    }
-  } catch {}
-}
 
 async function startPolling(): Promise<void> {
   if (_autoclaimPollingStarted) {
@@ -406,7 +412,9 @@ async function startPolling(): Promise<void> {
 
   await waitForSteamReady();
 
-  _trackInterval(() => { void drainPendingToasts(); }, 5000);
+  await _reloadGlobalGrabbed();
+
+  _trackInterval(() => { void drainPendingToastsFiltered(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
   let grabbedSet  = new Set<number>();
@@ -423,6 +431,21 @@ async function startPolling(): Promise<void> {
       const list: GrabbedEntry[] = JSON.parse(gRaw || '[]');
       grabbedSet  = new Set(list.filter((e) => e.added !== false).map((e) => e.appid));
       notifiedSet = new Set(list.map((e) => e.appid));
+    } catch {}
+  }
+
+  async function drainPendingToastsFiltered(): Promise<void> {
+    try {
+      const raw = await withTimeout(popToasts(), 3000, '[]');
+      const items: FreeGame[] = JSON.parse(raw || '[]');
+      for (const g of items) {
+        if (!g || typeof g.appid !== 'number') continue;
+        if (grabbedSet.has(g.appid) || notifiedSet.has(g.appid)) continue;
+        if (isAlreadyInLibrary(g.appid)) continue;
+        showFreeGameNotification(g, () => {
+          (window as any).SteamClient?.Apps?.ShowStore?.(g.appid, 0);
+        });
+      }
     } catch {}
   }
 
@@ -444,6 +467,7 @@ async function startPolling(): Promise<void> {
         await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
         if (added) grabbedSet.add(game.appid);
         notifiedSet.add(game.appid);
+        _globalGrabbedAppids.add(game.appid);
         return;
       } catch {
         await new Promise((r) => setTimeout(r, 2000));
@@ -519,6 +543,16 @@ async function startPolling(): Promise<void> {
           skipLogged.add(game.appid);
           log(`${game.name} — already grabbed, skipping`);
         }
+        return;
+      }
+
+      if (notifiedSet.has(game.appid) && isAlreadyInLibrary(game.appid)) {
+        if (!skipLogged.has(game.appid)) {
+          skipLogged.add(game.appid);
+          log(`${game.name} — already notified & in library, upgrading to grabbed`);
+        }
+        grabbedSet.add(game.appid);
+        await recordGrabbed(game, true);
         return;
       }
 
@@ -697,9 +731,9 @@ async function startPolling(): Promise<void> {
       void setCurrentSteamId({ payload: sid })
         .catch((e) => log(`set_current_steamid_ipc failed: ${String(e)}`))
         .then(() => {
-
           skipLogged.clear();
           grabbedSet = new Set<number>();
+          notifiedSet = new Set<number>();
           if (scanInProgress) {
 
             log('queueing re-scan for new account (scan in progress)');
