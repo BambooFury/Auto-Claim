@@ -2,6 +2,7 @@ import { definePlugin, callable, toaster } from '@steambrew/client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
 import { MIN_POLL_INTERVAL_MIN } from './constants';
+import { runScan } from './scanner';
 type Empty = [];
 type StrIn = [{ payload: string }];
 
@@ -9,11 +10,11 @@ const loadGrabbed       = callable<Empty, string>('load_grabbed_ipc');
 const saveGrabbed       = callable<StrIn, number>('save_grabbed_ipc');
 const loadSettings      = callable<Empty, string>('load_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
-const fetchFreeGames    = callable<Empty, string>('fetch_free_games_backend');
+const saveFreeGamesCache = callable<StrIn, number>('save_free_games_cache_ipc');
+const loadFreeGamesCache = callable<Empty, string>('load_free_games_cache_ipc');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
-const popScanRequest    = callable<Empty, string>('pop_scan_request_ipc');
 const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
@@ -44,6 +45,7 @@ function _clearAutoclaimTimers(): void {
 const log = (msg: string) => {
   _logPluginIPC({ payload: msg }).catch(() => {});
 };
+
 
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
@@ -474,6 +476,42 @@ async function startPolling(): Promise<void> {
     }
   }
 
+  let lastManualScanRequestAt = 0;
+
+  async function consumeManualScanRequest(): Promise<number> {
+    try {
+      const wRaw = await withTimeout(_loadWidgetIPC(), 1500, '{}');
+      const w = JSON.parse(wRaw || '{}');
+      const requestedAt = typeof w?.manualScanRequestedAt === 'number' ? w.manualScanRequestedAt : 0;
+      if (!requestedAt || requestedAt <= lastManualScanRequestAt) return 0;
+      lastManualScanRequestAt = requestedAt;
+
+      const next = { ...w };
+      delete next.manualScanRequestedAt;
+      try {
+        await withTimeout(_saveWidgetIPC({ payload: JSON.stringify(next) }), 1500, 0);
+      } catch {}
+      return requestedAt;
+    } catch {
+      return 0;
+    }
+  }
+
+  async function publishManualScanCompletion(requestedAt: number, ok: boolean): Promise<void> {
+    if (!requestedAt) return;
+    try {
+      const wRaw = await withTimeout(_loadWidgetIPC(), 1500, '{}');
+      const w = JSON.parse(wRaw || '{}');
+      const next = {
+        ...w,
+        manualScanCompletedAt: Date.now(),
+        manualScanCompletedRequestAt: requestedAt,
+        manualScanCompletedOk: ok,
+      };
+      await withTimeout(_saveWidgetIPC({ payload: JSON.stringify(next) }), 1500, 0);
+    } catch {}
+  }
+
   async function processGame(game: FreeGame): Promise<void> {
     try {
       if (grabbedSet.has(game.appid)) {
@@ -565,9 +603,40 @@ async function startPolling(): Promise<void> {
     log('Scanning Steam Store for 100% discounts...');
 
     try {
-      const raw = await withTimeout(fetchFreeGames(), 60000, '[]');
-      const games: FreeGame[] = JSON.parse(raw || '[]');
+      const scannerLog = {
+        info: (m: string) => log(m),
+        warn: (m: string) => log(m),
+      };
+      const result = await withTimeout(
+        runScan(scannerLog),
+        120000,
+        { games: [] as FreeGame[], anyOk: false } as { games: FreeGame[]; anyOk: boolean },
+      );
+
+      if (!result.anyOk) {
+        log('Scan: Steam search unreachable, keeping cached results');
+        try {
+          const cached = await withTimeout(loadFreeGamesCache(), 3000, '[]');
+          const games: FreeGame[] = JSON.parse(cached || '[]');
+          log(`Using cache — ${games.length} game(s)`);
+          for (const game of games) {
+            await processGame(game);
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+        } catch {}
+        return false;
+      }
+
+      const games: FreeGame[] = result.games;
       log(`Scan complete — ${games.length} free game(s) found`);
+
+      try {
+        await withTimeout(
+          saveFreeGamesCache({ payload: JSON.stringify(games) }),
+          3000,
+          0,
+        );
+      } catch {}
 
       for (const game of games) {
         await processGame(game);
@@ -582,6 +651,7 @@ async function startPolling(): Promise<void> {
 
   let scanInProgress = false;
   let scanQueued = false;
+  let pendingManualScanRequestAt = 0;
   const triggerScan = async (reason: string): Promise<boolean> => {
     if (scanInProgress) {
       scanQueued = true;
@@ -597,6 +667,11 @@ async function startPolling(): Promise<void> {
         scanQueued = false;
         scanInProgress = false;
         return triggerScan('queued');
+      }
+      if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
+        const requestedAt = pendingManualScanRequestAt;
+        pendingManualScanRequestAt = 0;
+        await publishManualScanCompletion(requestedAt, result);
       }
       return result;
     } finally {
@@ -640,27 +715,18 @@ async function startPolling(): Promise<void> {
     log(`RegisterForCurrentUserChanges unavailable: ${String(e)}`);
   }
 
-  let lastScanSeq = 0;
-  try {
-    lastScanSeq = parseInt(await withTimeout(popScanRequest(), 2000, '0'), 10) || 0;
-  } catch { lastScanSeq = 0; }
-
   await triggerScan('initial');
 
-  _trackInterval(async () => {
-    try {
-      const raw = await withTimeout(popScanRequest(), 2000, String(lastScanSeq));
-      const cur = parseInt(raw, 10) || 0;
-      if (cur < lastScanSeq) {
-        lastScanSeq = cur;
-        return;
-      }
-      if (cur > lastScanSeq) {
-        lastScanSeq = cur;
-        void triggerScan('user requested');
-      }
-    } catch {}
-  }, 3000);
+  const pollManualScanRequest = async () => {
+    const manualRequestedAt = await consumeManualScanRequest();
+    if (manualRequestedAt) {
+      pendingManualScanRequestAt = manualRequestedAt;
+      void triggerScan('manual button');
+    }
+  };
+
+  void pollManualScanRequest();
+  _trackInterval(() => { void pollManualScanRequest(); }, 3000);
 
   _trackInterval(async () => {
     try {

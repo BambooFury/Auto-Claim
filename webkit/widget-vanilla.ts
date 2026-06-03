@@ -13,7 +13,7 @@ import {
 } from './_assets.generated';
 import {
   loadFreeGamesCacheIPC, loadGrabbedIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
-  requestScanIPC, popScanDoneIPC,
+  saveWidgetSettingsIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
 import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
@@ -27,6 +27,20 @@ const PANEL_RIGHT_OFFSET_WHEN_OPEN = 341;
 const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
+
+async function queueManualScanRequest(): Promise<number> {
+  try {
+    const requestedAt = Date.now();
+    const raw = await loadWidgetSettingsIPC().catch(() => initialWidgetRaw || '{}');
+    let current: any = {};
+    try { current = JSON.parse(raw || '{}'); } catch {}
+    const next = { ...current, manualScanRequestedAt: requestedAt };
+    await saveWidgetSettingsIPC({ payload: JSON.stringify(next) });
+    return requestedAt;
+  } catch {
+    return 0;
+  }
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;')
@@ -510,7 +524,7 @@ export function injectVanillaWidget(): void {
     if (activeTab === 'games') {
       renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
     } else {
-      renderSettings(bodyEl, render, persistAndRefresh, games);
+      renderSettings(bodyEl, render, persistAndRefresh);
     }
   }
 
@@ -850,7 +864,6 @@ function renderSettings(
   bodyEl: HTMLElement,
   rerender: () => void,
   persistAndRefresh: () => void,
-  lastGames: FreeGame[] = [],
 ): void {
   const toggleHtml = (id: string, value: boolean) =>
     `<button id="${id}" class="fgg-toggle${value ? ' on' : ''}" data-fgg-on="${value ? '1' : '0'}">
@@ -881,8 +894,8 @@ function renderSettings(
     persistAndRefresh();
     logIPC({ payload: `Auto-add toggled: ${cfg.autoAdd ? 'ON' : 'OFF'}` }).catch(() => {});
     if (wasOff && cfg.autoAdd) {
-      requestScanIPC().catch(() => {});
-      logIPC({ payload: 'Auto-add turned ON — requesting immediate scan' }).catch(() => {});
+      void queueManualScanRequest();
+      logIPC({ payload: 'Auto-add turned ON - scan queued' }).catch(() => {});
     }
   });
 
@@ -921,55 +934,72 @@ function renderSettings(
     scanBtn.classList.add('busy');
     if (scanResult) {
       scanResult.style.color = 'rgba(255,255,255,0.35)';
-      scanResult.textContent = 'Scanning…';
+      scanResult.textContent = 'Scanning...';
     }
 
-    let initialDoneSeq = '';
-    try { initialDoneSeq = await popScanDoneIPC(); } catch {}
-
-    try {
-      await requestScanIPC();
-      logIPC({ payload: 'Scan now button clicked' }).catch(() => {});
-    } catch {}
-
-    const SCAN_DEADLINE_MS = 180_000;
-    const POLL_INTERVAL_MS = 1500;
-    const startedAt = Date.now();
-
-    const finish = (color: string, html: string, useText = false) => {
+    const finish = (color: string, text: string) => {
       scanBtn.disabled = false;
       scanBtn.classList.remove('busy');
       if (!scanResult) return;
       scanResult.style.color = color;
-      if (useText) scanResult.textContent = html;
-      else scanResult.innerHTML = html;
+      scanResult.textContent = text;
     };
 
-    const poll = async () => {
-      let curSeq = '';
-      try { curSeq = await popScanDoneIPC(); } catch {}
+    let requestedAt = 0;
+    try {
+      requestedAt = await queueManualScanRequest();
+      logIPC({ payload: requestedAt ? 'Scan now button queued' : 'Scan now queue failed' }).catch(() => {});
+    } catch {}
 
-      if (curSeq && curSeq !== initialDoneSeq) {
-        let raw = '';
-        try { raw = await loadFreeGamesCacheIPC(); } catch {}
+    if (!requestedAt) {
+      finish('rgba(255,255,255,0.35)', 'Could not queue scan - try again.');
+      return;
+    }
+
+    if (scanResult) {
+      scanResult.style.color = 'rgba(255,255,255,0.45)';
+      scanResult.textContent = 'Scan queued. Waiting for results...';
+    }
+
+    const SCAN_DEADLINE_MS = 180_000;
+    const POLL_INTERVAL_MS = 3000;
+    const startedAt = Date.now();
+
+    const poll = async () => {
+      let done = false;
+      let ok = true;
+      try {
+        const raw = await loadWidgetSettingsIPC();
+        const w = JSON.parse(raw || '{}');
+        const completedRequestAt = typeof w?.manualScanCompletedRequestAt === 'number'
+          ? w.manualScanCompletedRequestAt
+          : 0;
+        done = completedRequestAt >= requestedAt;
+        ok = w?.manualScanCompletedOk !== false;
+      } catch {}
+
+      if (done) {
         try {
+          const raw = await loadFreeGamesCacheIPC();
           const found: FreeGame[] = JSON.parse(raw || '[]');
-          const newGames = found.filter((g) => !lastGames.some((lg) => lg.appid === g.appid));
-          if (newGames.length > 0) {
-            finish('#55cc55', newGames.map((g) => `• ${escapeHtml(g.name)}`).join('<br>'));
+          if (!ok) {
+            finish('rgba(255,255,255,0.35)', 'Scan failed - using cached results.');
+          } else if (found.length > 0) {
+            finish('#55cc55', `Scan complete - ${found.length} free game(s) found.`);
           } else {
-            finish('rgba(255,255,255,0.35)', 'No new free games found.', true);
+            finish('rgba(255,255,255,0.35)', 'Scan complete - no free games found.');
           }
         } catch {
-          finish('rgba(255,255,255,0.35)', 'Could not parse scan results.', true);
+          finish('rgba(255,255,255,0.35)', 'Scan complete - could not read results.');
         }
         return;
       }
 
       if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
-        finish('rgba(255,255,255,0.35)', 'Scan timed out — try again.', true);
+        finish('rgba(255,255,255,0.35)', 'Scan timed out - results will refresh automatically.');
         return;
       }
+
       setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
     };
 

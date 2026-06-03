@@ -16,8 +16,6 @@ export const pushToastIPC = callable<StrIn, number>('push_toast_ipc');
 
 export const logIPC = callable<StrIn, number>('log_plugin');
 
-export const requestScanIPC = callable<Empty, number>('request_scan_ipc');
-export const popScanDoneIPC = callable<Empty, string>('pop_scan_done_ipc');
 
 export const tryAcquireClaimLockIPC = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 export const releaseClaimLockIPC    = callable<StrIn, number>('release_claim_lock_ipc');

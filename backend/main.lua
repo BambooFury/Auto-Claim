@@ -1,6 +1,5 @@
 local logger     = require("logger")
 local millennium = require("millennium")
-local http       = require("http")
 local _PURE_LUA_JSON_NULL = {}
 
 local function _cp_to_utf8(code)
@@ -157,17 +156,14 @@ local _pure_lua_json = {
 }
 
 local cjson = (function()
-    local ok, mod = pcall(require, "cjson.safe")
-    if ok and mod and type(mod.decode) == "function" then
-        logger:info("[AutoClaim] JSON backend: cjson.safe (native)")
-        return mod
+    local function try(name)
+        local ok, mod = pcall(require, name)
+        if ok and type(mod) == "table" and type(mod.decode) == "function" then
+            return mod
+        end
+        return nil
     end
-    local ok2, mod2 = pcall(require, "cjson")
-    if ok2 and mod2 and type(mod2.decode) == "function" then
-        logger:info("[AutoClaim] JSON backend: cjson (native)")
-        return mod2
-    end
-    return _pure_lua_json
+    return try("json") or try("cjson.safe") or try("cjson") or _pure_lua_json
 end)()
 local PLUGIN_DIR = (function()
     local src = debug.getinfo(1, "S").source or ""
@@ -193,33 +189,6 @@ local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
 
-_G.__autoclaim_scan_seq      = _G.__autoclaim_scan_seq or 0
-_G.__autoclaim_scan_done_seq = _G.__autoclaim_scan_done_seq or 0
-
-local STORE_HOST     = "https://store.steampowered.com"
-local SEARCH_BASE    = STORE_HOST .. "/search/results/?specials=1&maxprice=free&json=1&count=50&l=english"
-local SEARCH_REGIONS = { "us", "de", "tr" }
-local GAMERPOWER_URL = "https://www.gamerpower.com/api/giveaways?platform=steam&type=game"
-local APPDETAILS_URL = STORE_HOST .. "/api/appdetails"
-
-local function _urlencode(s)
-    return (s:gsub("[^%w%-_%.~]", function(c)
-        return string.format("%%%02X", c:byte())
-    end))
-end
-
-local function _json_escape_string(s)
-    s = s:gsub('\\', '\\\\')
-         :gsub('"', '\\"')
-         :gsub('\n', '\\n')
-         :gsub('\r', '\\r')
-         :gsub('\t', '\\t')
-         :gsub('\b', '\\b')
-         :gsub('\f', '\\f')
-    return (s:gsub('[%z\1-\31]', function(c)
-        return string.format('\\u%04x', c:byte())
-    end))
-end
 
 local function read_file(path)
     local f = io.open(path, "r")
@@ -227,15 +196,6 @@ local function read_file(path)
     local body = f:read("*a")
     f:close()
     return body
-end
-
-local function safe_http_get(url, opts)
-    local ok, res = pcall(http.get, url, opts or {})
-    if not ok then
-        logger:warn("[AutoClaim] safe_http_get crashed: " .. tostring(res))
-        return nil
-    end
-    return res
 end
 
 local function write_file(path, content)
@@ -362,6 +322,256 @@ function load_free_games_cache_ipc()
     return read_file(CACHE_FILE) or "[]"
 end
 
+function save_free_games_cache_ipc(data)
+    local payload = extract_payload(data)
+    if not _is_valid_json_payload(payload, "array") then return 0 end
+    write_file(CACHE_FILE, payload)
+    return 1
+end
+
+
+local _CURL_MAX_BYTES = 8 * 1024 * 1024
+local _CURL_TIMEOUT_S = 15
+local _IS_WIN = package.config:sub(1, 1) == "\\"
+
+local function _is_safe_http_url(url)
+    if type(url) ~= "string" or url == "" then return false end
+    if not url:match("^https?://[%w%.%-]+") then return false end
+    if url:find("[%c\"'`\r\n]") then return false end
+    return true
+end
+
+local _curl_ffi_fn = nil
+
+local function _build_curl_ffi()
+    if not _IS_WIN then return false end
+
+    local ok_ffi, ffi = pcall(require, "ffi")
+    if not ok_ffi then return false end
+
+    pcall(ffi.cdef, [[
+        typedef int            BOOL;
+        typedef unsigned long  DWORD;
+        typedef void*          HANDLE;
+        typedef const wchar_t* LPCWSTR;
+        typedef wchar_t*       LPWSTR;
+        typedef void*          LPVOID;
+        typedef unsigned char* LPBYTE;
+
+        typedef struct _STARTUPINFOW {
+            DWORD          cb;
+            LPWSTR         lpReserved;
+            LPWSTR         lpDesktop;
+            LPWSTR         lpTitle;
+            DWORD          dwX;
+            DWORD          dwY;
+            DWORD          dwXSize;
+            DWORD          dwYSize;
+            DWORD          dwXCountChars;
+            DWORD          dwYCountChars;
+            DWORD          dwFillAttribute;
+            DWORD          dwFlags;
+            unsigned short wShowWindow;
+            unsigned short cbReserved2;
+            LPBYTE         lpReserved2;
+            HANDLE         hStdInput;
+            HANDLE         hStdOutput;
+            HANDLE         hStdError;
+        } STARTUPINFOW;
+
+        typedef struct _PROCESS_INFORMATION {
+            HANDLE hProcess;
+            HANDLE hThread;
+            DWORD  dwProcessId;
+            DWORD  dwThreadId;
+        } PROCESS_INFORMATION;
+
+        BOOL  CreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
+                             void* lpProcessAttributes, void* lpThreadAttributes,
+                             BOOL bInheritHandles, DWORD dwCreationFlags,
+                             LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory,
+                             STARTUPINFOW* lpStartupInfo,
+                             PROCESS_INFORMATION* lpProcessInformation);
+        DWORD WaitForSingleObject(HANDLE hHandle, DWORD dwMilliseconds);
+        BOOL  CloseHandle(HANDLE hObject);
+        int   MultiByteToWideChar(unsigned int CodePage, DWORD dwFlags,
+                                  const char* lpMultiByteStr, int cbMultiByte,
+                                  wchar_t* lpWideCharStr, int cchWideChar);
+    ]])
+
+    local ok_k32, kernel32 = pcall(ffi.load, "kernel32")
+    if not ok_k32 then return false end
+
+    if not pcall(function() return kernel32.CreateProcessW end) then return false end
+    if not pcall(function() return kernel32.MultiByteToWideChar end) then return false end
+
+    local CP_UTF8           = 65001
+    local CREATE_NO_WINDOW  = 0x08000000
+    local WAIT_TIMEOUT_MS   = (_CURL_TIMEOUT_S + 5) * 1000
+
+    local function utf8_to_wide(s)
+        local n = kernel32.MultiByteToWideChar(CP_UTF8, 0, s, -1, nil, 0)
+        if n <= 0 then return nil end
+        local buf = ffi.new("wchar_t[?]", n)
+        kernel32.MultiByteToWideChar(CP_UTF8, 0, s, -1, buf, n)
+        return buf
+    end
+
+    return function(url)
+        local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
+        local rnd = string.format("%d_%d", os.time(), math.random(1, 1000000))
+        local tmp_body = string.format("%s\\autoclaim_curl_%s.body", tmp_dir, rnd)
+        local tmp_err  = string.format("%s\\autoclaim_curl_%s.err",  tmp_dir, rnd)
+
+        local cmdline = string.format(
+            'curl.exe -sS -L --max-time %d --retry 2 --retry-delay 1 ' ..
+            '-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
+            'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" ' ..
+            '-H "Accept: application/json, text/plain, */*" ' ..
+            '-H "Accept-Language: en-US,en;q=0.9" ' ..
+            '--stderr "%s" -o "%s" "%s"',
+            _CURL_TIMEOUT_S, tmp_err, tmp_body, url
+        )
+
+        local wcmd = utf8_to_wide(cmdline)
+        if not wcmd then return nil, "utf8_to_wide failed" end
+
+        local si = ffi.new("STARTUPINFOW")
+        si.cb = ffi.sizeof("STARTUPINFOW")
+        local pi = ffi.new("PROCESS_INFORMATION")
+
+        local res = kernel32.CreateProcessW(
+            nil, wcmd, nil, nil, 0, CREATE_NO_WINDOW,
+            nil, nil, si, pi
+        )
+        if res == 0 then
+            os.remove(tmp_body)
+            os.remove(tmp_err)
+            return nil, "CreateProcessW failed (curl.exe not found?)"
+        end
+
+        kernel32.WaitForSingleObject(pi.hProcess, WAIT_TIMEOUT_MS)
+        kernel32.CloseHandle(pi.hProcess)
+        kernel32.CloseHandle(pi.hThread)
+
+        local body = ""
+        local f = io.open(tmp_body, "rb")
+        if f then
+            body = f:read("*a") or ""
+            f:close()
+        end
+
+        local err_msg = nil
+        if #body == 0 then
+            local ef = io.open(tmp_err, "rb")
+            if ef then
+                err_msg = (ef:read("*a") or ""):gsub("%s+$", "")
+                ef:close()
+            end
+            if not err_msg or err_msg == "" then
+                err_msg = "empty body, no stderr"
+            end
+        end
+
+        os.remove(tmp_body)
+        os.remove(tmp_err)
+        return body, err_msg
+    end
+end
+
+local function _curl_ffi_get()
+    if _curl_ffi_fn == nil then
+        _curl_ffi_fn = _build_curl_ffi()
+    end
+    if _curl_ffi_fn == false then return nil end
+    return _curl_ffi_fn
+end
+
+local function _curl_popen(url)
+    local UA_WIN = '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
+                   'AppleWebKit/537.36 (KHTML, like Gecko) ' ..
+                   'Chrome/120.0.0.0 Safari/537.36"'
+    local UA_NIX = "'Mozilla/5.0 (X11; Linux x86_64) " ..
+                   "AppleWebKit/537.36 (KHTML, like Gecko) " ..
+                   "Chrome/120.0.0.0 Safari/537.36'"
+
+    local cmd, err_path
+    if _IS_WIN then
+        local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
+        err_path = string.format("%s\\autoclaim_curl_popen_%d_%d.err",
+                                 tmp_dir, os.time(), math.random(1, 1000000))
+        cmd = 'curl.exe -sS -L --max-time ' .. _CURL_TIMEOUT_S ..
+              ' --retry 2 --retry-delay 1' ..
+              ' -A ' .. UA_WIN ..
+              ' -H "Accept: application/json, text/plain, */*"' ..
+              ' -H "Accept-Language: en-US,en;q=0.9"' ..
+              ' "' .. url .. '" 2> "' .. err_path .. '"'
+    else
+        err_path = "/tmp/autoclaim_curl_popen_" .. os.time() .. "_" ..
+                   math.random(1, 1000000) .. ".err"
+        cmd = "curl -sS -L --max-time " .. _CURL_TIMEOUT_S ..
+              " --retry 2 --retry-delay 1" ..
+              " -A " .. UA_NIX ..
+              " -H 'Accept: application/json, text/plain, */*'" ..
+              " -H 'Accept-Language: en-US,en;q=0.9'" ..
+              " '" .. url .. "' 2> '" .. err_path .. "'"
+    end
+
+    local f, popen_err = io.popen(cmd, "r")
+    if not f then
+        os.remove(err_path)
+        return "", "io.popen failed: " .. tostring(popen_err)
+    end
+    local body = f:read("*a") or ""
+    f:close()
+
+    local err_msg = nil
+    if #body == 0 then
+        local ef = io.open(err_path, "rb")
+        if ef then
+            err_msg = (ef:read("*a") or ""):gsub("%s+$", "")
+            ef:close()
+        end
+        if not err_msg or err_msg == "" then
+            err_msg = "empty body, no stderr"
+        end
+    end
+    os.remove(err_path)
+    return body, err_msg
+end
+
+function fetch_url_via_curl_ipc(data)
+    local url = extract_payload(data)
+    if not _is_safe_http_url(url) then return "" end
+
+    local body, err_msg
+    local ffi_fn = _curl_ffi_get()
+    if ffi_fn then
+        body, err_msg = ffi_fn(url)
+        if body == nil then
+            body, err_msg = _curl_popen(url)
+        end
+    else
+        body, err_msg = _curl_popen(url)
+    end
+
+    if not body or #body == 0 then
+        local reason = err_msg or "unknown"
+        if #reason > 300 then reason = reason:sub(1, 300) .. "..." end
+        local msg = "[AutoClaim] curl returned empty body for " ..
+                    url:sub(1, 100) .. " | " .. reason
+        if not url:find("gamerpower%.com", 1, false) then
+            logger:warn(msg)
+        end
+        return ""
+    end
+    if #body > _CURL_MAX_BYTES then
+        logger:warn("[AutoClaim] curl body too large (" .. #body .. " bytes); dropping")
+        return ""
+    end
+    return body
+end
+
 function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -415,18 +625,6 @@ function pop_toasts_ipc()
     return read_file(TOASTS_FILE) or "[]"
 end
 
-function request_scan_ipc()
-    _G.__autoclaim_scan_seq = (_G.__autoclaim_scan_seq or 0) + 1
-    return 1
-end
-
-function pop_scan_request_ipc()
-    return tostring(_G.__autoclaim_scan_seq or 0)
-end
-
-function pop_scan_done_ipc()
-    return tostring(_G.__autoclaim_scan_done_seq or 0)
-end
 
 function log_plugin(data)
     local payload = extract_payload(data)
@@ -482,158 +680,6 @@ function release_claim_lock_ipc(data)
     locks[appid] = nil
     _write_claim_locks(locks)
     return 1
-end
-
-local function _fetch_free_games_impl()
-    local found     = {}
-    local seen      = {}
-    local fetch_ok  = false
-
-    for _, cc in ipairs(SEARCH_REGIONS) do
-        local url = SEARCH_BASE .. "&cc=" .. cc
-        local res = safe_http_get(url, { timeout = 25 })
-        if res and res.status == 200 then
-            fetch_ok = true
-            local ok, data = pcall(cjson.decode, res.body)
-            if ok and type(data) == "table" and type(data.items) == "table" then
-                for _, item in ipairs(data.items) do
-                    local logo_url = type(item.logo) == "string" and item.logo or ""
-                    logo_url = logo_url:gsub("\\/", "/")
-                    local appid_str = logo_url:match("/apps/(%d+)/")
-                    if appid_str then
-                        local id = tonumber(appid_str)
-                        if id and id > 0 and not seen[id] then
-                            seen[id] = true
-                            found[#found + 1] = {
-                                appid = id,
-                                name  = type(item.name) == "string" and item.name or ("AppID " .. appid_str),
-                                cc    = cc,
-                            }
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    do
-        local res = safe_http_get(GAMERPOWER_URL, { timeout = 15 })
-        if res and res.status == 200 then
-            local ok, data = pcall(cjson.decode, res.body)
-            if ok and type(data) == "table" then
-                local processed = 0
-                for _, entry in ipairs(data) do
-                    if processed >= 20 then break end
-                    processed = processed + 1
-                    local raw_title = type(entry.title) == "string" and entry.title or ""
-                    local clean = raw_title
-                        :gsub(" %(Steam%) [%w%s]+ Giveaway$", "")
-                        :gsub(" %(Steam%) Giveaway$", "")
-                        :gsub(" %(Steam%)$", "")
-                        :gsub(" Giveaway$", "")
-                    if clean and clean ~= "" then
-                        local search_url = "https://store.steampowered.com/api/storesearch/?term=" ..
-                            _urlencode(clean) .. "&l=english&cc=us"
-                        local sres = safe_http_get(search_url, { timeout = 10 })
-                        if sres and sres.status == 200 then
-                            local sok, sdata = pcall(cjson.decode, sres.body)
-                            if sok and type(sdata) == "table" and type(sdata.items) == "table" and sdata.items[1] then
-                                local item = sdata.items[1]
-                                local id = tonumber(item.id)
-                                local name = type(item.name) == "string" and item.name or clean
-                                if id and id > 0 and not seen[id] then
-                                    seen[id] = true
-                                    found[#found + 1] = { appid = id, name = name, from_gamerpower = true }
-                                    logger:info("[AutoClaim] GamerPower found: " .. id .. " - " .. name)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    if not fetch_ok then
-        return read_file(CACHE_FILE) or "[]"
-    end
-
-    local accepted_items = {}
-    for _, g in ipairs(found) do
-        local verify_cc = g.cc or "us"
-        local dres = safe_http_get(APPDETAILS_URL .. "?appids=" .. g.appid .. "&cc=" .. verify_cc, { timeout = 10 })
-        local accepted = false
-        local detected_type = nil
-        if dres and dres.status == 200 then
-            local dok, ddata = pcall(cjson.decode, dres.body)
-            if dok and type(ddata) == "table" then
-                local entry = ddata[tostring(g.appid)]
-                if entry and entry.data then
-                    local app_type = entry.data.type
-                    detected_type = app_type
-                    if type(entry.data.header_image) == "string" then
-                        g.header = entry.data.header_image
-                    end
-                    if type(entry.data.capsule_image) == "string" then
-                        g.capsule = entry.data.capsule_image
-                    end
-                    local is_free = entry.data.is_free == true
-                    local price_final = nil
-                    if entry.data.price_overview and type(entry.data.price_overview.final) == "number" then
-                        price_final = entry.data.price_overview.final
-                    end
-                    local is_currently_free = is_free or price_final == 0
-                    local is_listable_type =
-                        app_type == "game" or app_type == "dlc" or
-                        app_type == "music" or app_type == "demo"
-                    if g.from_gamerpower then
-                        if app_type == "game" and is_currently_free then
-                            accepted = true
-                        end
-                    else
-                        if is_listable_type and is_currently_free then
-                            accepted = true
-                        end
-                    end
-                end
-            end
-        elseif not g.from_gamerpower then
-            accepted = true
-        end
-        if accepted then
-            g.type = detected_type or "unknown"
-            accepted_items[#accepted_items + 1] = g
-        end
-    end
-
-    local chunks = {}
-    for _, g in ipairs(accepted_items) do
-        local safe_name = _json_escape_string(g.name)
-        local safe_type = _json_escape_string(g.type or "unknown")
-        local extra = ""
-        if type(g.header) == "string" and g.header ~= "" then
-            extra = extra .. ',"header":"' .. _json_escape_string(g.header) .. '"'
-        end
-        if type(g.capsule) == "string" and g.capsule ~= "" then
-            extra = extra .. ',"capsule":"' .. _json_escape_string(g.capsule) .. '"'
-        end
-        chunks[#chunks + 1] = '{"appid":' .. g.appid ..
-            ',"name":"' .. safe_name ..
-            '","type":"' .. safe_type .. '"' .. extra .. '}'
-    end
-    local json_out = "[" .. table.concat(chunks, ",") .. "]"
-    write_file(CACHE_FILE, json_out)
-    return json_out
-end
-
-function fetch_free_games_backend()
-    local ok, result = pcall(_fetch_free_games_impl)
-    _G.__autoclaim_scan_done_seq = (_G.__autoclaim_scan_done_seq or 0) + 1
-    if not ok then
-        logger:info("[AutoClaim] scan failed: " .. tostring(result))
-        return read_file(CACHE_FILE) or "[]"
-    end
-    return result
 end
 
 local function on_load()
