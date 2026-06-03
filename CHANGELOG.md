@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.8](https://github.com/BambooFury/Auto-Claim/compare/v1.5.7...v1.5.8) (2026-06-03)
+
+
+### Bug Fixes
+
+* improve ownership detection in library cache ([2eb90d4](https://github.com/BambooFury/Auto-Claim/commit/2eb90d4fb583c58263217f9e534af3b1f4ef4e65))
+* scroll game list after 4 cards with hidden scrollbar ([1ce2550](https://github.com/BambooFury/Auto-Claim/commit/1ce25509f57a595465798aa8d64ce3c832b7eac3))
+* update plugin description ([5455d4c](https://github.com/BambooFury/Auto-Claim/commit/5455d4c56ff595fce185f07847f9d3cd44b67909))
+
+
+### Maintenance
+
+* remove example.png ([4b30860](https://github.com/BambooFury/Auto-Claim/commit/4b30860da979acd14c2a81b3dcdac235c2b45e75))
+
 ## [1.5.7](https://github.com/BambooFury/Auto-Claim/compare/v1.5.6...v1.5.7) (2026-05-27)
 
 
