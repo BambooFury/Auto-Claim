@@ -1,4 +1,4 @@
-﻿import { silentClaim } from './claim';
+import { silentClaim } from './claim';
 import {
   WIDGET_CSS_TEMPLATE,
   WIDGET_HTML_TEMPLATE,
@@ -760,11 +760,8 @@ function renderGames(
     return;
   }
 
-  const cardsHtml = visibleGames.slice(0, 8).map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
-  const overflowHtml = visibleGames.length > 8
-    ? `<div class="fgg-overflow-note">+${visibleGames.length - 8} more not shown</div>`
-    : '';
-  bodyEl.innerHTML = cardsHtml + overflowHtml;
+  const cardsHtml = visibleGames.map((g) => buildCard(g, ownedSet, claiming, claimingAppid)).join('');
+  bodyEl.innerHTML = cardsHtml;
 
   bodyEl.querySelectorAll<HTMLElement>('[data-style]').forEach((el) => {
     const style = el.getAttribute('data-style');
