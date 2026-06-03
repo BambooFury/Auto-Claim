@@ -502,10 +502,9 @@
 #fgg-body {
   padding: 14px 16px;
   display: flex; flex-direction: column; gap: 0;
-  max-height: 360px;
+  max-height: 318px;
   overflow-y: auto; overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.12) transparent;
+  scrollbar-width: none;
 }
 #fgg-body.is-settings {
   max-height: none;
@@ -513,10 +512,7 @@
   padding-bottom: 4px;
 }
 #fgg-body.is-settings .fgg-set-row:last-child { padding-bottom: 0; }
-#fgg-body::-webkit-scrollbar             { width: 6px; }
-#fgg-body::-webkit-scrollbar-track       { background: transparent; margin: 6px 0; }
-#fgg-body::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.12); border-radius: 3px; transition: background 0.15s; }
-#fgg-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+#fgg-body::-webkit-scrollbar { display: none; }
 
 .fgg-footer {
   padding: 9px 14px;
