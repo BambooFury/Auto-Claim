@@ -1,4 +1,6 @@
 const APPUSER_URL = 'https://store.steampowered.com/api/appuserdetails/';
+const USERDATA_URL = 'https://store.steampowered.com/dynamicstore/userdata/';
+
 export async function checkLibraryAsync(appids: number[]): Promise<Set<number>> {
   const owned = new Set<number>();
   if (appids.length === 0) return owned;
@@ -10,12 +12,28 @@ export async function checkLibraryAsync(appids: number[]): Promise<Set<number>> 
 
     for (const id of appids) {
       const entry = data && data[id];
-      if (entry && entry.success && entry.data && entry.data.is_owned) {
-        owned.add(id);
+      if (entry && entry.success && entry.data) {
+        if (entry.data.is_owned || entry.data.added_to_package) {
+          owned.add(id);
+        }
       }
     }
-  } catch {
+  } catch {}
+
+  const missing = appids.filter((id) => !owned.has(id));
+  if (missing.length > 0) {
+    try {
+      const r = await fetch(USERDATA_URL, { credentials: 'include' });
+      const data: any = await r.json();
+      if (data && Array.isArray(data.rgOwnedApps)) {
+        const ownedApps = new Set<number>(data.rgOwnedApps);
+        for (const id of missing) {
+          if (ownedApps.has(id)) owned.add(id);
+        }
+      }
+    } catch {}
   }
+
   return owned;
 }
 export function isInLibrary(appid: number): boolean {
@@ -32,6 +50,7 @@ export function isInLibrary(appid: number): boolean {
     if (lpcd) {
       if (lpcd.is_owned === true)  return true;
       if (lpcd.installed === true) return true;
+      if (lpcd.is_owned !== false) return true;
     }
 
     if (Array.isArray(ov.licenses) && ov.licenses.length > 0) return true;
