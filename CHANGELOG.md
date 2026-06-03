@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.9](https://github.com/BambooFury/Auto-Claim/compare/v1.5.8...v1.5.9) (2026-06-03)
+
+
+### Bug Fixes
+
+* **autoclaim:** prevent duplicate notifications ([70f688c](https://github.com/BambooFury/Auto-Claim/commit/70f688c9b0d5aa56f6d675cc6b28c85cd6b25fa9))
+* **autoclaim:** prevent duplicate notifications ([13ba69a](https://github.com/BambooFury/Auto-Claim/commit/13ba69a83711aa70967a30014ea1fe13376f29c8))
+
 ## [1.5.8](https://github.com/BambooFury/Auto-Claim/compare/v1.5.7...v1.5.8) (2026-06-03)
 
 
