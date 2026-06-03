@@ -1,21 +1,48 @@
-# Auto Claim
+<h1 align="center">
+  <img src="https://api.iconify.design/lucide:gift.svg?color=%231a9fff" width="28" style="vertical-align: middle;">
+  Auto Claim
+</h1>
 
-A Millennium plugin that automatically grabs every 100% off game on the Steam Store and adds it to your library — silently, in the background.
+<p align="center">
+Automatically detects and claims every <b>100% discounted Steam game</b> directly to your library without interrupting your gameplay.
+</p>
 
-![Auto Claim preview](./example.png)
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/BambooFury/Auto-Claim?style=flat&label=Version&color=1a9fff&labelColor=262626&logo=github&logoColor=FFFFFF">
+  <img src="https://img.shields.io/github/stars/BambooFury/Auto-Claim?style=flat&label=%E2%98%85&logo=github&color=FFD43B&labelColor=262626&logoColor=FFFFFF">
+  <img src="https://img.shields.io/github/license/BambooFury/Auto-Claim?style=flat&label=License&color=4CAF50&labelColor=262626&logo=opensourceinitiative&logoColor=FFFFFF">
+</p>
 
-## Features ✨
+## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%23FFD43B" width="20"> Features
 
-The plugin adds a **side-tab button** on the Steam storefront, vertically centered on the screen. Click the arrow to slide open the Auto Claim panel with the list of free games. You can customize the button color, side, style and overlay behavior in **Steam menu → Millennium Library Manager → Plugin Settings → Auto Claim**.
+<img src="https://api.iconify.design/lucide:activity.svg?color=%231a9fff" width="16"> **Automatic Detection** - Scans the Steam Store for newly available 100% off games  
+<img src="https://api.iconify.design/lucide:ghost.svg?color=%239E9E9E" width="16"> **Silent Claiming** - All games are claimed silently in background  
+<img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> **Notifications** - Toast notification after each successful claim  
+<img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> **Smart Filtering** - Skips DLCs, soundtracks, skin packs  
+<img src="https://api.iconify.design/lucide:users.svg?color=%231a9fff" width="16"> **Multi-Account Support** - Works after account switches  
+<img src="https://api.iconify.design/lucide:clock.svg?color=%239E9E9E" width="16"> **Scheduled Scanning** - Every 30 | 60 | 120 minutes  
+<img src="https://api.iconify.design/lucide:toggle-left.svg?color=%23FFD43B" width="16"> **Flexible Modes** - Auto Claim or Notification Only  
+<img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="16"> **Customizable Widget** - Full UI customization  
 
-- Scans the Steam Store every N minutes for 100% off games
-- Fully silent claiming — games are added via a hidden off-screen window, no store page ever flashes on your UI
-- Toast notification for every successful grab
-- Skips DLCs, soundtracks and skin packs automatically
-- Survives account switches — auto-detects stale cookies and re-captures them
-- Configurable scan interval — 30, 60, or 120 minutes
-- Auto-add or notify-only mode (auto-add is **off by default** — enable it in Plugin Settings or via the side-tab widget)
+## <img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="20"> Configuration
 
-## Prerequisites
+`Steam Menu → Millennium Library Manager → Auto Claim`
 
-- [Millennium](https://steambrew.app)
+<img src="https://api.iconify.design/lucide:monitor.svg?color=%239E9E9E" width="16"> Background Overlay - ON | OFF  
+<img src="https://api.iconify.design/lucide:palette.svg?color=%231a9fff" width="16"> Button Color - Presets + Custom  
+<img src="https://api.iconify.design/lucide:paintbrush.svg?color=%23FFD43B" width="16"> Accent Color - Presets + Custom  
+<img src="https://api.iconify.design/lucide:radar.svg?color=%23ff4d4f" width="16"> Indicator Color - Presets + Custom  
+<img src="https://api.iconify.design/lucide:move-horizontal.svg?color=%239E9E9E" width="16"> Panel Side - Left | Right  
+<img src="https://api.iconify.design/lucide:square.svg?color=%231a9fff" width="16"> Button Style -  Slim | Large | Floating  
+
+## <img src="https://api.iconify.design/lucide:rocket.svg?color=%232ecc71" width="20"> Installation
+
+<img src="https://api.iconify.design/lucide:chevron-right.svg?color=%239E9E9E" width="16"> Steam Menu  
+<img src="https://api.iconify.design/lucide:boxes.svg?color=%231a9fff" width="16"> Millennium  
+<img src="https://api.iconify.design/lucide:download.svg?color=%232ecc71" width="16"> Install the plugin  
+<img src="https://api.iconify.design/lucide:key.svg?color=%23FFD43B" width="16"> Insert plugin ID  
+<img src="https://api.iconify.design/lucide:refresh-cw.svg?color=%23ff4d4f" width="16"> Restart Steam  
+<p align="center">
+  <sub>Made for Millennium with 💕</sub>
+</p>
+ 
