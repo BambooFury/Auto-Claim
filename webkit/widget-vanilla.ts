@@ -16,7 +16,7 @@ import {
   saveWidgetSettingsIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
-import { isGameOwned, isInLibrary } from './library';
+import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
 import { getTabColor } from './tab-colors';
 import type { FreeGame } from './types';
@@ -437,7 +437,10 @@ export function injectVanillaWidget(): void {
             .catch(() => {});
         }
       } else if (result.reason === 'session expired' || result.reason === 'no sessionid') {
+        logIPC({ payload: `[${g.appid}] silentClaim failed: ${result.reason}` }).catch(() => {});
         break;
+      } else {
+        logIPC({ payload: `[${g.appid}] silentClaim failed: ${result.reason}` }).catch(() => {});
       }
       claimDone++;
       refreshFooter();
@@ -496,6 +499,19 @@ export function injectVanillaWidget(): void {
         );
         if (stillPending && Date.now() - lastLibFetchMs > LIB_RECHECK_MS && games.length > 0) {
           lastLibFetchMs = Date.now();
+          const allAppids = games.map(g => g.appid);
+          try {
+            const apiOwned = await checkLibraryAsync(allAppids);
+            let libChanged = false;
+            for (const id of apiOwned) {
+              if (!ownedSet.has(id)) { ownedSet.add(id); libChanged = true; }
+            }
+            if (libChanged) {
+              updateNewIndicator();
+              refreshGamesBadge();
+              if (opened && activeTab === 'games') render();
+            }
+          } catch {}
         }
         return;
       }
@@ -504,6 +520,14 @@ export function injectVanillaWidget(): void {
       ownedSet = new Set<number>();
 
       await mergeGrabbedIntoOwned(ownedSet);
+
+      // Check Steam API for already-owned games
+      const allAppids = next.map(g => g.appid);
+      try {
+        const apiOwned = await checkLibraryAsync(allAppids);
+        for (const id of apiOwned) ownedSet.add(id);
+      } catch {}
+
       lastLibFetchMs = Date.now();
 
       updateNewIndicator();
