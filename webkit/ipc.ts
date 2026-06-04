@@ -20,3 +20,5 @@ export const logIPC = callable<StrIn, number>('log_plugin');
 export const tryAcquireClaimLockIPC = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 export const releaseClaimLockIPC    = callable<StrIn, number>('release_claim_lock_ipc');
 
+export const claimFreeGameIPC = callable<StrIn, string>('claim_free_game_ipc');
+

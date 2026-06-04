@@ -18,6 +18,7 @@ const popToasts         = callable<Empty, string>('pop_toasts_ipc');
 const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc');
 const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
+const claimFreeGame       = callable<StrIn, string>('claim_free_game_ipc');
 
 const STORE_LS_KEY = 'fgg_store_settings';
 
@@ -350,7 +351,21 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
 
   try {
     if (await addViaHiddenPopup(appid)) return true;
-    log(`[${appid}] hidden popup claim failed — leaving game unclaimed (will retry next scan)`);
+    log(`[${appid}] hidden popup claim failed — trying backend curl claim`);
+
+    try {
+      const sessionid = (document.cookie.match(/(?:^|;\s*)sessionid=([^;]+)/) || [])[1] || '';
+      const raw = await claimFreeGame({ payload: JSON.stringify({ appid, sessionid }) });
+      const data = JSON.parse(raw || '{}');
+      if (data.ok) {
+        log(`[${appid}] backend curl claim succeeded: ${data.reason}`);
+        return true;
+      }
+      log(`[${appid}] backend curl claim failed: ${data.reason}`);
+    } catch (e) {
+      log(`[${appid}] backend curl claim error: ${String(e)}`);
+    }
+
     return false;
   } finally {
     await releaseClaimLock({ payload: String(appid) }).catch(() => {});

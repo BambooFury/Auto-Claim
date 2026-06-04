@@ -187,6 +187,7 @@ local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
 local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
 local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
+local COOKIES_FILE      = PLUGIN_DIR .. "\\steam_cookies.json"
 local CLAIM_LOCK_TTL    = 60
 
 
@@ -570,6 +571,138 @@ function fetch_url_via_curl_ipc(data)
         return ""
     end
     return body
+end
+
+local _SUBID_PATTERNS = {
+    'javascript:AddFreeLicense%((%d+)%)',
+    'javascript:addToCart%((%d+)%)',
+    'AddFreeLicense%((%d+)%)',
+    'addToCart%((%d+)%)',
+    'data%-ds%-add%-free%-sub="(%d+)"',
+    'data%-add%-free%-sub="(%d+)"',
+    'id="add_to_cart_submit_(%d+)"',
+    'name="subid"%s+value="(%d+)"',
+}
+
+local function _find_subid(html)
+    if type(html) ~= "string" or html == "" then return nil end
+    for _, pat in ipairs(_SUBID_PATTERNS) do
+        local m = html:match(pat)
+        if m then return m end
+    end
+    return nil
+end
+
+local function _read_session_id()
+    local raw = read_file(COOKIES_FILE)
+    if not raw then return nil end
+    local ok, data = pcall(cjson.decode, raw)
+    if ok and type(data) == "table" and type(data.sessionid) == "string" then
+        return data.sessionid
+    end
+    return nil
+end
+
+local function _curl_popen_custom(cmd_str)
+    local f, err = io.popen(cmd_str, "r")
+    if not f then return "", "io.popen failed: " .. tostring(err) end
+    local body = f:read("*a") or ""
+    f:close()
+    return body
+end
+
+function claim_free_game_ipc(data)
+    local payload = extract_payload(data)
+    if not payload then return '{"ok":false,"reason":"no payload"}' end
+
+    local ok, args = pcall(cjson.decode, payload)
+    if not ok or type(args) ~= "table" then return '{"ok":false,"reason":"invalid json"}' end
+
+    local appid = tonumber(args.appid)
+    if not appid then return '{"ok":false,"reason":"no appid"}' end
+
+    local sessionid = args.sessionid
+    if not sessionid or sessionid == "" then
+        sessionid = _read_session_id()
+    end
+    if not sessionid or sessionid == "" then
+        return '{"ok":false,"reason":"no sessionid"}'
+    end
+
+    local cookies = "birthtime=283993201; lastagecheckage=1-January-1990; wants_mature_content=1; sessionid=" .. sessionid
+    if type(args.steamLoginSecure) == "string" and args.steamLoginSecure ~= "" then
+        cookies = cookies .. "; steamLoginSecure=" .. args.steamLoginSecure
+    end
+
+    logger:info("[AutoClaim] [backend-claim] claiming appid " .. appid .. " via curl")
+
+    local app_url = "https://store.steampowered.com/app/" .. appid .. "/?cc=us&l=english"
+
+    local page_cmd
+    if _IS_WIN then
+        local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
+        local rnd = string.format("%d_%d", os.time(), math.random(1, 1000000))
+        local tmp_body = string.format("%s\\autoclaim_page_%s.body", tmp_dir, rnd)
+        page_cmd = string.format(
+            'curl.exe -sS -L --max-time 15 -b "%s" ' ..
+            '-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" ' ..
+            '-o "%s" "%s" 2>NUL && type "%s"',
+            cookies, tmp_body, app_url, tmp_body
+        )
+        local page_html = _curl_popen_custom(page_cmd)
+        os.remove(tmp_body)
+
+        local subid = _find_subid(page_html)
+        if not subid then
+            logger:info("[AutoClaim] [backend-claim] no subid found for appid " .. appid)
+            return '{"ok":false,"reason":"no subid in app page"}'
+        end
+
+        logger:info("[AutoClaim] [backend-claim] found subid " .. subid .. " for appid " .. appid)
+
+        local post_data = "action=add_to_cart&sessionid=" .. sessionid .. "&subid=" .. subid
+        local rnd2 = string.format("%d_%d", os.time(), math.random(1, 1000000))
+        local tmp_claim = string.format("%s\\autoclaim_claim_%s.body", tmp_dir, rnd2)
+        local claim_cmd = string.format(
+            'curl.exe -sS -L --max-time 15 -X POST ' ..
+            '-b "%s" ' ..
+            '-H "Content-Type: application/x-www-form-urlencoded" ' ..
+            '-H "X-Requested-With: XMLHttpRequest" ' ..
+            '-H "Referer: https://store.steampowered.com/app/%d/" ' ..
+            '-d "%s" ' ..
+            '-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" ' ..
+            '-o "%s" "https://store.steampowered.com/checkout/addfreelicense" 2>NUL && type "%s"',
+            cookies, appid, post_data, tmp_claim, tmp_claim
+        )
+        local claim_body = _curl_popen_custom(claim_cmd)
+        os.remove(tmp_claim)
+
+        if claim_body == "" then
+            logger:info("[AutoClaim] [backend-claim] empty response for appid " .. appid)
+            return '{"ok":false,"reason":"empty claim response"}'
+        end
+
+        if claim_body:find('"success"%s*:%s*1') or claim_body:find('"success": 1')
+           or claim_body:find('"success":true') then
+            logger:info("[AutoClaim] [backend-claim] SUCCESS for appid " .. appid)
+            return '{"ok":true,"reason":"ok"}'
+        end
+
+        if claim_body:find('purchaseresultdetail') then
+            local code = claim_body:match('"purchaseresultdetail"%s*:%s*(%d+)')
+            if code == "9" or code == "53" then
+                logger:info("[AutoClaim] [backend-claim] already owned appid " .. appid)
+                return '{"ok":true,"reason":"already owned"}'
+            end
+            logger:info("[AutoClaim] [backend-claim] purchase result " .. (code or "?") .. " for appid " .. appid)
+            return '{"ok":false,"reason":"purchase result ' .. (code or "unknown") .. '"}'
+        end
+
+        logger:info("[AutoClaim] [backend-claim] claim refused for appid " .. appid .. ": " .. claim_body:sub(1, 200))
+        return '{"ok":false,"reason":"claim refused"}'
+    else
+        return '{"ok":false,"reason":"unsupported platform"}'
+    end
 end
 
 function push_toast_ipc(data)

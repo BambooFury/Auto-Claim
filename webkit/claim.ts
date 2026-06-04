@@ -126,20 +126,17 @@ async function fetchWithRetry(
   throw lastErr;
 }
 
+import { claimFreeGameIPC } from './ipc';
 
-export async function silentClaim(appid: number): Promise<ClaimResult> {
-  try {
+async function _silentClaimViaFetch(appid: number): Promise<ClaimResult> {
     document.cookie = "birthtime=283993201; path=/; max-age=31536000";
     document.cookie = "lastagecheckage=1-January-1990; path=/; max-age=31536000";
     let subid = findSubid(document.documentElement.outerHTML);
 
-
     if (!subid) {
-      try {
-        const pageRes = await fetchWithRetry(APP_URL(appid), { credentials: 'include' }, 1, 500);
-        const html    = await pageRes.text();
-        subid         = findSubid(html);
-      } catch {}
+      const pageRes = await fetchWithRetry(APP_URL(appid), { credentials: 'include' }, 1, 500);
+      const html    = await pageRes.text();
+      subid         = findSubid(html);
     }
     if (!subid) return { ok: false, reason: 'no subid in app page' };
 
@@ -165,7 +162,6 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
         body: form.toString(),
       });
     } catch (err) {
-
       if (!isTransientFetchError(err)) throw err;
       claimRes = await _xhrPostForm(POST_URL, form.toString(), referer);
     }
@@ -184,7 +180,6 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
           return { ok: true, reason: 'ok' };
         }
         if (data.purchaseresultdetail !== undefined) {
-
           const code = Number(data.purchaseresultdetail);
           if (code === 9 || code === 53) {
             return { ok: true, reason: 'already owned' };
@@ -202,7 +197,29 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
       return { ok: false, reason: 'session expired' };
     }
     return { ok: false, reason: 'claim refused' };
+}
+
+async function _silentClaimViaBackend(appid: number): Promise<ClaimResult> {
+  const sessionid = extractSessionId();
+  const payload: Record<string, unknown> = { appid };
+  if (sessionid) payload.sessionid = sessionid;
+
+  const raw = await claimFreeGameIPC({ payload: JSON.stringify(payload) });
+  try {
+    const data = JSON.parse(raw);
+    return { ok: !!data.ok, reason: data.reason || 'unknown' };
+  } catch {
+    return { ok: false, reason: 'backend parse error' };
+  }
+}
+
+export async function silentClaim(appid: number): Promise<ClaimResult> {
+  try {
+    return await _silentClaimViaFetch(appid);
   } catch (err) {
+    if (isTransientFetchError(err)) {
+      return _silentClaimViaBackend(appid);
+    }
     return { ok: false, reason: String(err) };
   }
 }

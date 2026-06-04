@@ -521,7 +521,6 @@ export function injectVanillaWidget(): void {
 
       await mergeGrabbedIntoOwned(ownedSet);
 
-      // Check Steam API for already-owned games
       const allAppids = next.map(g => g.appid);
       try {
         const apiOwned = await checkLibraryAsync(allAppids);
