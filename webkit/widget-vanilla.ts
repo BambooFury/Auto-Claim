@@ -369,7 +369,6 @@ export function injectVanillaWidget(): void {
   async function runAutoClaim() {
     if (busyClaim) return;
     if (!cfg.autoAdd) return;
-    if (cfg.filterMode === 'all') return;
     const todo = games.filter((g) =>
       isClaimableGame(g) && !ownedSet.has(g.appid) && !isInLibrary(g.appid),
     );
@@ -492,7 +491,7 @@ export function injectVanillaWidget(): void {
       updateNewIndicator();
 
       if (opened && activeTab === 'games') render();
-      if (cfg.autoAdd && cfg.filterMode !== 'all' && next.length > 0) void runAutoClaim();
+      if (cfg.autoAdd && next.length > 0) void runAutoClaim();
     } catch {} finally {
       refreshing = false;
     }
@@ -892,9 +891,7 @@ function renderSettings(
   async function runManualScanRequestAndClaim() {
     void queueManualScanRequest();
     logIPC({ payload: 'Auto-add turned ON - scan queued' }).catch(() => {});
-    if (cfg.filterMode !== 'all') {
-      void runAutoClaim();
-    }
+    void runAutoClaim();
   }
 
   bodyEl.querySelector<HTMLButtonElement>('#fgg-notifygrab')?.addEventListener('click', (e) => {

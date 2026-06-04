@@ -482,23 +482,7 @@ async function startPolling(): Promise<void> {
     return SCAN_NAME_BLOCKLIST.some((re) => re.test(lower));
   }
 
-  let cachedWidgetFilterMode: 'games' | 'all' = 'games';
 
-  async function refreshWidgetFilterMode(): Promise<void> {
-    try {
-      const wRaw = await withTimeout(_loadWidgetIPC(), 1000, '');
-      if (wRaw) {
-        const w = JSON.parse(wRaw);
-        if (w && (w.filterMode === 'all' || w.filterMode === 'games')) {
-          cachedWidgetFilterMode = w.filterMode;
-          return;
-        }
-      }
-      cachedWidgetFilterMode = 'games';
-    } catch {
-      cachedWidgetFilterMode = 'games';
-    }
-  }
 
   let lastManualScanRequestAt = 0;
 
@@ -591,7 +575,7 @@ async function startPolling(): Promise<void> {
         if (raw) liveSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(raw) });
       } catch {}
 
-      const notifyOnly = cachedWidgetFilterMode === 'all' || !liveSettings.autoAdd;
+      const notifyOnly = !liveSettings.autoAdd;
 
       if (notifyOnly) {
         if (notifiedSet.has(game.appid)) {
@@ -602,7 +586,7 @@ async function startPolling(): Promise<void> {
           return;
         }
 
-        const reason = cachedWidgetFilterMode === 'all' ? "filter='all'" : 'auto-add OFF';
+        const reason = 'auto-add OFF';
         log(`${game.name} — ${reason}, showing notification only`);
         showFreeGameNotification(game, async () => {
           const added = await addGameToLibrary(game.appid);
@@ -633,7 +617,6 @@ async function startPolling(): Promise<void> {
 
   async function runOneScan(): Promise<boolean> {
     await reloadState();
-    await refreshWidgetFilterMode();
     log('Scanning Steam Store for 100% discounts...');
 
     try {
