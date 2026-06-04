@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.10](https://github.com/BambooFury/Auto-Claim/compare/v1.5.9...v1.5.10) (2026-06-04)
+
+
+### Bug Fixes
+
+* scroll game list after 4 cards with hidden scrollbar ([eceaeb2](https://github.com/BambooFury/Auto-Claim/commit/eceaeb2c035ad4fa34bcf689be678da4894d438b))
+* sync already-owned games to grabbed.json so widget can detect them ([0b7a721](https://github.com/BambooFury/Auto-Claim/commit/0b7a721e058d443508ad42c6ff2e849d7b7eb262))
+* update plugin description ([5eee262](https://github.com/BambooFury/Auto-Claim/commit/5eee2625182304cdeed6dbf6f8251d9be4e8a0f9))
+
+
+### Maintenance
+
+* remove example.png ([9ca8991](https://github.com/BambooFury/Auto-Claim/commit/9ca89916ca1a0c5460183dc73ffefa17f431e869))
+
 ## [1.5.9](https://github.com/BambooFury/Auto-Claim/compare/v1.5.8...v1.5.9) (2026-06-03)
 
 
