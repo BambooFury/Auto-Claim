@@ -228,6 +228,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
         `    var hasAgeGate = document.getElementById('agegate_box') || document.getElementById('ageYear') || document.querySelector('.agegate_text_container');` +
         `    document.cookie = "birthtime=283993201; path=/; max-age=31536000";` +
         `    document.cookie = "lastagecheckage=1-January-1990; path=/; max-age=31536000";` +
+        `    document.cookie = "wants_mature_content=1; path=/; max-age=31536000";` +
         `    if (hasAgeGate) { location.reload(); return; }` +
         `    window.__fgg_triggered = true;` +
         `    var sub = null;` +
@@ -270,6 +271,11 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
 
   const onFinishedRequest = (currentURL: string) => {
     if (!currentURL) return;
+    if (currentURL.indexOf('/checkout/addfreelicense') !== -1 || currentURL.indexOf('cart') !== -1) {
+      log(`[${appid}] hidden-popup: detected navigation to ${currentURL}, assuming success!`);
+      succeeded = true;
+      return;
+    }
     if (currentURL.indexOf('/agecheck') !== -1) {
       try {
         if (typeof popup.LoadURL === 'function') {
