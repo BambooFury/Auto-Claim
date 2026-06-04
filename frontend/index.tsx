@@ -528,6 +528,7 @@ async function startPolling(): Promise<void> {
           log(`${game.name} — already in library, skipping`);
         }
         grabbedSet.add(game.appid);
+        void recordGrabbed(game, true);
         return;
       }
 
