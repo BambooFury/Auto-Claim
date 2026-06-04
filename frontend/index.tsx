@@ -246,21 +246,22 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
         `      var m = html.match(pats[i]);` +
         `      if (m) sub = parseInt(m[1], 10);` +
         `    }` +
-        `    if (!sub) { document.title = 'fgg:no_subid'; return; }` +
-        `    if (typeof AddFreeLicense === 'function') {` +
-        `      AddFreeLicense(sub);` +
-        `      document.title = 'fgg:addfreelicense_called:' + sub;` +
-        `    } else if (typeof addToCart === 'function') {` +
-        `      addToCart(sub);` +
-        `      document.title = 'fgg:addtocart_called:' + sub;` +
-        `    } else if (window.ShoppingCart && window.ShoppingCart.AddSubsToCart) {` +
-        `      window.ShoppingCart.AddSubsToCart([sub]);` +
-        `      document.title = 'fgg:shoppingcart_called:' + sub;` +
-        `    } else {` +
-        `      document.title = 'fgg:no_claim_global';` +
-        `    }` +
+        `    if (!sub) { window.location.href = '?fgg_fail=no_subid'; return; }` +
+        `    var sess = (window.g_sessionID) || (document.cookie.match(/(?:^|;\\s*)sessionid=([^;]+)/) || [])[1];` +
+        `    if (!sess) { window.location.href = '?fgg_fail=no_session'; return; }` +
+        `    fetch('https://store.steampowered.com/checkout/addfreelicense', {` +
+        `      method: 'POST',` +
+        `      headers: {'Content-Type': 'application/x-www-form-urlencoded'},` +
+        `      body: 'action=add_to_cart&sessionid=' + sess + '&subid=' + sub` +
+        `    }).then(function(r){ return r.text(); }).then(function(t){` +
+        `      if (/"success"\\s*:\\s*1\\b/.test(t) || t.indexOf('purchaseresultdetail":9') !== -1 || t.indexOf('purchaseresultdetail":53') !== -1) {` +
+        `        window.location.href = '?fgg_success=1';` +
+        `      } else {` +
+        `        window.location.href = '?fgg_fail=claim_refused';` +
+        `      }` +
+        `    }).catch(function(e) { window.location.href = '?fgg_fail=exception'; });` +
         `  } catch (e) {` +
-        `    document.title = 'fgg:exception:' + (e && e.message ? e.message : String(e));` +
+        `    window.location.href = '?fgg_fail=outer_exception';` +
         `  }` +
         `})(); void 0;`;
       popup.LoadURL(`javascript:${js}`);
@@ -271,6 +272,15 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
 
   const onFinishedRequest = (currentURL: string) => {
     if (!currentURL) return;
+    if (currentURL.indexOf('fgg_success=1') !== -1) {
+      log(`[${appid}] hidden-popup: detected success via fetch!`);
+      succeeded = true;
+      return;
+    }
+    if (currentURL.indexOf('fgg_fail=') !== -1) {
+      log(`[${appid}] hidden-popup: fetch claim failed: ${currentURL}`);
+      return;
+    }
     if (currentURL.indexOf('/checkout/addfreelicense') !== -1 || currentURL.indexOf('cart') !== -1) {
       log(`[${appid}] hidden-popup: detected navigation to ${currentURL}, assuming success!`);
       succeeded = true;
