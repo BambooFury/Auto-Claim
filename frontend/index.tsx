@@ -291,8 +291,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
 
   if (!succeeded) {
     if (claimTriggered) {
-      log(`[${appid}] hidden-popup: assuming success after claim trigger`);
-      succeeded = true;
+      log(`[${appid}] hidden-popup: claim triggered but verification timed out after ${TIMEOUT_MS / 1000}s`);
     } else {
       log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
     }
