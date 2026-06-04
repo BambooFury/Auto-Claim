@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.6.1](https://github.com/BambooFury/Auto-Claim/compare/v1.6.0...v1.6.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* restore library ownership check logic from v1.5.7 ([6ce6ded](https://github.com/BambooFury/Auto-Claim/commit/6ce6ded4976b475a3bde36ae0f5b5192ead1eaf8))
+* restore library ownership check logic from v1.5.7 ([fedf0a3](https://github.com/BambooFury/Auto-Claim/commit/fedf0a3a344026bd386866ec334c6a185a99e04d))
+
+
+### Maintenance
+
+* **main:** release 1.6.0 ([fb5a887](https://github.com/BambooFury/Auto-Claim/commit/fb5a8879b7fa78876f11a779cb6af5202b977b61))
+* **main:** release 1.6.0 ([c5c53b5](https://github.com/BambooFury/Auto-Claim/commit/c5c53b5369bc03bc50922615146bc0bff2ec5c5b))
+* **main:** release 1.6.0 ([a0a2def](https://github.com/BambooFury/Auto-Claim/commit/a0a2def9ef92627d3dde422c3a7c06e2a17a8336))
+* **main:** release 1.6.0 ([2430259](https://github.com/BambooFury/Auto-Claim/commit/24302595a89d6a106753126a7ef9808ecf48fb73))
+* **main:** release 1.6.0 ([fecfba4](https://github.com/BambooFury/Auto-Claim/commit/fecfba42bfd0d22eba2b6d6c152659206117a29e))
+
 ## [1.6.0](https://github.com/BambooFury/Auto-Claim/compare/v1.5.9...v1.6.0) (2026-06-04)
 
 
