@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.5.10](https://github.com/BambooFury/Auto-Claim/compare/v1.5.9...v1.5.10) (2026-06-04)
+## [1.6.0](https://github.com/BambooFury/Auto-Claim/compare/v1.5.9...v1.6.0) (2026-06-04)
 
 
 ### Bug Fixes
