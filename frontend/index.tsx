@@ -251,7 +251,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
         `    if (!sess) { window.location.href = '?fgg_fail=no_session'; return; }` +
         `    fetch('https://store.steampowered.com/checkout/addfreelicense', {` +
         `      method: 'POST',` +
-        `      headers: {'Content-Type': 'application/x-www-form-urlencoded'},` +
+        `      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'},` +
         `      body: 'action=add_to_cart&sessionid=' + sess + '&subid=' + sub` +
         `    }).then(function(r){ return r.text(); }).then(function(t){` +
         `      if (/"success"\\s*:\\s*1\\b/.test(t) || t.indexOf('purchaseresultdetail":9') !== -1 || t.indexOf('purchaseresultdetail":53') !== -1) {` +
