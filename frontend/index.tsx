@@ -219,12 +219,17 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
   let succeeded = false;
 
   const triggerClaim = () => {
-    if (claimTriggered) return;
     claimTriggered = true;
     try {
       const js =
         `(function() {` +
+        `  if (window.__fgg_triggered) return;` +
         `  try {` +
+        `    var hasAgeGate = document.getElementById('agegate_box') || document.getElementById('ageYear') || document.querySelector('.agegate_text_container');` +
+        `    document.cookie = "birthtime=283993201; path=/; max-age=31536000";` +
+        `    document.cookie = "lastagecheckage=1-January-1990; path=/; max-age=31536000";` +
+        `    if (hasAgeGate) { location.reload(); return; }` +
+        `    window.__fgg_triggered = true;` +
         `    var sub = null;` +
         `    var html = document.documentElement.outerHTML || '';` +
         `    var pats = [` +
@@ -287,7 +292,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
     } catch {}
   }, 500);
 
-  const TIMEOUT_MS = 10_000;
+  const TIMEOUT_MS = 15_000;
   const POLL_MS    = 500;
   const polls      = Math.floor(TIMEOUT_MS / POLL_MS);
   for (let i = 0; i < polls; i++) {
