@@ -129,7 +129,8 @@ async function fetchWithRetry(
 
 export async function silentClaim(appid: number): Promise<ClaimResult> {
   try {
-
+    document.cookie = "birthtime=283993201; path=/; max-age=31536000";
+    document.cookie = "lastagecheckage=1-January-1990; path=/; max-age=31536000";
     let subid = findSubid(document.documentElement.outerHTML);
 
 

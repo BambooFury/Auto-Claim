@@ -264,7 +264,16 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
   };
 
   const onFinishedRequest = (currentURL: string) => {
-    if (currentURL && currentURL.indexOf(`/app/${appid}`) !== -1) {
+    if (!currentURL) return;
+    if (currentURL.indexOf('/agecheck') !== -1) {
+      try {
+        if (typeof popup.LoadURL === 'function') {
+          popup.LoadURL(`javascript:document.cookie="birthtime=283993201; path=/; max-age=31536000"; document.cookie="lastagecheckage=1-January-1990; path=/; max-age=31536000"; location.reload();`);
+        }
+      } catch {}
+      return;
+    }
+    if (currentURL.indexOf(`/app/${appid}`) !== -1) {
       setTimeout(triggerClaim, 800);
     }
   };
