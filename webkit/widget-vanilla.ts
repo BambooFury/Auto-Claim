@@ -16,7 +16,7 @@ import {
   saveWidgetSettingsIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
-import { isGameOwned, isInLibrary } from './library';
+import { isGameOwned, isInLibrary, checkLibraryAsync } from './library';
 import { cfg, initialWidgetRaw, saveSettings } from './settings';
 import { getTabColor } from './tab-colors';
 import type { FreeGame } from './types';
@@ -455,6 +455,23 @@ export function injectVanillaWidget(): void {
     }
   }
 
+  async function checkLibraryOwnership(target: Set<number>, appids: number[]): Promise<boolean> {
+    if (appids.length === 0) return false;
+    try {
+      const owned = await checkLibraryAsync(appids);
+      let changed = false;
+      for (const id of owned) {
+        if (!target.has(id)) {
+          target.add(id);
+          changed = true;
+        }
+      }
+      return changed;
+    } catch {
+      return false;
+    }
+  }
+
   async function softRefresh() {
     if (busyClaim || refreshing) return;
     refreshing = true;
@@ -470,15 +487,24 @@ export function injectVanillaWidget(): void {
 
         const grabbedChanged = await mergeGrabbedIntoOwned(ownedSet);
 
-        updateNewIndicator();
-        refreshGamesBadge();
-        if (grabbedChanged && opened && activeTab === 'games') render();
-
         const stillPending = games.some(
           (g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid),
         );
         if (stillPending && Date.now() - lastLibFetchMs > LIB_RECHECK_MS && games.length > 0) {
           lastLibFetchMs = Date.now();
+          const pendingIds = games
+            .filter((g) => !ownedSet.has(g.appid) && !isInLibrary(g.appid))
+            .map((g) => g.appid);
+          const apiChanged = await checkLibraryOwnership(ownedSet, pendingIds);
+          if (apiChanged || grabbedChanged) {
+            updateNewIndicator();
+            refreshGamesBadge();
+            if (opened && activeTab === 'games') render();
+          }
+        } else {
+          updateNewIndicator();
+          refreshGamesBadge();
+          if (grabbedChanged && opened && activeTab === 'games') render();
         }
         return;
       }
@@ -487,7 +513,13 @@ export function injectVanillaWidget(): void {
       ownedSet = new Set<number>();
 
       await mergeGrabbedIntoOwned(ownedSet);
+      
+      const allAppids = next.map((g) => g.appid);
+      await checkLibraryOwnership(ownedSet, allAppids);
+      
       lastLibFetchMs = Date.now();
+
+      updateNewIndicator();
 
       updateNewIndicator();
 

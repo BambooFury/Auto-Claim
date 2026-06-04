@@ -147,6 +147,7 @@ function isAlreadyInLibrary(appid: number): boolean {
     if (lpcd) {
       if (lpcd.is_owned === true)  return true;
       if (lpcd.installed === true) return true;
+      if (lpcd.is_owned !== false) return true;
     }
 
 
@@ -157,6 +158,7 @@ function isAlreadyInLibrary(appid: number): boolean {
     return false;
   }
 }
+
 
 function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
   if (_globalGrabbedAppids.has(game.appid)) return;
