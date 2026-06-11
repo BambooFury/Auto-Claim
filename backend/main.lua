@@ -292,7 +292,7 @@ end
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
-    write_file(_grabbed_file_for_current_user(), payload)
+    if not write_file(_grabbed_file_for_current_user(), payload) then return 0 end
     return 1
 end
 
@@ -488,6 +488,9 @@ local function _curl_ffi_get()
 end
 
 local function _curl_popen(url)
+    if url:find('"') or url:find("'") or url:find("[%s]") then
+        return nil, "unsafe characters in url"
+    end
     local UA_WIN = '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
                    'AppleWebKit/537.36 (KHTML, like Gecko) ' ..
                    'Chrome/120.0.0.0 Safari/537.36"'

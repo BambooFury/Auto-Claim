@@ -2,9 +2,6 @@ node_modules/
 .millennium/
 dist/
 .vscode/
-V2_PLAN.md
-
-*.zip
 
 accounts/
 steam_cookies.json
@@ -16,6 +13,3 @@ pending_toasts.json
 claim_inflight.json
 
 webkit/_assets.generated.ts
-
-scripts/parse_dump.py
-*.dmp

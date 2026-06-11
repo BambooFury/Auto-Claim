@@ -19,8 +19,6 @@ const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc'
 const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
-const STORE_LS_KEY = 'fgg_store_settings';
-
 const _globalGrabbedAppids = new Set<number>();
 
 async function _reloadGlobalGrabbed(): Promise<void> {
@@ -91,8 +89,6 @@ interface Settings {
   notifyOnGrab:    boolean;
 }
 
-interface StoreSettingsSnapshot extends Settings, WidgetSettings {}
-
 const DEFAULTS: Settings = {
   autoAdd:         false,
   pollIntervalMin: 30,
@@ -115,23 +111,6 @@ const defaultWidget = (): WidgetSettings => ({
   tabStyle:       'large',
 });
 
-function syncStoreSettings(s: Settings, w: WidgetSettings): void {
-  const snap: StoreSettingsSnapshot = {
-    autoAdd:         s.autoAdd,
-    notifyOnGrab:    s.notifyOnGrab,
-    pollIntervalMin: s.pollIntervalMin,
-    tabColor:        w.tabColor,
-    accentColor:     w.accentColor,
-    indicatorColor:  w.indicatorColor,
-    showOverlay:     w.showOverlay,
-    panelSide:       w.panelSide,
-    tabStyle:        w.tabStyle,
-  };
-  try {
-    localStorage.setItem(STORE_LS_KEY, JSON.stringify(snap));
-  } catch {}
-}
-
 const HEADER_URL = (g: FreeGame) =>
   g.header || g.capsule || `https://cdn.akamai.steamstatic.com/steam/apps/${g.appid}/header.jpg`;
 
@@ -147,7 +126,6 @@ function isAlreadyInLibrary(appid: number): boolean {
     if (lpcd) {
       if (lpcd.is_owned === true)  return true;
       if (lpcd.installed === true) return true;
-      if (lpcd.is_owned !== false) return true;
     }
 
 
@@ -160,13 +138,15 @@ function isAlreadyInLibrary(appid: number): boolean {
 }
 
 
-function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
+function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed = false): void {
   if (_globalGrabbedAppids.has(game.appid)) return;
-  if (isAlreadyInLibrary(game.appid)) return;
+  if (!claimed && isAlreadyInLibrary(game.appid)) return;
   _globalGrabbedAppids.add(game.appid);
   toaster.toast({
-    title: 'Free Game Available!',
-    body:  `${game.name} is 100% off — grab it now!`,
+    title: claimed ? 'Free Game Claimed!' : 'Free Game Available!',
+    body:  claimed
+      ? `${game.name} was added to your library.`
+      : `${game.name} is 100% off — grab it now!`,
     logo: React.createElement('img', {
       src: HEADER_URL(game),
       style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' },
@@ -291,10 +271,15 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
     }
   }
 
-  if (!succeeded) {
+    if (!succeeded) {
     if (claimTriggered) {
-      log(`[${appid}] hidden-popup: assuming success after claim trigger`);
-      succeeded = true;
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (isAlreadyInLibrary(appid)) { succeeded = true; break; }
+      }
+      if (!succeeded) {
+        log(`[${appid}] hidden-popup: claim triggered but ownership not confirmed — will retry next scan`);
+      }
     } else {
       log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
     }
@@ -349,7 +334,6 @@ const SettingsPanel: React.FC = () => {
       } catch {}
       setWidget(w);
 
-      syncStoreSettings(s, w);
       setLoaded(true);
     };
     const bootTimer = setTimeout(() => { void boot(); }, 500);
@@ -360,7 +344,6 @@ const SettingsPanel: React.FC = () => {
     setWidget((prev) => {
       const next = { ...prev, ...patch };
       _saveWidgetIPC({ payload: JSON.stringify(next) });
-      syncStoreSettings(settings, next);
       return next;
     });
   }, [settings]);
@@ -443,10 +426,9 @@ async function startPolling(): Promise<void> {
       for (const g of items) {
         if (!g || typeof g.appid !== 'number') continue;
         if (grabbedSet.has(g.appid) || notifiedSet.has(g.appid)) continue;
-        if (isAlreadyInLibrary(g.appid)) continue;
         showFreeGameNotification(g, () => {
           (window as any).SteamClient?.Apps?.ShowStore?.(g.appid, 0);
-        });
+        }, true);
       }
     } catch {}
   }
@@ -454,6 +436,7 @@ async function startPolling(): Promise<void> {
   async function recordGrabbed(game: FreeGame, added: boolean): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        const sidAtStart = knownSid;
         const raw = await withTimeout(loadGrabbed(), 3000, '[]');
         const arr: GrabbedEntry[] = JSON.parse(raw || '[]');
         const idx = arr.findIndex((e) => e.appid === game.appid);
@@ -466,7 +449,9 @@ async function startPolling(): Promise<void> {
         if (idx >= 0) arr[idx] = entry;
         else          arr.unshift(entry);
 
-        await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
+        if (knownSid !== sidAtStart) throw new Error('account changed during grabbed.json update');
+        const saved = await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
+        if (!saved) throw new Error('save_grabbed_ipc returned 0');
         if (added) grabbedSet.add(game.appid);
         notifiedSet.add(game.appid);
         _globalGrabbedAppids.add(game.appid);
@@ -689,7 +674,7 @@ async function startPolling(): Promise<void> {
   let scanInProgress = false;
   let scanQueued = false;
   let pendingManualScanRequestAt = 0;
-  const triggerScan = async (reason: string): Promise<boolean> => {
+    const triggerScan = async (reason: string): Promise<boolean> => {
     if (scanInProgress) {
       scanQueued = true;
       log(`Scan queued (${reason}) — another scan is in progress`);
@@ -697,24 +682,23 @@ async function startPolling(): Promise<void> {
     }
     scanInProgress = true;
     scanQueued = false;
+    let result = false;
     try {
       log(`Manual scan triggered: ${reason}`);
-      const result = await runOneScan();
-      if (scanQueued) {
-        scanQueued = false;
-        scanInProgress = false;
-        return triggerScan('queued');
-      }
+      result = await runOneScan();
       if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
         const requestedAt = pendingManualScanRequestAt;
         pendingManualScanRequestAt = 0;
         await publishManualScanCompletion(requestedAt, result);
       }
-      return result;
     } finally {
       scanInProgress = false;
-      scanQueued = false;
     }
+    if (scanQueued) {
+      scanQueued = false;
+      return triggerScan('queued');
+    }
+    return result;
   };
 
 

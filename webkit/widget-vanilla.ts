@@ -80,6 +80,25 @@ function panelRadius(style: string, isLeft: boolean): string {
   return isLeft ? '0 12px 12px 0' : '12px 0 0 12px';
 }
 
+function enableSmoothScroll(el: HTMLElement): void {
+  let target = 0;
+  let animating = false;
+  function step() {
+    const diff = target - el.scrollTop;
+    if (Math.abs(diff) < 0.5) { el.scrollTop = target; animating = false; return; }
+    el.scrollTop += diff * 0.16;
+    requestAnimationFrame(step);
+  }
+  el.addEventListener('wheel', (e: WheelEvent) => {
+    const max = el.scrollHeight - el.clientHeight;
+    if (max <= 0) return;
+    e.preventDefault();
+    if (!animating) target = el.scrollTop;
+    target = Math.max(0, Math.min(max, target + e.deltaY));
+    if (!animating) { animating = true; requestAnimationFrame(step); }
+  }, { passive: false });
+}
+
 function arrowPoints(isLeft: boolean, opened: boolean): string {
   if (isLeft)  return opened ? '7,2 3,7 7,12' : '3,2 7,7 3,12';
   return opened ? '3,2 7,7 3,12' : '7,2 3,7 7,12';
@@ -126,7 +145,7 @@ export function injectVanillaWidget(): void {
   const root = document.createElement('div');
   root.id = ROOT_ID;
   Object.assign(root.style, {
-    position: 'fixed', inset: '0',
+    position: 'fixed', top: '0', right: '0', bottom: '0', left: '0',
     pointerEvents: 'none', zIndex: '2147483000',
     userSelect: 'none',
   } as Partial<CSSStyleDeclaration>);
@@ -188,7 +207,7 @@ export function injectVanillaWidget(): void {
 
   const dim = document.createElement('div');
   Object.assign(dim.style, {
-    position: 'fixed', inset: '0',
+    position: 'fixed', top: '0', right: '0', bottom: '0', left: '0',
     background: 'rgba(0,0,0,0.4)',
     display: 'none', pointerEvents: 'all',
   } as Partial<CSSStyleDeclaration>);
@@ -258,7 +277,7 @@ export function injectVanillaWidget(): void {
   const tabBadgeEl   = tabBtn.querySelector<HTMLElement>('#fgg-tab-badge')!;
   const filterBtnEl  = $<HTMLElement>('#fgg-filter-btn')!;
   const filterToastEl = $<HTMLElement>('#fgg-filter-toast')!;
-
+  enableSmoothScroll(bodyEl);
   const FILTER_TOAST_LABELS: Record<'games' | 'all', string> = {
     games: 'Games only',
     all:   'All free items',
@@ -351,7 +370,8 @@ export function injectVanillaWidget(): void {
 
   function refreshFooter() {
     if (busyClaim) {
-      footerEl.textContent = `Claiming ${claimDone + 1}/${claimTotal}…`;
+      const current = Math.min(claimDone + 1, claimTotal);
+      footerEl.textContent = `Claiming ${current}/${claimTotal}…`;
       footerDot.style.background = 'rgba(255,255,255,0.85)';
       footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
       return;
@@ -397,12 +417,27 @@ export function injectVanillaWidget(): void {
         continue;
       }
 
-      const acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
+      let acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
       if (!acquired) {
-        logIPC({ payload: `[${g.appid}] widget claim skipped — lock busy` }).catch(() => {});
-        claimDone++;
-        refreshFooter();
-        continue;
+        logIPC({ payload: `[${g.appid}] widget claim — lock busy, waiting for other claimer` }).catch(() => {});
+        for (let i = 0; i < 8 && !acquired; i++) {
+          await sleep(5000);
+          if (!cfg.autoAdd) break;
+          if (isInLibrary(g.appid) || ownedSet.has(g.appid)) break;
+          acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
+        }
+        if (isInLibrary(g.appid) || ownedSet.has(g.appid)) {
+          ownedSet.add(g.appid);
+          claimDone++;
+          refreshFooter();
+          continue;
+        }
+        if (!acquired) {
+          logIPC({ payload: `[${g.appid}] widget claim skipped — lock still busy` }).catch(() => {});
+          claimDone++;
+          refreshFooter();
+          continue;
+        }
       }
 
       let result;
@@ -518,10 +553,9 @@ export function injectVanillaWidget(): void {
       await checkLibraryOwnership(ownedSet, allAppids);
       
       lastLibFetchMs = Date.now();
-
+      
       updateNewIndicator();
-
-      updateNewIndicator();
+      refreshGamesBadge();
 
       if (opened && activeTab === 'games') render();
       if (cfg.autoAdd && cfg.filterMode !== 'all' && next.length > 0) void runAutoClaim();
@@ -1012,10 +1046,13 @@ function renderSettings(
         try {
           const raw = await loadFreeGamesCacheIPC();
           const found: FreeGame[] = JSON.parse(raw || '[]');
+          const visibleCount = cfg.filterMode === 'all'
+            ? found.length
+            : found.filter(isClaimableGame).length;
           if (!ok) {
             finish('rgba(255,255,255,0.35)', 'Scan failed - using cached results.');
-          } else if (found.length > 0) {
-            finish('#55cc55', `Scan complete - ${found.length} free game(s) found.`);
+          } else if (visibleCount > 0) {
+            finish('#55cc55', `Scan complete - ${visibleCount} free game(s) found.`);
           } else {
             finish('rgba(255,255,255,0.35)', 'Scan complete - no free games found.');
           }
