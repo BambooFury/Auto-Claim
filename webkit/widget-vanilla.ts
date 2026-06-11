@@ -417,12 +417,27 @@ export function injectVanillaWidget(): void {
         continue;
       }
 
-      const acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
+      let acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
       if (!acquired) {
-        logIPC({ payload: `[${g.appid}] widget claim skipped — lock busy` }).catch(() => {});
-        claimDone++;
-        refreshFooter();
-        continue;
+        logIPC({ payload: `[${g.appid}] widget claim — lock busy, waiting for other claimer` }).catch(() => {});
+        for (let i = 0; i < 8 && !acquired; i++) {
+          await sleep(5000);
+          if (!cfg.autoAdd) break;
+          if (isInLibrary(g.appid) || ownedSet.has(g.appid)) break;
+          acquired = await tryAcquireClaimLockIPC({ payload: String(g.appid) }).catch(() => 0);
+        }
+        if (isInLibrary(g.appid) || ownedSet.has(g.appid)) {
+          ownedSet.add(g.appid);
+          claimDone++;
+          refreshFooter();
+          continue;
+        }
+        if (!acquired) {
+          logIPC({ payload: `[${g.appid}] widget claim skipped — lock still busy` }).catch(() => {});
+          claimDone++;
+          refreshFooter();
+          continue;
+        }
       }
 
       let result;
