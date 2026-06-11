@@ -290,10 +290,15 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
     }
   }
 
-  if (!succeeded) {
+    if (!succeeded) {
     if (claimTriggered) {
-      log(`[${appid}] hidden-popup: assuming success after claim trigger`);
-      succeeded = true;
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (isAlreadyInLibrary(appid)) { succeeded = true; break; }
+      }
+      if (!succeeded) {
+        log(`[${appid}] hidden-popup: claim triggered but ownership not confirmed — will retry next scan`);
+      }
     } else {
       log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
     }
