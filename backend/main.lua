@@ -488,6 +488,9 @@ local function _curl_ffi_get()
 end
 
 local function _curl_popen(url)
+    if url:find('"') or url:find("'") or url:find("[%s]") then
+        return nil, "unsafe characters in url"
+    end
     local UA_WIN = '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
                    'AppleWebKit/537.36 (KHTML, like Gecko) ' ..
                    'Chrome/120.0.0.0 Safari/537.36"'
