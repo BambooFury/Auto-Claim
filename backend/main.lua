@@ -292,7 +292,7 @@ end
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
-    write_file(_grabbed_file_for_current_user(), payload)
+    if not write_file(_grabbed_file_for_current_user(), payload) then return 0 end
     return 1
 end
 

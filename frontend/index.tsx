@@ -471,7 +471,8 @@ async function startPolling(): Promise<void> {
         if (idx >= 0) arr[idx] = entry;
         else          arr.unshift(entry);
 
-        await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
+        const saved = await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
+        if (!saved) throw new Error('save_grabbed_ipc returned 0');
         if (added) grabbedSet.add(game.appid);
         notifiedSet.add(game.appid);
         _globalGrabbedAppids.add(game.appid);
