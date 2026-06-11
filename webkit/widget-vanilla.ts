@@ -258,7 +258,7 @@ export function injectVanillaWidget(): void {
 
   function markVisibleAsSeen() {
     let changed = false;
-    for (const g of games) {
+    for (const g of [...games, ...weekendGames]) {
       if (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)) continue;
       if (!seenSet.has(g.appid)) { seenSet.add(g.appid); changed = true; }
     }
