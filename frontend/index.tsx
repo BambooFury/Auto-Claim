@@ -459,6 +459,7 @@ async function startPolling(): Promise<void> {
   async function recordGrabbed(game: FreeGame, added: boolean): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        const sidAtStart = knownSid;
         const raw = await withTimeout(loadGrabbed(), 3000, '[]');
         const arr: GrabbedEntry[] = JSON.parse(raw || '[]');
         const idx = arr.findIndex((e) => e.appid === game.appid);
@@ -470,7 +471,8 @@ async function startPolling(): Promise<void> {
         };
         if (idx >= 0) arr[idx] = entry;
         else          arr.unshift(entry);
-
+        
+        if (knownSid !== sidAtStart) throw new Error('account changed during grabbed.json update');
         const saved = await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
         if (!saved) throw new Error('save_grabbed_ipc returned 0');
         if (added) grabbedSet.add(game.appid);
