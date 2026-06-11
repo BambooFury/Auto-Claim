@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.6.2](https://github.com/BambooFury/Auto-Claim/compare/v1.6.1...v1.6.2) (2026-06-11)
+
+
+### Bug Fixes
+
+* claim counter, scan reliability, widget layout and cleanup ([3aea261](https://github.com/BambooFury/Auto-Claim/commit/3aea2612cb7a5660d927bdf048bef888e62e1808))
+* clamp claim progress counter so footer never shows N+1/N ([16af162](https://github.com/BambooFury/Auto-Claim/commit/16af1624ef22aa24542b4f7ecc10ae65a36b77fb))
+* don't treat underfiend is_owned as owned in library check ([63b6546](https://github.com/BambooFury/Auto-Claim/commit/63b654603b234802555a8a86cb32947191298ed7))
+* don't write grabbed list to another account's file on account switch ([fca95b7](https://github.com/BambooFury/Auto-Claim/commit/fca95b7701eac2a90870ce69fa8f80ba21a218e0))
+* prevent card squishing, cap settings height and add smooth scrolling ([80c3b13](https://github.com/BambooFury/Auto-Claim/commit/80c3b13d9cdf80b698fa4b4e5519849db059f3a5))
+* reject unsafe curl urls and run release build only on publish ([60ca8cb](https://github.com/BambooFury/Auto-Claim/commit/60ca8cb9ccd22112180e514d5bc853e883371a0a))
+* run queued scan only after current scan fully finishes ([30d4e77](https://github.com/BambooFury/Auto-Claim/commit/30d4e771e8ad2f9f3ab678085751ed0c0945c84e))
+* show claim-success toasts from store widget with correct text ([398c937](https://github.com/BambooFury/Auto-Claim/commit/398c937e8047b15f48ae02e7d019b1f4f925e01d))
+* verify grabbed.json write result and retry on failure ([28fad54](https://github.com/BambooFury/Auto-Claim/commit/28fad547d8aa070b94f367b3c06a4831ba1831ca))
+* verify ownership instead of assuming success after popup claim ([14ca394](https://github.com/BambooFury/Auto-Claim/commit/14ca39482e21a362cbd691b94c4bc13da85548e3))
+* widget waits for claim lock instead of skipping game when scanner is claiming ([c35600e](https://github.com/BambooFury/Auto-Claim/commit/c35600e45ac065923dc0b6886e080cdb6338fa3a))
+
+
+### Refactoring
+
+* remove dead store settings sync and unused constants ([f59bb52](https://github.com/BambooFury/Auto-Claim/commit/f59bb520e8efe6afc4ccea09c7d80100389e4f25))
+
+
+### Maintenance
+
+* remove unneeded entries from .gitignore ([f3880c4](https://github.com/BambooFury/Auto-Claim/commit/f3880c489643668ab1812ad97802281c49ab2acc))
+
 ## [1.6.1](https://github.com/BambooFury/Auto-Claim/compare/v1.6.0...v1.6.1) (2026-06-04)
 
 
