@@ -351,7 +351,8 @@ export function injectVanillaWidget(): void {
 
   function refreshFooter() {
     if (busyClaim) {
-      footerEl.textContent = `Claiming ${claimDone + 1}/${claimTotal}…`;
+      const current = Math.min(claimDone + 1, claimTotal);
+      footerEl.textContent = `Claiming ${current}/${claimTotal}…`;
       footerDot.style.background = 'rgba(255,255,255,0.85)';
       footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
       return;
@@ -518,10 +519,9 @@ export function injectVanillaWidget(): void {
       await checkLibraryOwnership(ownedSet, allAppids);
       
       lastLibFetchMs = Date.now();
-
+      
       updateNewIndicator();
-
-      updateNewIndicator();
+      refreshGamesBadge();
 
       if (opened && activeTab === 'games') render();
       if (cfg.autoAdd && cfg.filterMode !== 'all' && next.length > 0) void runAutoClaim();
@@ -1012,10 +1012,13 @@ function renderSettings(
         try {
           const raw = await loadFreeGamesCacheIPC();
           const found: FreeGame[] = JSON.parse(raw || '[]');
+          const visibleCount = cfg.filterMode === 'all'
+            ? found.length
+            : found.filter(isClaimableGame).length;
           if (!ok) {
             finish('rgba(255,255,255,0.35)', 'Scan failed - using cached results.');
-          } else if (found.length > 0) {
-            finish('#55cc55', `Scan complete - ${found.length} free game(s) found.`);
+          } else if (visibleCount > 0) {
+            finish('#55cc55', `Scan complete - ${visibleCount} free game(s) found.`);
           } else {
             finish('rgba(255,255,255,0.35)', 'Scan complete - no free games found.');
           }
