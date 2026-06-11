@@ -159,13 +159,15 @@ function isAlreadyInLibrary(appid: number): boolean {
 }
 
 
-function showFreeGameNotification(game: FreeGame, onClick: () => void): void {
+function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed = false): void {
   if (_globalGrabbedAppids.has(game.appid)) return;
-  if (isAlreadyInLibrary(game.appid)) return;
+  if (!claimed && isAlreadyInLibrary(game.appid)) return;
   _globalGrabbedAppids.add(game.appid);
   toaster.toast({
-    title: 'Free Game Available!',
-    body:  `${game.name} is 100% off — grab it now!`,
+    title: claimed ? 'Free Game Claimed!' : 'Free Game Available!',
+    body:  claimed
+      ? `${game.name} was added to your library.`
+      : `${game.name} is 100% off — grab it now!`,
     logo: React.createElement('img', {
       src: HEADER_URL(game),
       style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' },
@@ -447,10 +449,9 @@ async function startPolling(): Promise<void> {
       for (const g of items) {
         if (!g || typeof g.appid !== 'number') continue;
         if (grabbedSet.has(g.appid) || notifiedSet.has(g.appid)) continue;
-        if (isAlreadyInLibrary(g.appid)) continue;
         showFreeGameNotification(g, () => {
           (window as any).SteamClient?.Apps?.ShowStore?.(g.appid, 0);
-        });
+        }, true);
       }
     } catch {}
   }
