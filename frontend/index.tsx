@@ -147,7 +147,6 @@ function isAlreadyInLibrary(appid: number): boolean {
     if (lpcd) {
       if (lpcd.is_owned === true)  return true;
       if (lpcd.installed === true) return true;
-      if (lpcd.is_owned !== false) return true;
     }
 
 
