@@ -28,7 +28,7 @@
 .fgg-tab-badge::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   border-radius: 50%;
 }
 .fgg-tab-badge::before {
@@ -114,7 +114,7 @@
   filter: brightness(0.55) saturate(1.1);
 }
 .fgg-card-overlay {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(90deg,
     rgba(15,15,15,0.92) 0%,
     rgba(15,15,15,0.55) 45%,
@@ -129,7 +129,7 @@
 .fgg-card.claiming .fgg-card-accent { animation: fgg-pulse 1.2s ease-in-out infinite; }
 
 .fgg-card-content {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -506,9 +506,10 @@
   overflow-y: auto; overflow-x: hidden;
   scrollbar-width: none;
 }
+#fgg-body > * { flex-shrink: 0; }
 #fgg-body.is-settings {
-  max-height: none;
-  overflow-y: visible;
+  max-height: calc(70vh - 150px);
+  overflow-y: auto;
   padding-bottom: 4px;
 }
 #fgg-body.is-settings .fgg-set-row:last-child { padding-bottom: 0; }
