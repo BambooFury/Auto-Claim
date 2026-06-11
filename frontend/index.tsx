@@ -19,8 +19,6 @@ const tryAcquireClaimLock = callable<StrIn, number>('try_acquire_claim_lock_ipc'
 const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
-const STORE_LS_KEY = 'fgg_store_settings';
-
 const _globalGrabbedAppids = new Set<number>();
 
 async function _reloadGlobalGrabbed(): Promise<void> {
@@ -91,8 +89,6 @@ interface Settings {
   notifyOnGrab:    boolean;
 }
 
-interface StoreSettingsSnapshot extends Settings, WidgetSettings {}
-
 const DEFAULTS: Settings = {
   autoAdd:         false,
   pollIntervalMin: 30,
@@ -114,23 +110,6 @@ const defaultWidget = (): WidgetSettings => ({
   showOverlay:    false,
   tabStyle:       'large',
 });
-
-function syncStoreSettings(s: Settings, w: WidgetSettings): void {
-  const snap: StoreSettingsSnapshot = {
-    autoAdd:         s.autoAdd,
-    notifyOnGrab:    s.notifyOnGrab,
-    pollIntervalMin: s.pollIntervalMin,
-    tabColor:        w.tabColor,
-    accentColor:     w.accentColor,
-    indicatorColor:  w.indicatorColor,
-    showOverlay:     w.showOverlay,
-    panelSide:       w.panelSide,
-    tabStyle:        w.tabStyle,
-  };
-  try {
-    localStorage.setItem(STORE_LS_KEY, JSON.stringify(snap));
-  } catch {}
-}
 
 const HEADER_URL = (g: FreeGame) =>
   g.header || g.capsule || `https://cdn.akamai.steamstatic.com/steam/apps/${g.appid}/header.jpg`;
@@ -355,7 +334,6 @@ const SettingsPanel: React.FC = () => {
       } catch {}
       setWidget(w);
 
-      syncStoreSettings(s, w);
       setLoaded(true);
     };
     const bootTimer = setTimeout(() => { void boot(); }, 500);
@@ -366,7 +344,6 @@ const SettingsPanel: React.FC = () => {
     setWidget((prev) => {
       const next = { ...prev, ...patch };
       _saveWidgetIPC({ payload: JSON.stringify(next) });
-      syncStoreSettings(settings, next);
       return next;
     });
   }, [settings]);
@@ -471,7 +448,7 @@ async function startPolling(): Promise<void> {
         };
         if (idx >= 0) arr[idx] = entry;
         else          arr.unshift(entry);
-        
+
         if (knownSid !== sidAtStart) throw new Error('account changed during grabbed.json update');
         const saved = await withTimeout(saveGrabbed({ payload: JSON.stringify(arr) }), 3000, 0);
         if (!saved) throw new Error('save_grabbed_ipc returned 0');
