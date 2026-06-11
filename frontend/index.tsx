@@ -694,7 +694,7 @@ async function startPolling(): Promise<void> {
   let scanInProgress = false;
   let scanQueued = false;
   let pendingManualScanRequestAt = 0;
-  const triggerScan = async (reason: string): Promise<boolean> => {
+    const triggerScan = async (reason: string): Promise<boolean> => {
     if (scanInProgress) {
       scanQueued = true;
       log(`Scan queued (${reason}) — another scan is in progress`);
@@ -702,24 +702,23 @@ async function startPolling(): Promise<void> {
     }
     scanInProgress = true;
     scanQueued = false;
+    let result = false;
     try {
       log(`Manual scan triggered: ${reason}`);
-      const result = await runOneScan();
-      if (scanQueued) {
-        scanQueued = false;
-        scanInProgress = false;
-        return triggerScan('queued');
-      }
+      result = await runOneScan();
       if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
         const requestedAt = pendingManualScanRequestAt;
         pendingManualScanRequestAt = 0;
         await publishManualScanCompletion(requestedAt, result);
       }
-      return result;
     } finally {
       scanInProgress = false;
-      scanQueued = false;
     }
+    if (scanQueued) {
+      scanQueued = false;
+      return triggerScan('queued');
+    }
+    return result;
   };
 
 
