@@ -186,6 +186,7 @@ local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
 local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
 local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
 local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
+local WEEKEND_FILE      = PLUGIN_DIR .. "\\free_weekend_cache.json"
 local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
 
@@ -326,6 +327,17 @@ function save_free_games_cache_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
     write_file(CACHE_FILE, payload)
+    return 1
+end
+
+function load_free_weekend_cache_ipc()
+    return read_file(WEEKEND_FILE) or "[]"
+end
+
+function save_free_weekend_cache_ipc(data)
+    local payload = extract_payload(data)
+    if not _is_valid_json_payload(payload, "array") then return 0 end
+    write_file(WEEKEND_FILE, payload)
     return 1
 end
 

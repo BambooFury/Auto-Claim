@@ -12,7 +12,7 @@ import {
   SVG_FUNNEL,
 } from './_assets.generated';
 import {
-  loadFreeGamesCacheIPC, loadGrabbedIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
+  loadFreeGamesCacheIPC, loadFreeWeekendCacheIPC, loadGrabbedIPC, loadWidgetSettingsIPC, pushToastIPC, logIPC,
   saveWidgetSettingsIPC,
   tryAcquireClaimLockIPC, releaseClaimLockIPC,
 } from './ipc';
@@ -215,6 +215,7 @@ export function injectVanillaWidget(): void {
   let opened = false;
   let activeTab: 'games' | 'settings' = 'games';
   let games: FreeGame[] = [];
+  let weekendGames: FreeGame[] = [];
   let busyClaim = false;
   let claimingAppid = 0;
   let claimDone  = 0;
@@ -257,7 +258,7 @@ export function injectVanillaWidget(): void {
 
   function markVisibleAsSeen() {
     let changed = false;
-    for (const g of games) {
+    for (const g of [...games, ...weekendGames]) {
       if (isGameOwned(g.appid, ownedSet) || isInLibrary(g.appid)) continue;
       if (!seenSet.has(g.appid)) { seenSet.add(g.appid); changed = true; }
     }
@@ -278,12 +279,13 @@ export function injectVanillaWidget(): void {
   const filterBtnEl  = $<HTMLElement>('#fgg-filter-btn')!;
   const filterToastEl = $<HTMLElement>('#fgg-filter-toast')!;
   enableSmoothScroll(bodyEl);
-  const FILTER_TOAST_LABELS: Record<'games' | 'all', string> = {
-    games: 'Games only',
-    all:   'All free items',
+  const FILTER_TOAST_LABELS: Record<'games' | 'all' | 'weekend', string> = {
+    games:   'Games only',
+    all:     'All free items',
+    weekend: 'Free weekend',
   };
   let filterToastTimer: ReturnType<typeof setTimeout> | null = null;
-  function showFilterToast(mode: 'games' | 'all') {
+  function showFilterToast(mode: 'games' | 'all' | 'weekend') {
     filterToastEl.innerHTML = `${SVG_FUNNEL}<span>${FILTER_TOAST_LABELS[mode]}</span>`;
     filterToastEl.classList.remove('is-visible');
     void filterToastEl.offsetWidth;
@@ -295,15 +297,18 @@ export function injectVanillaWidget(): void {
   }
 
   function updateFilterBtnState() {
-    filterBtnEl.setAttribute('aria-label', cfg.filterMode === 'games' ? 'Filter: Games' : 'Filter: All');
-    filterBtnEl.classList.toggle('is-all', cfg.filterMode === 'all');
+    const label = cfg.filterMode === 'games' ? 'Filter: Games'
+                : cfg.filterMode === 'all'   ? 'Filter: All'
+                : 'Filter: Free weekend';
+    filterBtnEl.setAttribute('aria-label', label);
+    filterBtnEl.classList.toggle('is-all', cfg.filterMode !== 'games');
   }
 
   function toggleFilter(e: Event) {
     e.preventDefault();
     e.stopPropagation();
     if (activeTab === 'settings') return;
-    const next = cfg.filterMode === 'games' ? 'all' : 'games';
+    const next = cfg.filterMode === 'games' ? 'all' : cfg.filterMode === 'all' ? 'weekend' : 'games';
     cfg.filterMode = next;
     saveSettings();
     updateFilterBtnState();
@@ -325,6 +330,7 @@ export function injectVanillaWidget(): void {
   });
 
   function visibleByFilter(list: FreeGame[]): FreeGame[] {
+    if (cfg.filterMode === 'weekend') return weekendGames;
     return cfg.filterMode === 'all' ? list : list.filter(isClaimableGame);
   }
 
@@ -513,6 +519,21 @@ export function injectVanillaWidget(): void {
     try {
       const raw = await loadFreeGamesCacheIPC();
       const next: FreeGame[] = JSON.parse(raw || '[]');
+      try {
+        const wraw = await loadFreeWeekendCacheIPC();
+        const wnext: FreeGame[] = JSON.parse(wraw || '[]');
+        const wChanged =
+          wnext.length !== weekendGames.length ||
+          wnext.some((g, i) => g.appid !== weekendGames[i]?.appid);
+        if (wChanged) {
+          weekendGames = wnext;
+          if (cfg.filterMode === 'weekend') {
+            updateNewIndicator();
+            refreshGamesBadge();
+            if (opened && activeTab === 'games') render();
+          }
+        }
+      } catch {}
 
       const unchanged =
         next.length === games.length &&
@@ -577,7 +598,7 @@ export function injectVanillaWidget(): void {
     filterBtnEl.setAttribute('aria-disabled', activeTab === 'settings' ? 'true' : 'false');
 
     if (activeTab === 'games') {
-      renderGames(bodyEl, games, ownedSet, busyClaim, claimingAppid);
+      renderGames(bodyEl, cfg.filterMode === 'weekend' ? weekendGames : games, ownedSet, busyClaim, claimingAppid);
     } else {
       renderSettings(bodyEl, render, persistAndRefresh, () => void runAutoClaim(), queueManualScanRequest);
     }
@@ -606,7 +627,7 @@ export function injectVanillaWidget(): void {
             if (w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') {
               cfg.tabStyle = w.tabStyle;
             }
-            if (w.filterMode === 'games' || w.filterMode === 'all') {
+            if (w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') {
               cfg.filterMode = w.filterMode;
             }
             applyChrome();
@@ -735,7 +756,7 @@ export function injectVanillaWidget(): void {
             cfg.tabStyle = w.tabStyle; changed = true;
           }
           let filterChanged = false;
-          if ((w.filterMode === 'games' || w.filterMode === 'all') && w.filterMode !== cfg.filterMode) {
+          if ((w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') && w.filterMode !== cfg.filterMode) {
             cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
           }
 
@@ -757,7 +778,6 @@ export function injectVanillaWidget(): void {
     void softRefresh();
   }, 5000);
 
-
   _fggIntervals.push(settingsPoll, cachePoll);
 
   window.addEventListener('beforeunload', () => {
@@ -768,6 +788,15 @@ export function injectVanillaWidget(): void {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
+}
+
+function formatUntil(until?: number): string {
+  if (!until) return 'this weekend';
+  try {
+    return new Date(until * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return 'this weekend';
+  }
 }
 
 const PANEL_CSS = WIDGET_CSS_TEMPLATE;
@@ -795,22 +824,27 @@ function renderGames(
   claimingAppid: number,
 ): void {
   if (games.length === 0) {
-    bodyEl.innerHTML = renderEmpty('No free items detected right now.');
+    bodyEl.innerHTML = renderEmpty(
+      cfg.filterMode === 'weekend'
+        ? 'No free-weekend games right now.'
+        : 'No free items detected right now.',
+    );
     return;
   }
 
-  const filteredByMode = cfg.filterMode === 'all' ? games : games.filter(isClaimableGame);
-
+  const filteredByMode = cfg.filterMode === 'games' ? games.filter(isClaimableGame) : games;
   const visibleGames = cfg.hideOwned
     ? filteredByMode.filter((g) => !isGameOwned(g.appid, ownedSet) && !isInLibrary(g.appid))
     : filteredByMode;
 
   if (visibleGames.length === 0) {
-    const emptyMsg = cfg.hideOwned
-      ? 'No new free items right now.'
-      : (cfg.filterMode === 'games'
-          ? 'No free games right now.'
-          : 'No free items right now.');
+    const emptyMsg = cfg.filterMode === 'weekend'
+      ? 'No free-weekend games right now.'
+      : cfg.hideOwned
+        ? 'No new free items right now.'
+        : (cfg.filterMode === 'games'
+            ? 'No free games right now.'
+            : 'No free items right now.');
     bodyEl.innerHTML = renderEmpty(emptyMsg);
     return;
   }
@@ -867,12 +901,15 @@ function buildCard(
   claimingAppid: number,
 ): string {
   const owned     = isGameOwned(g.appid, ownedSet);
-  const isClaim   = claiming && claimingAppid === g.appid;
+  const isWeekend = g.type === 'weekend';
+  const isClaim   = !isWeekend && claiming && claimingAppid === g.appid;
   const typeLabel = gameTypeLabel(g.type);
 
   const accent    = owned ? 'rgba(85,204,85,0.35)' : isClaim ? 'rgba(255,255,255,0.6)'  : 'rgba(255,255,255,0.28)';
   const dotColor  = owned ? '#55cc55'              : 'rgba(255,255,255,0.7)';
-  const baseStatus = typeLabel ? typeLabel + ' · 100% off' : '100% off · pending';
+  const baseStatus = isWeekend
+    ? 'Play for free until ' + formatUntil(g.until)
+    : (typeLabel ? typeLabel + ' · 100% off' : '100% off · pending');
   const status    = owned ? 'Owned · in your library' : isClaim ? 'Claiming silently…' : baseStatus;
   const cardEdge  = owned ? 'rgba(85,204,85,0.18)' : isClaim ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)';
   const cardGlow  = isClaim ? '0 0 16px rgba(255,255,255,0.10)' : '';

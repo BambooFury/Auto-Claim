@@ -38,7 +38,7 @@ export let initialWidgetRaw = '';
 
 const VALID_PANEL_SIDES: PanelSide[]  = ['left', 'right'];
 const VALID_TAB_STYLES: TabStyle[]    = ['slim', 'large', 'floating'];
-const VALID_FILTER_MODES: FilterMode[] = ['games', 'all'];
+const VALID_FILTER_MODES: FilterMode[] = ['games', 'all', 'weekend'];
 
 function isPanelSide(v: any):  v is PanelSide  { return VALID_PANEL_SIDES.indexOf(v)  !== -1; }
 function isTabStyle(v: any):   v is TabStyle   { return VALID_TAB_STYLES.indexOf(v)   !== -1; }

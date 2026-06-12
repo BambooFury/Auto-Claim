@@ -4,8 +4,9 @@ export type FreeGame = {
   type?: string;
   header?: string;
   capsule?: string;
+  until?: number;
 };
 
 export type PanelSide = 'left' | 'right';
 export type TabStyle  = 'slim' | 'large' | 'floating';
-export type FilterMode = 'games' | 'all';
+export type FilterMode = 'games' | 'all' | 'weekend';

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
 import { MIN_POLL_INTERVAL_MIN } from './constants';
 import { runScan } from './scanner';
+import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
 type Empty = [];
 type StrIn = [{ payload: string }];
 
@@ -12,6 +13,8 @@ const loadSettings      = callable<Empty, string>('load_settings_ipc');
 const _logPluginIPC     = callable<StrIn, number>('log_plugin');
 const saveFreeGamesCache = callable<StrIn, number>('save_free_games_cache_ipc');
 const loadFreeGamesCache = callable<Empty, string>('load_free_games_cache_ipc');
+const saveFreeWeekendCache = callable<StrIn, number>('save_free_weekend_cache_ipc');
+const loadFreeWeekendCache = callable<Empty, string>('load_free_weekend_cache_ipc');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
@@ -476,7 +479,7 @@ async function startPolling(): Promise<void> {
       const wRaw = await withTimeout(_loadWidgetIPC(), 1000, '');
       if (wRaw) {
         const w = JSON.parse(wRaw);
-        if (w && (w.filterMode === 'all' || w.filterMode === 'games')) {
+          if (w && (w.filterMode === 'all' || w.filterMode === 'games' || w.filterMode === 'weekend')) {
           cachedWidgetFilterMode = w.filterMode;
           return;
         }
@@ -618,6 +621,68 @@ async function startPolling(): Promise<void> {
       log(`processGame error for ${game.name}: ${String(e)}`);
     }
   }
+  
+  function showWeekendNotification(game: WeekendGame): void {
+    const untilStr = new Date(game.until * 1000)
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    toaster.toast({
+      title: 'Free Weekend!',
+      body:  `${game.name} is free to play until ${untilStr}.`,
+      logo: React.createElement('img', {
+        src: `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
+        style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' },
+      }),
+      onClick: () => { (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0); },
+      duration:  12000,
+      sound:     1,
+      playSound: true,
+      showToast: true,
+    });
+  }
+
+  async function runWeekendScan(): Promise<void> {
+    try {
+      const result = await scanFreeWeekend({ info: (m) => log(m), warn: (m) => log(m) });
+      if (!result) {
+        log('Weekend scan failed — keeping previous list');
+        return;
+      }
+
+      let prev: WeekendGame[] = [];
+      try {
+        prev = JSON.parse(await withTimeout(loadFreeWeekendCache(), 3000, '[]') || '[]');
+      } catch {}
+      const prevIds = new Set(prev.map((g) => g.appid));
+
+      const nowSec = Date.now() / 1000;
+      const merged = [...result];
+      for (const p of prev) {
+        if (p.until > nowSec && !merged.some((g) => g.appid === p.appid)) merged.push(p);
+      }
+
+      try {
+        await withTimeout(saveFreeWeekendCache({ payload: JSON.stringify(merged) }), 3000, 0);
+      } catch {}
+      log(`Weekend scan complete — ${merged.length} game(s) playable for free`);
+      
+      let notify = true;
+      try {
+        const sraw = await withTimeout(loadSettings(), 2000, '');
+        if (sraw) notify = ({ ...DEFAULTS, ...JSON.parse(sraw) } as Settings).notifyOnGrab;
+      } catch {}
+      if (!notify) return;
+      
+      for (const g of result) {
+        if (prevIds.has(g.appid)) continue;
+        if (isAlreadyInLibrary(g.appid)) continue;
+        log(`Free weekend detected: ${g.name} (${g.appid})`);
+        showWeekendNotification(g);
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    } catch (e) {
+      log(`runWeekendScan error: ${String(e)}`);
+    }
+  }
 
   async function runOneScan(): Promise<boolean> {
     await reloadState();
@@ -737,6 +802,15 @@ async function startPolling(): Promise<void> {
   }
 
   await triggerScan('initial');
+  const WEEKEND_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
+  let lastWeekendScanMs = Date.now();
+  void runWeekendScan();
+  _trackInterval(() => {
+    if (Date.now() - lastWeekendScanMs >= WEEKEND_SCAN_INTERVAL_MS) {
+      lastWeekendScanMs = Date.now();
+      void runWeekendScan();
+    }
+  }, 10 * 60 * 1000);
 
   const pollManualScanRequest = async () => {
     const manualRequestedAt = await consumeManualScanRequest();
