@@ -699,11 +699,26 @@ end
 
 local STORE_HOOK_REGEX = "https://store\\.steampowered\\.com/.*"
 
+local function register_store_hook()
+    if type(millennium.add_browser_css) ~= "function" then
+        logger:error("[AutoClaim] add_browser_css is not available in this Millennium version")
+        return
+    end
+    local ok, res = pcall(millennium.add_browser_css, "auto-claim.noop.css", STORE_HOOK_REGEX)
+    if ok then
+        logger:info("[AutoClaim] store hook registered, id=" .. tostring(res))
+    else
+        logger:error("[AutoClaim] store hook registration failed: " .. tostring(res))
+    end
+end
+
 local function on_load()
-    pcall(millennium.add_browser_css, "auto-claim.noop.css", STORE_HOOK_REGEX)
+    register_store_hook()
+
     logger:info("[AutoClaim] Loaded, Millennium " .. millennium.version())
     millennium.ready()
 end
+
 local function on_unload() end
 
 local function on_frontend_loaded() end
