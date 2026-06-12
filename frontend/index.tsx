@@ -654,11 +654,24 @@ async function startPolling(): Promise<void> {
       } catch {}
       const prevIds = new Set(prev.map((g) => g.appid));
 
-      try {
-        await withTimeout(saveFreeWeekendCache({ payload: JSON.stringify(result) }), 3000, 0);
-      } catch {}
-      log(`Weekend scan complete — ${result.length} game(s) playable for free`);
+      const nowSec = Date.now() / 1000;
+      const merged = [...result];
+      for (const p of prev) {
+        if (p.until > nowSec && !merged.some((g) => g.appid === p.appid)) merged.push(p);
+      }
 
+      try {
+        await withTimeout(saveFreeWeekendCache({ payload: JSON.stringify(merged) }), 3000, 0);
+      } catch {}
+      log(`Weekend scan complete — ${merged.length} game(s) playable for free`);
+      
+      let notify = true;
+      try {
+        const sraw = await withTimeout(loadSettings(), 2000, '');
+        if (sraw) notify = ({ ...DEFAULTS, ...JSON.parse(sraw) } as Settings).notifyOnGrab;
+      } catch {}
+      if (!notify) return;
+      
       for (const g of result) {
         if (prevIds.has(g.appid)) continue;
         if (isAlreadyInLibrary(g.appid)) continue;
