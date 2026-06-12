@@ -23,7 +23,7 @@ const icons = Object.fromEntries(
   ICONS.map((name) => [name, readFileSync(join(iconsDir, `${name}.svg`), 'utf8').trim()]),
 );
 
-const WELCOME_ICON_NAMES = ['gift', 'search', 'sparkles', 'eye', 'settings', 'funnel', 'rocket', 'x'];
+const WELCOME_ICON_NAMES = ['gift', 'search', 'sparkles', 'eye', 'settings', 'funnel', 'rocket', 'x', 'gamepad'];
 const welcomeIcons = Object.fromEntries(
   WELCOME_ICON_NAMES.map((name) => [
     name,
