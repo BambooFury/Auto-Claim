@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.8.0](https://github.com/BambooFury/Auto-Claim/compare/v1.7.0...v1.8.0) (2026-06-12)
+
+
+### Features
+
+* claim progress visuals with confirming state and success check ([e8be7d9](https://github.com/BambooFury/Auto-Claim/commit/e8be7d99b3c5b1d1a34f1693729c221a8fc8991e))
+
+
+### Bug Fixes
+
+* keep panel on whole pixels to avoid blurry text during claiming ([dff4a37](https://github.com/BambooFury/Auto-Claim/commit/dff4a37a0e6ee4abae6e6eb12058ca2019aafd85))
+* reduce background scanner log noise ([d757757](https://github.com/BambooFury/Auto-Claim/commit/d7577578206750b5f662a02da7373ebd362365a2))
+* register store browser hook so widget injects without a custom theme ([9cb7d67](https://github.com/BambooFury/Auto-Claim/commit/9cb7d6702255b7f31a03352baebd986db61ae48e))
+* use best-effort certificate revocation check for windows curl ([935416c](https://github.com/BambooFury/Auto-Claim/commit/935416ce98b9c889f5dac8b8788594bed74d44cf))
+
 ## [1.7.0](https://github.com/BambooFury/Auto-Claim/compare/v1.6.2...v1.7.0) (2026-06-12)
 
 
