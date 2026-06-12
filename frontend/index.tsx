@@ -216,21 +216,34 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
         `(function() {` +
         `  try {` +
         `    var sub = null;` +
+        `    var freeForm = null;` +
+        `    var forms = document.querySelectorAll('form');` +
+        `    for (var f = 0; f < forms.length; f++) {` +
+        `      var act = forms[f].getAttribute('action') || '';` +
+        `      if (act.indexOf('freelicense/addfreelicense') !== -1) {` +
+        `        var inp = forms[f].querySelector('input[name="subid"]');` +
+        `        if (inp && inp.value) { freeForm = forms[f]; sub = parseInt(inp.value, 10); break; }` +
+        `      }` +
+        `    }` +
         `    var html = document.documentElement.outerHTML || '';` +
-        `    var pats = [` +
-        `      /javascript:AddFreeLicense\\(\\s*(\\d+)\\s*\\)/,` +
-        `      /javascript:addToCart\\(\\s*(\\d+)\\s*\\)/,` +
-        `      /\\bAddFreeLicense\\(\\s*(\\d+)\\s*\\)/,` +
-        `      /\\baddToCart\\(\\s*(\\d+)\\s*\\)/,` +
-        `      /data-ds-add-free-sub="(\\d+)"/,` +
-        `      /id="add_to_cart_submit_(\\d+)"/,` +
-        `      /name="subid"\\s+value="(\\d+)"/,` +
-        `    ];` +
-        `    for (var i = 0; i < pats.length && !sub; i++) {` +
-        `      var m = html.match(pats[i]);` +
-        `      if (m) sub = parseInt(m[1], 10);` +
+        `    if (!sub) {` +
+        `      var pats = [` +
+        `        /data-ds-add-free-sub="(\\d+)"/,` +
+        `        /data-add-free-sub="(\\d+)"/,` +
+        `        /javascript:AddFreeLicense\\(\\s*(\\d+)\\s*\\)/,` +
+        `        /\\bAddFreeLicense\\(\\s*(\\d+)\\s*\\)/,` +
+        `      ];` +
+        `      for (var i = 0; i < pats.length && !sub; i++) {` +
+        `        var m = html.match(pats[i]);` +
+        `        if (m) sub = parseInt(m[1], 10);` +
+        `      }` +
         `    }` +
         `    if (!sub) { document.title = 'fgg:no_subid'; return; }` +
+        `    if (freeForm && typeof addToCart !== 'function' && typeof AddFreeLicense !== 'function') {` +
+        `      freeForm.submit();` +
+        `      document.title = 'fgg:form_submitted:' + sub;` +
+        `      return;` +
+        `    }` +
         `    if (typeof AddFreeLicense === 'function') {` +
         `      AddFreeLicense(sub);` +
         `      document.title = 'fgg:addfreelicense_called:' + sub;` +

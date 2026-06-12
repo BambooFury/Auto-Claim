@@ -14,6 +14,28 @@ export interface ClaimResult {
   reason: string;
 }
 
+interface ClaimTarget {
+  subid: string;
+  action: string | null;
+}
+
+const FREE_FORM_RE = /<form[^>]+action="([^"]*\/freelicense\/addfreelicense\/?[^"]*)"[^>]*>([\s\S]*?)<\/form>/gi;
+
+function findClaimTarget(html: string): ClaimTarget | null {
+  FREE_FORM_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = FREE_FORM_RE.exec(html))) {
+    const sub = (m[2].match(/name="subid"\s+value="(\d+)"/) || [])[1];
+    if (sub) return { subid: sub, action: m[1] };
+  }
+  const ds = html.match(/data-ds-add-free-sub="(\d+)"/) || html.match(/data-add-free-sub="(\d+)"/);
+  if (ds && ds[1]) return { subid: ds[1], action: null };
+  const afl = html.match(/AddFreeLicense\(\s*(\d+)\s*\)/);
+  if (afl && afl[1]) return { subid: afl[1], action: null };
+  const sub = findSubid(html);
+  return sub ? { subid: sub, action: null } : null;
+}
+
 const APP_URL  = (id: number) => `https://store.steampowered.com/app/${id}/?cc=us&l=english`;
 const POST_URL = 'https://store.steampowered.com/checkout/addfreelicense';
 
@@ -130,17 +152,20 @@ async function fetchWithRetry(
 export async function silentClaim(appid: number): Promise<ClaimResult> {
   try {
 
-    let subid = findSubid(document.documentElement.outerHTML);
+    let target: ClaimTarget | null = null;
+    if (window.location.href.indexOf('/app/' + appid) !== -1) {
+      target = findClaimTarget(document.documentElement.outerHTML);
+    }
 
-
-    if (!subid) {
+    if (!target) {
       try {
         const pageRes = await fetchWithRetry(APP_URL(appid), { credentials: 'include' }, 1, 500);
         const html    = await pageRes.text();
-        subid         = findSubid(html);
+        target        = findClaimTarget(html);
       } catch {}
     }
-    if (!subid) return { ok: false, reason: 'no subid in app page' };
+    if (!target) return { ok: false, reason: 'no subid in app page' };
+    const subid = target.subid;
 
     const sessionid = extractSessionId();
     if (!sessionid) return { ok: false, reason: 'no sessionid' };
@@ -151,9 +176,10 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
     form.set('subid', subid);
 
     const referer = `https://store.steampowered.com/app/${appid}/`;
+    const postUrl = target.action || POST_URL;
     let claimRes: Response;
     try {
-      claimRes = await fetch(POST_URL, {
+      claimRes = await fetch(postUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -166,7 +192,7 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
     } catch (err) {
 
       if (!isTransientFetchError(err)) throw err;
-      claimRes = await _xhrPostForm(POST_URL, form.toString(), referer);
+      claimRes = await _xhrPostForm(postUrl, form.toString(), referer);
     }
 
     if (claimRes.status === 401 || claimRes.status === 403) {
@@ -195,6 +221,9 @@ export async function silentClaim(appid: number): Promise<ClaimResult> {
     } catch {}
 
     if (/"success"\s*:\s*1\b/.test(text)) {
+      return { ok: true, reason: 'ok' };
+    }
+    if (/game_area_already_owned|already in your Steam library/i.test(text)) {
       return { ok: true, reason: 'ok' };
     }
     if (/Sign In|please log in|store\.steampowered\.com\/login/i.test(text)) {
