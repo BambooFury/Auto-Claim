@@ -436,7 +436,7 @@ local function _build_curl_ffi()
         local tmp_err  = string.format("%s\\autoclaim_curl_%s.err",  tmp_dir, rnd)
 
         local cmdline = string.format(
-            'curl.exe -sS -L --max-time %d --retry 2 --retry-delay 1 ' ..
+            'curl.exe -sS -L --ssl-revoke-best-effort --max-time %d --retry 2 --retry-delay 1 ' ..
             '-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' ..
             'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" ' ..
             '-H "Accept: application/json, text/plain, */*" ' ..
@@ -515,7 +515,7 @@ local function _curl_popen(url)
         local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "."
         err_path = string.format("%s\\autoclaim_curl_popen_%d_%d.err",
                                  tmp_dir, os.time(), math.random(1, 1000000))
-        cmd = 'curl.exe -sS -L --max-time ' .. _CURL_TIMEOUT_S ..
+        cmd = 'curl.exe -sS -L --ssl-revoke-best-effort --max-time ' .. _CURL_TIMEOUT_S ..
               ' --retry 2 --retry-delay 1' ..
               ' -A ' .. UA_WIN ..
               ' -H "Accept: application/json, text/plain, */*"' ..
