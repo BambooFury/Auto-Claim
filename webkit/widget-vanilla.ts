@@ -192,7 +192,7 @@ export function injectVanillaWidget(): void {
   const panel = document.createElement('div');
   Object.assign(panel.style, {
     position: 'fixed', top: '65%',
-    transform: `translateY(-50%) translateX(${isLeft ? '-110%' : '110%'})`,
+    transform: `translateX(${isLeft ? '-110%' : '110%'})`,
     transition: `transform 0.25s ${SMOOTH}`,
     width: PANEL_W + 'px',
     background: '#0d0d0d',
@@ -202,6 +202,11 @@ export function injectVanillaWidget(): void {
   } as Partial<CSSStyleDeclaration>);
   if (isLeft) panel.style.left = pOff + 'px';
   else        panel.style.right = pOff + 'px';
+
+  const panelAlign = new ResizeObserver(() => {
+    panel.style.marginTop = -Math.round(panel.offsetHeight / 2) + 'px';
+  });
+  panelAlign.observe(panel);
 
   panel.innerHTML = panelMarkup();
   const styleEl = panel.querySelector<HTMLStyleElement>('#fgg-style');
@@ -698,7 +703,7 @@ export function injectVanillaWidget(): void {
       hideTimer = setTimeout(() => { if (!opened) panel.style.visibility = 'hidden'; }, 320);
     }
 
-    panel.style.transform = `translateY(-50%) translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
+    panel.style.transform = `translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
     dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
     tabBtn.style.background = opened ? palette.bgHover : palette.bg;
 
@@ -751,7 +756,7 @@ export function injectVanillaWidget(): void {
 
     panel.style.borderRadius = panelRadius(cfg.tabStyle, isLeft);
     panel.style.transition   = `transform 0.3s ${SMOOTH}`;
-    panel.style.transform    = `translateY(-50%) translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
+    panel.style.transform    = `translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
     panel.style.visibility   = (!opened && cfg.tabStyle === 'floating') ? 'hidden' : 'visible';
 
     if (isLeft) {
