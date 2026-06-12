@@ -27,6 +27,8 @@ const PANEL_RIGHT_OFFSET_WHEN_OPEN = 341;
 const SMOOTH = 'cubic-bezier(0.4,0,0.2,1)';
 
 const _fggIntervals: ReturnType<typeof setInterval>[] = [];
+const _justClaimed = new Set<number>();
+const _confirming = new Set<number>();
 
 async function queueManualScanRequest(): Promise<number> {
   try {
@@ -190,7 +192,7 @@ export function injectVanillaWidget(): void {
   const panel = document.createElement('div');
   Object.assign(panel.style, {
     position: 'fixed', top: '65%',
-    transform: `translateY(-50%) translateX(${isLeft ? '-110%' : '110%'})`,
+    transform: `translateX(${isLeft ? '-110%' : '110%'})`,
     transition: `transform 0.25s ${SMOOTH}`,
     width: PANEL_W + 'px',
     background: '#0d0d0d',
@@ -200,6 +202,11 @@ export function injectVanillaWidget(): void {
   } as Partial<CSSStyleDeclaration>);
   if (isLeft) panel.style.left = pOff + 'px';
   else        panel.style.right = pOff + 'px';
+
+  const panelAlign = new ResizeObserver(() => {
+    panel.style.marginTop = -Math.round(panel.offsetHeight / 2) + 'px';
+  });
+  panelAlign.observe(panel);
 
   panel.innerHTML = panelMarkup();
   const styleEl = panel.querySelector<HTMLStyleElement>('#fgg-style');
@@ -404,6 +411,7 @@ export function injectVanillaWidget(): void {
     busyClaim  = true;
     claimTotal = todo.length;
     claimDone  = 0;
+    const missed: number[] = [];
     refreshFooter();
 
     for (const g of todo) {
@@ -440,6 +448,7 @@ export function injectVanillaWidget(): void {
         }
         if (!acquired) {
           logIPC({ payload: `[${g.appid}] widget claim skipped — lock still busy` }).catch(() => {});
+          missed.push(g.appid);
           claimDone++;
           refreshFooter();
           continue;
@@ -455,13 +464,20 @@ export function injectVanillaWidget(): void {
 
       if (result.ok) {
         ownedSet.add(g.appid);
+        _justClaimed.add(g.appid);
+        render();
+        const claimedAppid = g.appid;
+        setTimeout(() => { _justClaimed.delete(claimedAppid); }, 1800);
         updateNewIndicator();
         if (cfg.notifyOnGrab) {
           pushToastIPC({ payload: JSON.stringify({ appid: g.appid, name: g.name }) })
             .catch(() => {});
         }
       } else if (result.reason === 'session expired' || result.reason === 'no sessionid') {
+        missed.push(g.appid);
         break;
+      } else {
+        missed.push(g.appid);
       }
       claimDone++;
       refreshFooter();
@@ -475,6 +491,49 @@ export function injectVanillaWidget(): void {
     refreshFooter();
     updateNewIndicator();
     render();
+    if (missed.length > 0) void watchPendingClaims(missed);
+  }
+
+  let watchingPending = false;
+
+  async function watchPendingClaims(appids: number[]) {
+    if (watchingPending) return;
+    watchingPending = true;
+    const pending = new Set(appids);
+    for (const id of pending) _confirming.add(id);
+    if (opened && activeTab === 'games') render();
+    const deadline = Date.now() + 180_000;
+    let lastLib = 0;
+    try {
+      while (pending.size > 0 && Date.now() < deadline) {
+        await sleep(5000);
+        await mergeGrabbedIntoOwned(ownedSet);
+        if (Date.now() - lastLib > 20_000) {
+          lastLib = Date.now();
+          await checkLibraryOwnership(ownedSet, Array.from(pending));
+        }
+        let found = false;
+        for (const id of Array.from(pending)) {
+          if (ownedSet.has(id) || isInLibrary(id)) {
+            pending.delete(id);
+            _confirming.delete(id);
+            _justClaimed.add(id);
+            const doneId = id;
+            setTimeout(() => { _justClaimed.delete(doneId); }, 1800);
+            found = true;
+          }
+        }
+        if (found) {
+          updateNewIndicator();
+          refreshGamesBadge();
+          if (opened && activeTab === 'games') render();
+        }
+      }
+    } finally {
+      for (const id of pending) _confirming.delete(id);
+      watchingPending = false;
+      if (opened && activeTab === 'games') render();
+    }
   }
 
 
@@ -644,7 +703,7 @@ export function injectVanillaWidget(): void {
       hideTimer = setTimeout(() => { if (!opened) panel.style.visibility = 'hidden'; }, 320);
     }
 
-    panel.style.transform = `translateY(-50%) translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
+    panel.style.transform = `translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
     dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
     tabBtn.style.background = opened ? palette.bgHover : palette.bg;
 
@@ -697,7 +756,7 @@ export function injectVanillaWidget(): void {
 
     panel.style.borderRadius = panelRadius(cfg.tabStyle, isLeft);
     panel.style.transition   = `transform 0.3s ${SMOOTH}`;
-    panel.style.transform    = `translateY(-50%) translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
+    panel.style.transform    = `translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
     panel.style.visibility   = (!opened && cfg.tabStyle === 'floating') ? 'hidden' : 'visible';
 
     if (isLeft) {
@@ -910,14 +969,16 @@ function buildCard(
   const baseStatus = isWeekend
     ? 'Play for free until ' + formatUntil(g.until)
     : (typeLabel ? typeLabel + ' · 100% off' : '100% off · pending');
-  const status    = owned ? 'Owned · in your library' : isClaim ? 'Claiming silently…' : baseStatus;
+  const justDone  = owned && _justClaimed.has(g.appid);
+  const isConfirm = !owned && !isWeekend && !isClaim && _confirming.has(g.appid);
+  const status    = justDone ? 'Added to your library' : owned ? 'Owned · in your library' : isClaim ? 'Claiming silently…' : isConfirm ? 'Confirming…' : baseStatus;
   const cardEdge  = owned ? 'rgba(85,204,85,0.18)' : isClaim ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)';
   const cardGlow  = isClaim ? '0 0 16px rgba(255,255,255,0.10)' : '';
 
   let trailing: string;
   if (owned) {
     trailing = `<div class="fgg-check">${SVG_CHECK}</div>`;
-  } else if (isClaim) {
+  } else if (isClaim || isConfirm) {
     trailing = `<div class="fgg-spinner"></div>`;
   } else {
     trailing = `<button class="fgg-open-btn" data-open-app="${g.appid}">Open</button>`;
@@ -929,7 +990,7 @@ function buildCard(
   const headerSrc  = g.header  || `${cdn}/${g.appid}/header.jpg`;
   const headerBack = g.capsule || `${cdn}/${g.appid}/capsule_231x87.jpg`;
 
-  const cls = `fgg-card${isClaim ? ' claiming' : ''}${owned ? ' owned' : ''}`;
+  const cls = `fgg-card${isClaim ? ' claiming' : ''}${isConfirm ? ' confirming' : ''}${owned ? ' owned' : ''}${justDone ? ' just-claimed' : ''}`;
   const vars = [
     `--fgg-accent:${accent}`,
     `--fgg-edge:${cardEdge}`,

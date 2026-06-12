@@ -59,6 +59,11 @@ const log = (msg: string) => {
   _logPluginIPC({ payload: msg }).catch(() => {});
 };
 
+const DEBUG_LOG = false;
+const dlog = (msg: string) => {
+  if (DEBUG_LOG) log(msg);
+};
+
 
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
@@ -281,10 +286,10 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
         if (isAlreadyInLibrary(appid)) { succeeded = true; break; }
       }
       if (!succeeded) {
-        log(`[${appid}] hidden-popup: claim triggered but ownership not confirmed — will retry next scan`);
+        dlog(`[${appid}] hidden-popup: claim triggered but ownership not confirmed — will retry next scan`);
       }
     } else {
-      log(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
+      dlog(`[${appid}] hidden-popup: timed out after ${TIMEOUT_MS / 1000}s`);
     }
   }
 
@@ -305,13 +310,13 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
 
   const acquired = await tryAcquireClaimLock({ payload: String(appid) }).catch(() => 0);
   if (!acquired) {
-    log(`[${appid}] claim lock busy — another process is claiming, skipping`);
+    dlog(`[${appid}] claim lock busy — another process is claiming, skipping`);
     return false;
   }
 
   try {
     if (await addViaHiddenPopup(appid)) return true;
-    log(`[${appid}] hidden popup claim failed — leaving game unclaimed (will retry next scan)`);
+    dlog(`[${appid}] hidden popup claim failed — leaving game unclaimed (will retry next scan)`);
     return false;
   } finally {
     await releaseClaimLock({ payload: String(appid) }).catch(() => {});
@@ -408,6 +413,9 @@ async function startPolling(): Promise<void> {
   let grabbedSet  = new Set<number>();
   let notifiedSet = new Set<number>();
   const skipLogged = new Set<number>();
+  const failLogged = new Set<number>();
+  let lastScanSummary = '';
+  let lastWeekendSummary = '';
 
   async function reloadState(): Promise<void> {
     const [sRaw, gRaw] = await Promise.all([
@@ -573,7 +581,7 @@ async function startPolling(): Promise<void> {
         return;
       }
 
-      log(`Free game detected: ${game.name} (${game.appid})`);
+      dlog(`Free game detected: ${game.name} (${game.appid})`);
 
 
       let liveSettings: Settings = settings;
@@ -612,10 +620,16 @@ async function startPolling(): Promise<void> {
             (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0);
           });
         }
+        failLogged.delete(game.appid);
         log(`${game.name} — successfully added to library`);
       } else {
         await recordGrabbed(game, false);
-        log(`${game.name} — failed to add, will retry next scan`);
+        if (!failLogged.has(game.appid)) {
+          failLogged.add(game.appid);
+          log(`${game.name} — claim not confirmed yet, will keep retrying in background`);
+        } else {
+          dlog(`${game.name} — failed to add, will retry next scan`);
+        }
       }
     } catch (e) {
       log(`processGame error for ${game.name}: ${String(e)}`);
@@ -663,7 +677,13 @@ async function startPolling(): Promise<void> {
       try {
         await withTimeout(saveFreeWeekendCache({ payload: JSON.stringify(merged) }), 3000, 0);
       } catch {}
-      log(`Weekend scan complete — ${merged.length} game(s) playable for free`);
+      const weekendSummary = `Weekend scan complete — ${merged.length} game(s) playable for free`;
+      if (weekendSummary !== lastWeekendSummary) {
+        lastWeekendSummary = weekendSummary;
+        log(weekendSummary);
+      } else {
+        dlog(weekendSummary);
+      }
       
       let notify = true;
       try {
@@ -687,11 +707,11 @@ async function startPolling(): Promise<void> {
   async function runOneScan(): Promise<boolean> {
     await reloadState();
     await refreshWidgetFilterMode();
-    log('Scanning Steam Store for 100% discounts...');
+    dlog('Scanning Steam Store for 100% discounts...');
 
     try {
       const scannerLog = {
-        info: (m: string) => log(m),
+        info: (m: string) => dlog(m),
         warn: (m: string) => log(m),
       };
       const result = await withTimeout(
@@ -715,7 +735,13 @@ async function startPolling(): Promise<void> {
       }
 
       const games: FreeGame[] = result.games;
-      log(`Scan complete — ${games.length} free game(s) found`);
+      const summary = `Scan complete — ${games.length} free game(s) found`;
+      if (summary !== lastScanSummary) {
+        lastScanSummary = summary;
+        log(summary);
+      } else {
+        dlog(summary);
+      }
 
       try {
         await withTimeout(
@@ -742,14 +768,14 @@ async function startPolling(): Promise<void> {
     const triggerScan = async (reason: string): Promise<boolean> => {
     if (scanInProgress) {
       scanQueued = true;
-      log(`Scan queued (${reason}) — another scan is in progress`);
+      dlog(`Scan queued (${reason}) — another scan is in progress`);
       return false;
     }
     scanInProgress = true;
     scanQueued = false;
     let result = false;
     try {
-      log(`Manual scan triggered: ${reason}`);
+      dlog(`Manual scan triggered: ${reason}`);
       result = await runOneScan();
       if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
         const requestedAt = pendingManualScanRequestAt;
@@ -784,11 +810,12 @@ async function startPolling(): Promise<void> {
         .catch((e) => log(`set_current_steamid_ipc failed: ${String(e)}`))
         .then(() => {
           skipLogged.clear();
+          failLogged.clear();
           grabbedSet = new Set<number>();
           notifiedSet = new Set<number>();
           if (scanInProgress) {
 
-            log('queueing re-scan for new account (scan in progress)');
+            dlog('queueing re-scan for new account (scan in progress)');
             scanQueued = true;
           } else {
             const reason = isFirstRealLogin ? 'post-login' : 'account-change';
@@ -835,7 +862,7 @@ async function startPolling(): Promise<void> {
     if (retryDelay) {
       log(`Scan failed — retrying in ${Math.round(interval / 1000)}s`);
     } else {
-      log(`Next scan in ${settings.pollIntervalMin} min`);
+      dlog(`Next scan in ${settings.pollIntervalMin} min`);
     }
     if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
     _autoclaimNextScanTimer = setTimeout(async () => {
