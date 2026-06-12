@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.7.0](https://github.com/BambooFury/Auto-Claim/compare/v1.6.2...v1.7.0) (2026-06-12)
+
+
+### Features
+
+* add free weekend cache IPC to backend ([8d1d01c](https://github.com/BambooFury/Auto-Claim/commit/8d1d01c2c3261cc38d3d67bd8297b96673c6ced1))
+* add free weekend scanner via store query api ([e5ab36e](https://github.com/BambooFury/Auto-Claim/commit/e5ab36eba6147483314572b689b21ed0eb3730b0))
+* extend widget types and ipc for free weekend ([805afee](https://github.com/BambooFury/Auto-Claim/commit/805afeed566e9577be5199d17da46c7efcd2ed2b))
+* free weekend filter mode and cards in widget ([6dd5678](https://github.com/BambooFury/Auto-Claim/commit/6dd5678390c604bb315bbcdb4d2d82aa7e3c7ac3))
+* scheduled free weekend scan with notifications ([4398210](https://github.com/BambooFury/Auto-Claim/commit/43982106e2f202990f217b18fe36adde6ff6b3f1))
+
+
+### Bug Fixes
+
+* attach release asset for releases created by release-please ([6464545](https://github.com/BambooFury/Auto-Claim/commit/64645450f3b9ed23b42a86da7d5c02d463078aad))
+* attach release asset for releases created by release-please ([d257b79](https://github.com/BambooFury/Auto-Claim/commit/d257b79e917fe5191ebc3d427bdd0975d023fa7e))
+* mark free weekend games as seen for new indicator ([77f061b](https://github.com/BambooFury/Auto-Claim/commit/77f061b83979d73dea2cc2077dd83cc738bd691a))
+* respect notify setting for free weekend toasts ([0022b2e](https://github.com/BambooFury/Auto-Claim/commit/0022b2eb22d996b992893d10f2bb7cb16dfb46d2))
+
 ## [1.6.2](https://github.com/BambooFury/Auto-Claim/compare/v1.6.1...v1.6.2) (2026-06-11)
 
 
