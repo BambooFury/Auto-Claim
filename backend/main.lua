@@ -697,11 +697,13 @@ function release_claim_lock_ipc(data)
     return 1
 end
 
+local STORE_HOOK_REGEX = "https://store\\.steampowered\\.com/.*"
+
 local function on_load()
+    pcall(millennium.add_browser_css, "auto-claim.noop.css", STORE_HOOK_REGEX)
     logger:info("[AutoClaim] Loaded, Millennium " .. millennium.version())
     millennium.ready()
 end
-
 local function on_unload() end
 
 local function on_frontend_loaded() end
