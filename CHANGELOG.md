@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.3](https://github.com/BambooFury/Auto-Claim/compare/v1.8.2...v1.8.3) (2026-06-12)
+
+
+### Bug Fixes
+
+* claim the free-to-keep package instead of the first paid package on multi-edition store pages ([1760ccd](https://github.com/BambooFury/Auto-Claim/commit/1760ccdea13b2799ea84ca15bec244ae8a1fd35e))
+* claim the free-to-keep package instead of the first paid package… ([b1533f1](https://github.com/BambooFury/Auto-Claim/commit/b1533f11cac96582a2f07d48cf0dfffb1102cb60))
+
 ## [1.8.2](https://github.com/BambooFury/Auto-Claim/compare/v1.8.1...v1.8.2) (2026-06-12)
 
 
