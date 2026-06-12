@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.2](https://github.com/BambooFury/Auto-Claim/compare/v1.8.1...v1.8.2) (2026-06-12)
+
+
+### Bug Fixes
+
+* welcome modal close button unreachable on small windows ([aaea026](https://github.com/BambooFury/Auto-Claim/commit/aaea02628436d35a7f929244fcdadca03a2efdc0))
+* welcome modal close button unreachable on small windows ([dd54401](https://github.com/BambooFury/Auto-Claim/commit/dd54401aad9d8c3939d2cfc4a60d0e9ef685a75e))
+
 ## [1.8.1](https://github.com/BambooFury/Auto-Claim/compare/v1.8.0...v1.8.1) (2026-06-12)
 
 
