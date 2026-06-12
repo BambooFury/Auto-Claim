@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.8.1](https://github.com/BambooFury/Auto-Claim/compare/v1.8.0...v1.8.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* highlight free weekend mode in welcome modal ([9f72331](https://github.com/BambooFury/Auto-Claim/commit/9f723312fa4156a475b810e71e4b1a150c7a5de5))
+* highlight free weekend mode in welcome modal ([fab1c03](https://github.com/BambooFury/Auto-Claim/commit/fab1c03fcff9cac15eba62897226c231e146474d))
+
+
+### Documentation
+
+* improve readme with preview, how it works and faq ([d19937f](https://github.com/BambooFury/Auto-Claim/commit/d19937fbcfa24138c6d8d90f05c45372c74daedd))
+* update readme ([661a379](https://github.com/BambooFury/Auto-Claim/commit/661a379711f997c26feb1389d6a9a05f36961362))
+* update readme ([5a8361f](https://github.com/BambooFury/Auto-Claim/commit/5a8361fded30ca7d30fd0273c95a34de4ee8301c))
+* update readme ([10ce6d6](https://github.com/BambooFury/Auto-Claim/commit/10ce6d6184819a512e8ff86c59393977444a3f6a))
+* update readme ([c170cf5](https://github.com/BambooFury/Auto-Claim/commit/c170cf5c8228b2722dab9d0a495ca9683d89d9d5))
+
 ## [1.8.0](https://github.com/BambooFury/Auto-Claim/compare/v1.7.0...v1.8.0) (2026-06-12)
 
 
