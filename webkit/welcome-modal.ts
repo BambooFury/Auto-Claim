@@ -3,7 +3,7 @@ import {
   WELCOME_CSS_TEMPLATE as WELCOME_CSS,
   WELCOME_HTML_TEMPLATE,
 } from './_assets.generated';
-const SEEN_FLAG = 'fgg_welcomed_v6';
+const SEEN_FLAG = 'fgg_welcomed_v7';
 function alreadySeen(): boolean {
   try { return localStorage.getItem(SEEN_FLAG) === '1'; }
   catch { return true; }
@@ -63,6 +63,9 @@ function build() {
   const xBtn = dlg.querySelector<HTMLButtonElement>('#fgg-welcome-x');
   if (cta)  cta.addEventListener('click', bye);
   if (xBtn) xBtn.addEventListener('click', bye);
+  dim.addEventListener('click', (ev) => {
+    if (ev.target === dim) bye();
+  });
   function escHandler(ev: KeyboardEvent) {
     if (ev.key !== 'Escape') return;
     bye();
