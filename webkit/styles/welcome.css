@@ -151,3 +151,16 @@
   text-align: center;
   margin-top: 12px;
 }
+.fgg-welcome-new {
+  display: inline-block;
+  vertical-align: 1px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(85,204,85,0.18);
+  border: 1px solid rgba(85,204,85,0.45);
+  color: #7ddc7d;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
