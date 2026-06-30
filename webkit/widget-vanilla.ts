@@ -389,7 +389,7 @@ export function injectVanillaWidget(): void {
       footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
       return;
     }
-    footerEl.textContent = `Active · every ${cfg.pollIntervalMin} min`;
+    footerEl.textContent = `Active · ${intervalLabel(cfg.pollIntervalMin)}`;
     footerDot.style.background = '#55cc55';
     footerDot.style.boxShadow  = '0 0 6px #55cc55';
   }
@@ -858,6 +858,14 @@ function formatUntil(until?: number): string {
   }
 }
 
+function intervalLabel(min: number): string {
+  return min >= 1440 ? 'once a day' : `every ${min} min`;
+}
+
+function intervalShort(min: number): string {
+  return min >= 1440 ? '1 day' : `${min} min`;
+}
+
 const PANEL_CSS = WIDGET_CSS_TEMPLATE;
 
 function panelMarkup(): string {
@@ -865,14 +873,17 @@ function panelMarkup(): string {
     .replace(/\{\{SVG_GIFT\}\}/g,      SVG_GIFT)
     .replace(/\{\{SVG_FUNNEL\}\}/g,    SVG_FUNNEL)
     .replace(/\{\{SVG_GEAR\}\}/g,      SVG_GEAR)
-    .replace(/\{\{POLL_INTERVAL\}\}/g, String(cfg.pollIntervalMin));
+    .replace(/\{\{FOOTER_INTERVAL\}\}/g, intervalLabel(cfg.pollIntervalMin));
 }
 
 function renderEmpty(message: string): string {
+  const nextScanLabel = cfg.pollIntervalMin >= 1440
+    ? 'once a day'
+    : `in ${cfg.pollIntervalMin} min`;
   return WIDGET_EMPTY_TEMPLATE
     .replace(/\{\{SVG_RADAR\}\}/g,     SVG_RADAR)
     .replace(/\{\{MESSAGE\}\}/g,       message)
-    .replace(/\{\{POLL_INTERVAL\}\}/g, String(cfg.pollIntervalMin));
+    .replace(/\{\{NEXT_SCAN_LABEL\}\}/g, nextScanLabel);
 }
 
 function renderGames(
@@ -1025,10 +1036,10 @@ function renderSettings(
       <span class="fgg-toggle-knob"></span>
     </button>`;
 
-  const intervals = [30, 60, 120];
+  const intervals = [30, 120, 1440];
   const intervalsHtml = intervals.map((m) => {
     const active = cfg.pollIntervalMin === m ? ' active' : '';
-    return `<button class="fgg-int-btn${active}" data-interval="${m}">${m} min</button>`;
+    return `<button class="fgg-int-btn${active}" data-interval="${m}">${intervalShort(m)}</button>`;
   }).join('');
 
   bodyEl.innerHTML = WIDGET_SETTINGS_TEMPLATE
