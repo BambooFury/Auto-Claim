@@ -12,5 +12,6 @@ widget_settings.json
 pending_toasts.json
 claim_inflight.json
 free_weekend_cache.json
+last_daily_scan.json
 
 webkit/_assets.generated.ts
