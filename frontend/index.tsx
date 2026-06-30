@@ -15,6 +15,8 @@ const saveFreeGamesCache = callable<StrIn, number>('save_free_games_cache_ipc');
 const loadFreeGamesCache = callable<Empty, string>('load_free_games_cache_ipc');
 const saveFreeWeekendCache = callable<StrIn, number>('save_free_weekend_cache_ipc');
 const loadFreeWeekendCache = callable<Empty, string>('load_free_weekend_cache_ipc');
+const loadLastDailyScan  = callable<Empty, string>('load_last_daily_scan_ipc');
+const saveLastDailyScan  = callable<StrIn, number>('save_last_daily_scan_ipc');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
@@ -102,6 +104,15 @@ const DEFAULTS: Settings = {
   pollIntervalMin: 30,
   notifyOnGrab:    true,
 };
+
+const DAILY_MODE_MIN = 1440;
+
+function todayStr(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function normalizeSettings(s: Settings): Settings {
   const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
@@ -841,7 +852,38 @@ async function startPolling(): Promise<void> {
     log(`RegisterForCurrentUserChanges unavailable: ${String(e)}`);
   }
 
-  await triggerScan('initial');
+  let startupSettings: Settings = { ...DEFAULTS };
+  try {
+    const sRaw = await withTimeout(loadSettings(), 3000, '{}');
+    startupSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
+    settings = startupSettings;
+  } catch {}
+  const isDailyMode = startupSettings.pollIntervalMin >= DAILY_MODE_MIN;
+
+  let skipStartupScan = false;
+  if (isDailyMode) {
+    try {
+      const raw = await withTimeout(loadLastDailyScan(), 3000, '{}');
+      const data = JSON.parse(raw || '{}');
+      if (typeof data.date === 'string' && data.date === todayStr()) {
+        skipStartupScan = true;
+        log(`Once-a-day mode — already scanned today (${data.date}), skipping startup scan`);
+      }
+    } catch {}
+  }
+
+  if (!skipStartupScan) {
+    const ok = await triggerScan('initial');
+    if (isDailyMode && ok) {
+      try {
+        await withTimeout(
+          saveLastDailyScan({ payload: JSON.stringify({ date: todayStr() }) }),
+          3000, 0,
+        );
+        log(`Once-a-day mode — startup scan complete, recorded ${todayStr()}`);
+      } catch {}
+    }
+  }
   const WEEKEND_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
   let lastWeekendScanMs = Date.now();
   void runWeekendScan();
@@ -889,7 +931,11 @@ async function startPolling(): Promise<void> {
       }
     }, interval);
   };
-  scheduleNext();
+  if (isDailyMode) {
+    log('Once-a-day mode — no recurring scan scheduled (next scan on next Steam start)');
+  } else {
+    scheduleNext();
+  }
 
   window.addEventListener('beforeunload', _clearAutoclaimTimers, { once: true });
 }
