@@ -913,13 +913,35 @@ async function startPolling(): Promise<void> {
   }, 30000);
 
   const scheduleNext = (retryDelay?: number) => {
+    if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
+
+    if (!retryDelay && settings.pollIntervalMin >= DAILY_MODE_MIN) {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const interval = midnight.getTime() - now.getTime();
+      dlog(`Next daily scan at midnight (${Math.round(interval / 60000)} min from now)`);
+      _autoclaimNextScanTimer = setTimeout(async () => {
+        _autoclaimNextScanTimer = null;
+        const ok = await triggerScan('daily scheduled');
+        if (ok) {
+          try {
+            await withTimeout(
+              saveLastDailyScan({ payload: JSON.stringify({ date: todayStr() }) }),
+              3000, 0,
+            );
+          } catch {}
+        }
+        scheduleNext();
+      }, interval);
+      return;
+    }
+
     const interval = retryDelay ?? (settings.pollIntervalMin || 30) * 60 * 1000;
     if (retryDelay) {
       log(`Scan failed — retrying in ${Math.round(interval / 1000)}s`);
     } else {
       dlog(`Next scan in ${settings.pollIntervalMin} min`);
     }
-    if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
     _autoclaimNextScanTimer = setTimeout(async () => {
       _autoclaimNextScanTimer = null;
       const ok = await triggerScan(retryDelay ? 'retry after failure' : 'scheduled');
@@ -931,11 +953,7 @@ async function startPolling(): Promise<void> {
       }
     }, interval);
   };
-  if (isDailyMode) {
-    log('Once-a-day mode — no recurring scan scheduled (next scan on next Steam start)');
-  } else {
-    scheduleNext();
-  }
+  scheduleNext();
 
   window.addEventListener('beforeunload', _clearAutoclaimTimers, { once: true });
 }
