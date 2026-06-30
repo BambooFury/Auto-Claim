@@ -25,7 +25,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 | <img src="https://api.iconify.design/lucide:activity.svg?color=%231a9fff" width="16"> **Automatic Detection** - scans the Steam Store for newly available 100% off games | <img src="https://api.iconify.design/lucide:ghost.svg?color=%239E9E9E" width="16"> **Silent Claiming** - games are claimed in the background, no browser windows |
 | <img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> **Notifications** - toast after each successful claim | <img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> **Smart Filtering** - skips DLCs, soundtracks, demos and skin packs |
 | <img src="https://api.iconify.design/lucide:layout-panel-right.svg?color=%231a9fff" width="16"> **Store Widget** - live panel right on the Steam Store page, works with the default theme | <img src="https://api.iconify.design/lucide:gamepad-2.svg?color=%23FFD43B" width="16"> **Free Weekends** - see what's playable for free right now |
-| <img src="https://api.iconify.design/lucide:users.svg?color=%231a9fff" width="16"> **Multi-Account Support** - picks up account switches automatically | <img src="https://api.iconify.design/lucide:clock.svg?color=%239E9E9E" width="16"> **Scheduled Scanning** - every 30 / 60 / 120 minutes |
+| <img src="https://api.iconify.design/lucide:users.svg?color=%231a9fff" width="16"> **Multi-Account Support** - picks up account switches automatically | <img src="https://api.iconify.design/lucide:clock.svg?color=%239E9E9E" width="16"> **Scheduled Scanning** - every 30 / 120 minutes or once a day |
 | <img src="https://api.iconify.design/lucide:toggle-left.svg?color=%23FFD43B" width="16"> **Flexible Modes** - Auto Claim or Notification Only | <img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="16"> **Customizable Widget** - colors, position, button style |
 
 ## <img src="https://api.iconify.design/lucide:cog.svg?color=%231a9fff" width="20"> How It Works
@@ -55,7 +55,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 <img src="https://api.iconify.design/lucide:radar.svg?color=%23ff4d4f" width="16"> Indicator Color - Presets + Custom  
 <img src="https://api.iconify.design/lucide:move-horizontal.svg?color=%239E9E9E" width="16"> Panel Side - Left | Right  
 <img src="https://api.iconify.design/lucide:square.svg?color=%231a9fff" width="16"> Button Style - Slim | Large | Floating  
-<img src="https://api.iconify.design/lucide:timer.svg?color=%232ecc71" width="16"> Scan Interval - 30 | 60 | 120 min
+<img src="https://api.iconify.design/lucide:timer.svg?color=%232ecc71" width="16"> Scan Interval - 30 min | 120 min | 1 day
 
 ## <img src="https://api.iconify.design/lucide:circle-help.svg?color=%23FFD43B" width="20"> FAQ
 
