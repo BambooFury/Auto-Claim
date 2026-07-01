@@ -106,12 +106,15 @@ const DEFAULTS: Settings = {
 };
 
 const DAILY_MODE_MIN = 1440;
+const DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-function todayStr(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+function loadLastScanTs(data: any): number {
+  if (data && typeof data.ts === 'number' && data.ts > 0) return data.ts;
+  if (data && typeof data.date === 'string') {
+    const t = Date.parse(`${data.date}T00:00:00`);
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
 }
 
 function normalizeSettings(s: Settings): Settings {
@@ -861,13 +864,16 @@ async function startPolling(): Promise<void> {
   const isDailyMode = startupSettings.pollIntervalMin >= DAILY_MODE_MIN;
 
   let skipStartupScan = false;
+  let lastDailyScanTs = 0;
   if (isDailyMode) {
     try {
       const raw = await withTimeout(loadLastDailyScan(), 3000, '{}');
       const data = JSON.parse(raw || '{}');
-      if (typeof data.date === 'string' && data.date === todayStr()) {
+      lastDailyScanTs = loadLastScanTs(data);
+      if (lastDailyScanTs > 0 && Date.now() - lastDailyScanTs < DAILY_INTERVAL_MS) {
+        const elapsedH = Math.floor((Date.now() - lastDailyScanTs) / 3600000);
         skipStartupScan = true;
-        log(`Once-a-day mode — already scanned today (${data.date}), skipping startup scan`);
+        log(`Once-a-day mode — last scan ${elapsedH}h ago (under 24h), skipping startup scan`);
       }
     } catch {}
   }
@@ -875,12 +881,13 @@ async function startPolling(): Promise<void> {
   if (!skipStartupScan) {
     const ok = await triggerScan('initial');
     if (isDailyMode && ok) {
+      lastDailyScanTs = Date.now();
       try {
         await withTimeout(
-          saveLastDailyScan({ payload: JSON.stringify({ date: todayStr() }) }),
+          saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }),
           3000, 0,
         );
-        log(`Once-a-day mode — startup scan complete, recorded ${todayStr()}`);
+        log('Once-a-day mode — startup scan complete, next scan in 24h');
       } catch {}
     }
   }
@@ -916,17 +923,18 @@ async function startPolling(): Promise<void> {
     if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
 
     if (!retryDelay && settings.pollIntervalMin >= DAILY_MODE_MIN) {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const interval = midnight.getTime() - now.getTime();
-      dlog(`Next daily scan at midnight (${Math.round(interval / 60000)} min from now)`);
+      const now = Date.now();
+      const base = lastDailyScanTs > 0 ? lastDailyScanTs : now;
+      const interval = Math.max(60 * 1000, base + DAILY_INTERVAL_MS - now);
+      dlog(`Next daily scan in ${Math.round(interval / 60000)} min`);
       _autoclaimNextScanTimer = setTimeout(async () => {
         _autoclaimNextScanTimer = null;
         const ok = await triggerScan('daily scheduled');
         if (ok) {
+          lastDailyScanTs = Date.now();
           try {
             await withTimeout(
-              saveLastDailyScan({ payload: JSON.stringify({ date: todayStr() }) }),
+              saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }),
               3000, 0,
             );
           } catch {}
