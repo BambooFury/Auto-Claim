@@ -437,6 +437,8 @@ async function startPolling(): Promise<void> {
   _trackInterval(() => { void drainPendingToastsFiltered(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
+  let isDailyMode = false;
+  let lastDailyScanTs = 0;
   let grabbedSet  = new Set<number>();
   let notifiedSet = new Set<number>();
   const skipLogged = new Set<number>();
@@ -792,7 +794,35 @@ async function startPolling(): Promise<void> {
   let scanInProgress = false;
   let scanQueued = false;
   let pendingManualScanRequestAt = 0;
+
+  const recordDailyScanIfActive = (ok: boolean): void => {
+    if (!isDailyMode || !ok) return;
+    lastDailyScanTs = Date.now();
+    withTimeout(saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }), 3000, 0)
+      .then(() => log('Once-a-day mode — scan complete, next scan in 24h'))
+      .catch(() => {});
+  };
+
+  const shouldSkipDailyScan = (reason: string): boolean => {
+    if (!isDailyMode) return false;
+    if (reason === 'manual button') return false;
+    if (lastDailyScanTs > 0 && Date.now() - lastDailyScanTs < DAILY_INTERVAL_MS) {
+      const elapsedH = Math.floor((Date.now() - lastDailyScanTs) / 3600000);
+      dlog(`Once-a-day mode — ${reason}: last scan ${elapsedH}h ago, skipping`);
+      return true;
+    }
+    return false;
+  };
+
     const triggerScan = async (reason: string): Promise<boolean> => {
+    if (shouldSkipDailyScan(reason)) {
+      if (pendingManualScanRequestAt && reason !== 'manual button') {
+        const requestedAt = pendingManualScanRequestAt;
+        pendingManualScanRequestAt = 0;
+        void publishManualScanCompletion(requestedAt, true);
+      }
+      return true;
+    }
     if (scanInProgress) {
       scanQueued = true;
       dlog(`Scan queued (${reason}) — another scan is in progress`);
@@ -804,6 +834,7 @@ async function startPolling(): Promise<void> {
     try {
       dlog(`Manual scan triggered: ${reason}`);
       result = await runOneScan();
+      recordDailyScanIfActive(result);
       if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
         const requestedAt = pendingManualScanRequestAt;
         pendingManualScanRequestAt = 0;
@@ -861,36 +892,16 @@ async function startPolling(): Promise<void> {
     startupSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
     settings = startupSettings;
   } catch {}
-  const isDailyMode = startupSettings.pollIntervalMin >= DAILY_MODE_MIN;
+  isDailyMode = startupSettings.pollIntervalMin >= DAILY_MODE_MIN;
 
-  let skipStartupScan = false;
-  let lastDailyScanTs = 0;
   if (isDailyMode) {
     try {
       const raw = await withTimeout(loadLastDailyScan(), 3000, '{}');
-      const data = JSON.parse(raw || '{}');
-      lastDailyScanTs = loadLastScanTs(data);
-      if (lastDailyScanTs > 0 && Date.now() - lastDailyScanTs < DAILY_INTERVAL_MS) {
-        const elapsedH = Math.floor((Date.now() - lastDailyScanTs) / 3600000);
-        skipStartupScan = true;
-        log(`Once-a-day mode — last scan ${elapsedH}h ago (under 24h), skipping startup scan`);
-      }
+      lastDailyScanTs = loadLastScanTs(JSON.parse(raw || '{}'));
     } catch {}
   }
 
-  if (!skipStartupScan) {
-    const ok = await triggerScan('initial');
-    if (isDailyMode && ok) {
-      lastDailyScanTs = Date.now();
-      try {
-        await withTimeout(
-          saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }),
-          3000, 0,
-        );
-        log('Once-a-day mode — startup scan complete, next scan in 24h');
-      } catch {}
-    }
-  }
+  await triggerScan('initial');
   const WEEKEND_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
   let lastWeekendScanMs = Date.now();
   void runWeekendScan();
@@ -927,19 +938,9 @@ async function startPolling(): Promise<void> {
       const base = lastDailyScanTs > 0 ? lastDailyScanTs : now;
       const interval = Math.max(60 * 1000, base + DAILY_INTERVAL_MS - now);
       dlog(`Next daily scan in ${Math.round(interval / 60000)} min`);
-      _autoclaimNextScanTimer = setTimeout(async () => {
+      _autoclaimNextScanTimer = setTimeout(() => {
         _autoclaimNextScanTimer = null;
-        const ok = await triggerScan('daily scheduled');
-        if (ok) {
-          lastDailyScanTs = Date.now();
-          try {
-            await withTimeout(
-              saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }),
-              3000, 0,
-            );
-          } catch {}
-        }
-        scheduleNext();
+        void triggerScan('daily scheduled').then(() => scheduleNext());
       }, interval);
       return;
     }
