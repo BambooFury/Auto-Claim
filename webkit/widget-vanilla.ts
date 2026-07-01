@@ -156,7 +156,7 @@ export function injectVanillaWidget(): void {
   const tabBtn = document.createElement('button');
   tabBtn.type = 'button';
   Object.assign(tabBtn.style, {
-    position: 'fixed', top: '65%', transform: 'translateY(-50%)',
+    position: 'fixed', top: '55%', transform: 'translateY(-50%)',
     width: geom.w + 'px', height: geom.h + 'px',
     border: 'none', borderRadius: tabRadius(cfg.tabStyle, isLeft),
     background: palette.bg,
@@ -172,7 +172,7 @@ export function injectVanillaWidget(): void {
   const DEAD_H  = 120;
   const deadZone = document.createElement('div');
   Object.assign(deadZone.style, {
-    position: 'fixed', top: '65%',
+    position: 'fixed', top: '55%',
     transform: 'translateY(-50%)',
     width: DEAD_W + 'px', height: DEAD_H + 'px',
     pointerEvents: 'all', cursor: 'default',
@@ -191,7 +191,7 @@ export function injectVanillaWidget(): void {
 
   const panel = document.createElement('div');
   Object.assign(panel.style, {
-    position: 'fixed', top: '65%',
+    position: 'fixed', top: '55%',
     transform: `translateX(${isLeft ? '-110%' : '110%'})`,
     transition: `transform 0.25s ${SMOOTH}`,
     width: PANEL_W + 'px',
