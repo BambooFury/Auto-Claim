@@ -42,6 +42,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
     <td><img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="16"> <b>Customizable Widget</b> - colors, position, button style</td>
   </tr>
 </table>
+
 ## <img src="https://api.iconify.design/lucide:cog.svg?color=%231a9fff" width="20"> How It Works
 
 1. <img src="https://api.iconify.design/lucide:radar.svg?color=%231a9fff" width="16"> Auto Claim periodically scans the Steam Store (plus extra giveaway sources) for games with a 100% discount
