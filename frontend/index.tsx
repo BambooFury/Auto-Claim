@@ -823,13 +823,8 @@ async function startPolling(): Promise<void> {
 
     const triggerScan = async (reason: string): Promise<boolean> => {
     if (shouldSkipDailyScan(reason)) {
-      if (pendingManualScanRequestAt && reason !== 'manual button') {
-        const requestedAt = pendingManualScanRequestAt;
-        pendingManualScanRequestAt = 0;
-        void publishManualScanCompletion(requestedAt, true);
-      }
-      return true;
-    }
+	return true;
+}
     if (scanInProgress) {
       scanQueued = true;
       dlog(`Scan queued (${reason}) — another scan is in progress`);
