@@ -25,6 +25,7 @@ const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
 const _globalGrabbedAppids = new Set<number>();
+const _notifiedAvailableAppids = new Set<number>();
 
 async function _reloadGlobalGrabbed(): Promise<void> {
   try {
@@ -161,9 +162,15 @@ function isAlreadyInLibrary(appid: number): boolean {
 
 
 function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed = false): void {
-  if (_globalGrabbedAppids.has(game.appid)) return;
-  if (!claimed && isAlreadyInLibrary(game.appid)) return;
-  _globalGrabbedAppids.add(game.appid);
+  if (claimed) {
+    if (_globalGrabbedAppids.has(game.appid)) return;
+    _globalGrabbedAppids.add(game.appid);
+  } else {
+    if (_globalGrabbedAppids.has(game.appid)) return;
+    if (_notifiedAvailableAppids.has(game.appid)) return;
+    if (isAlreadyInLibrary(game.appid)) return;
+    _notifiedAvailableAppids.add(game.appid);
+  }
   toaster.toast({
     title: claimed ? 'Free Game Claimed!' : 'Free Game Available!',
     body:  claimed
