@@ -107,7 +107,7 @@ function arrowPoints(isLeft: boolean, opened: boolean): string {
 }
 
 function isClaimableGame(g: FreeGame): boolean {
-  return !g.type || g.type === 'game' || g.type === 'unknown';
+  return !g.type || g.type === 'game'
 }
 
 function gameTypeLabel(t?: string): string {

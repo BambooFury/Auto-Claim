@@ -83,7 +83,7 @@ interface FreeGame {
 }
 
 function isAutoClaimable(game: FreeGame): boolean {
-  return !game.type || game.type === 'game' || game.type === 'unknown';
+	return !game.type || game.type === 'game';
 }
 
 interface GrabbedEntry {
@@ -469,7 +469,7 @@ async function startPolling(): Promise<void> {
       }
     } catch {}
   }
-  
+
   let knownSid = '';
   async function recordGrabbed(game: FreeGame, added: boolean): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
