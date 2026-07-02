@@ -118,10 +118,12 @@ function loadLastScanTs(data: any): number {
   return 0;
 }
 
+const ALLOWED_INTERVALS = [30, 120, 1440];
+
 function normalizeSettings(s: Settings): Settings {
-  const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
-    ? s.pollIntervalMin
-    : MIN_POLL_INTERVAL_MIN;
+  let poll = typeof s.pollIntervalMin === 'number' ? s.pollIntervalMin : MIN_POLL_INTERVAL_MIN;
+  if (poll === 60) poll = 120; 
+  if (ALLOWED_INTERVALS.indexOf(poll) === -1) poll = MIN_POLL_INTERVAL_MIN;
   return { ...s, pollIntervalMin: poll };
 }
 

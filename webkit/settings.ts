@@ -55,10 +55,11 @@ function applyInto(target: PluginConfig, src: any): void {
   if (isTabStyle(src.tabStyle))             target.tabStyle    = src.tabStyle;
   if (typeof src.autoAdd     === 'boolean') target.autoAdd     = src.autoAdd;
   if (typeof src.pollIntervalMin === 'number') {
-    const ALLOWED_INTERVALS = [30, 120, 1440];
-    target.pollIntervalMin = ALLOWED_INTERVALS.indexOf(src.pollIntervalMin) !== -1
-      ? src.pollIntervalMin
-      : 30;
+   const ALLOWED_INTERVALS = [30, 120, 1440];
+const iv = src.pollIntervalMin === 60 ? 120 : src.pollIntervalMin;
+target.pollIntervalMin = ALLOWED_INTERVALS.indexOf(iv) !== -1
+  ? iv
+  : 30;
   }
   if (typeof src.notifyOnGrab === 'boolean') target.notifyOnGrab = src.notifyOnGrab;
   if (typeof src.hideOwned   === 'boolean') target.hideOwned    = src.hideOwned;
