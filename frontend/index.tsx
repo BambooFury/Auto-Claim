@@ -501,7 +501,7 @@ async function startPolling(): Promise<void> {
         if (!saved) throw new Error('save_grabbed_ipc returned 0');
         if (added) grabbedSet.add(game.appid);
         notifiedSet.add(game.appid);
-        _globalGrabbedAppids.add(game.appid);
+        if (added) _globalGrabbedAppids.add(game.appid);
         return;
       } catch {
         await new Promise((r) => setTimeout(r, 2000));
