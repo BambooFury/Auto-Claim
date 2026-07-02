@@ -55,7 +55,11 @@ function applyInto(target: PluginConfig, src: any): void {
   if (isTabStyle(src.tabStyle))             target.tabStyle    = src.tabStyle;
   if (typeof src.autoAdd     === 'boolean') target.autoAdd     = src.autoAdd;
   if (typeof src.pollIntervalMin === 'number') {
-    target.pollIntervalMin = src.pollIntervalMin < 30 ? 30 : src.pollIntervalMin;
+   const ALLOWED_INTERVALS = [30, 120, 1440];
+const iv = src.pollIntervalMin === 60 ? 120 : src.pollIntervalMin;
+target.pollIntervalMin = ALLOWED_INTERVALS.indexOf(iv) !== -1
+  ? iv
+  : 30;
   }
   if (typeof src.notifyOnGrab === 'boolean') target.notifyOnGrab = src.notifyOnGrab;
   if (typeof src.hideOwned   === 'boolean') target.hideOwned    = src.hideOwned;
@@ -112,8 +116,14 @@ export function saveSettings(): void {
     localStorage.setItem(LS_KEY, JSON.stringify(snapshotForLocalStorage()));
   } catch {}
 
-  saveWidgetSettingsIPC({ payload: JSON.stringify(widgetOnlyPayload()) })
-    .catch(() => {});
+  loadWidgetSettingsIPC()
+  .then((raw) => {
+    let existing: any = {};
+    try { existing = JSON.parse(raw || '{}'); } catch {}
+    const merged = Object.assign({}, existing, widgetOnlyPayload());
+    return saveWidgetSettingsIPC({ payload: JSON.stringify(merged) });
+  })
+  .catch(() => {});
 
   loadPluginSettingsIPC()
     .then((raw) => {

@@ -107,7 +107,35 @@ function arrowPoints(isLeft: boolean, opened: boolean): string {
 }
 
 function isClaimableGame(g: FreeGame): boolean {
-  return !g.type || g.type === 'game' || g.type === 'unknown';
+  return !g.type || g.type === 'game'
+}
+function applyWidgetJson(w: any): { changed: boolean; filterChanged: boolean } {
+	let changed = false;
+	let filterChanged = false;
+	if (!w || typeof w !== 'object') return { changed, filterChanged };
+
+	if (typeof w.tabColor === 'string' && w.tabColor && w.tabColor !== cfg.tabColor) {
+		cfg.tabColor = w.tabColor; changed = true;
+	}
+	if (typeof w.accentColor === 'string' && w.accentColor && w.accentColor !== cfg.accentColor) {
+		cfg.accentColor = w.accentColor; changed = true;
+	}
+	if (typeof w.indicatorColor === 'string' && w.indicatorColor !== cfg.indicatorColor) {
+		cfg.indicatorColor = w.indicatorColor; changed = true;
+	}
+	if (typeof w.showOverlay === 'boolean' && w.showOverlay !== cfg.showOverlay) {
+		cfg.showOverlay = w.showOverlay; changed = true;
+	}
+	if ((w.panelSide === 'left' || w.panelSide === 'right') && w.panelSide !== cfg.panelSide) {
+		cfg.panelSide = w.panelSide; changed = true;
+	}
+	if ((w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') && w.tabStyle !== cfg.tabStyle) {
+		cfg.tabStyle = w.tabStyle; changed = true;
+	}
+	if ((w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') && w.filterMode !== cfg.filterMode) {
+		cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
+	}
+	return { changed, filterChanged };
 }
 
 function gameTypeLabel(t?: string): string {
@@ -156,7 +184,7 @@ export function injectVanillaWidget(): void {
   const tabBtn = document.createElement('button');
   tabBtn.type = 'button';
   Object.assign(tabBtn.style, {
-    position: 'fixed', top: '65%', transform: 'translateY(-50%)',
+    position: 'fixed', top: '55%', transform: 'translateY(-50%)',
     width: geom.w + 'px', height: geom.h + 'px',
     border: 'none', borderRadius: tabRadius(cfg.tabStyle, isLeft),
     background: palette.bg,
@@ -172,7 +200,7 @@ export function injectVanillaWidget(): void {
   const DEAD_H  = 120;
   const deadZone = document.createElement('div');
   Object.assign(deadZone.style, {
-    position: 'fixed', top: '65%',
+    position: 'fixed', top: '55%',
     transform: 'translateY(-50%)',
     width: DEAD_W + 'px', height: DEAD_H + 'px',
     pointerEvents: 'all', cursor: 'default',
@@ -191,7 +219,7 @@ export function injectVanillaWidget(): void {
 
   const panel = document.createElement('div');
   Object.assign(panel.style, {
-    position: 'fixed', top: '65%',
+    position: 'fixed', top: '55%',
     transform: `translateX(${isLeft ? '-110%' : '110%'})`,
     transition: `transform 0.25s ${SMOOTH}`,
     width: PANEL_W + 'px',
@@ -389,7 +417,7 @@ export function injectVanillaWidget(): void {
       footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
       return;
     }
-    footerEl.textContent = `Active · every ${cfg.pollIntervalMin} min`;
+    footerEl.textContent = `Active · ${intervalLabel(cfg.pollIntervalMin)}`;
     footerDot.style.background = '#55cc55';
     footerDot.style.boxShadow  = '0 0 6px #55cc55';
   }
@@ -675,24 +703,13 @@ export function injectVanillaWidget(): void {
       markVisibleAsSeen();
       updateNewIndicator();
       loadWidgetSettingsIPC()
-        .then((raw) => {
-          try {
-            const w = JSON.parse(raw || '{}');
-            if (w.tabColor)                                  cfg.tabColor       = w.tabColor;
-            if (w.accentColor)                               cfg.accentColor    = w.accentColor;
-            if (typeof w.indicatorColor === 'string')        cfg.indicatorColor = w.indicatorColor;
-            if (w.showOverlay !== undefined)                 cfg.showOverlay = w.showOverlay;
-            if (w.panelSide === 'left' || w.panelSide === 'right') cfg.panelSide = w.panelSide;
-            if (w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') {
-              cfg.tabStyle = w.tabStyle;
-            }
-            if (w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') {
-              cfg.filterMode = w.filterMode;
-            }
-            applyChrome();
-          } catch {}
-        })
-        .catch(() => {});
+  .then((raw) => {
+    try {
+      applyWidgetJson(JSON.parse(raw || '{}'));
+      applyChrome();
+    } catch {}
+  })
+  .catch(() => {});
     }
 
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -785,51 +802,25 @@ export function injectVanillaWidget(): void {
   document.body.appendChild(root);
 
   let lastWidgetJson = initialWidgetRaw;
-  const settingsPoll = setInterval(() => {
-    loadWidgetSettingsIPC()
-      .then((raw) => {
-        if (raw === lastWidgetJson) return;
-        lastWidgetJson = raw;
+const settingsPoll = setInterval(() => {
+	loadWidgetSettingsIPC()
+		.then((raw) => {
+			if (raw === lastWidgetJson) return;
+			lastWidgetJson = raw;
 
-        try {
-          const w = JSON.parse(raw || '{}');
-          let changed = false;
-
-          if (w.tabColor && w.tabColor !== cfg.tabColor) {
-            cfg.tabColor = w.tabColor; changed = true;
-          }
-          if (w.accentColor && w.accentColor !== cfg.accentColor) {
-            cfg.accentColor = w.accentColor; changed = true;
-          }
-          if (typeof w.indicatorColor === 'string' && w.indicatorColor !== cfg.indicatorColor) {
-            cfg.indicatorColor = w.indicatorColor; changed = true;
-          }
-          if (w.showOverlay !== undefined && w.showOverlay !== cfg.showOverlay) {
-            cfg.showOverlay = w.showOverlay; changed = true;
-          }
-          if ((w.panelSide === 'left' || w.panelSide === 'right') && w.panelSide !== cfg.panelSide) {
-            cfg.panelSide = w.panelSide; changed = true;
-          }
-          if ((w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating')
-              && w.tabStyle !== cfg.tabStyle) {
-            cfg.tabStyle = w.tabStyle; changed = true;
-          }
-          let filterChanged = false;
-          if ((w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') && w.filterMode !== cfg.filterMode) {
-            cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
-          }
-
-          if (changed) applyChrome();
-          if (filterChanged) {
-            updateFilterBtnState();
-            updateNewIndicator();
-            refreshGamesBadge();
-            if (opened && activeTab === 'games') render();
-          }
-        } catch {}
-      })
-      .catch(() => {});
-  }, 2000);
+			try {
+				const { changed, filterChanged } = applyWidgetJson(JSON.parse(raw || '{}'));
+				if (changed) applyChrome();
+				if (filterChanged) {
+					updateFilterBtnState();
+					updateNewIndicator();
+					refreshGamesBadge();
+					if (opened && activeTab === 'games') render();
+				}
+			} catch {}
+		})
+		.catch(() => {});
+}, 2000);
 
   void softRefresh();
   const cachePoll = setInterval(() => {
@@ -858,6 +849,14 @@ function formatUntil(until?: number): string {
   }
 }
 
+function intervalLabel(min: number): string {
+  return min >= 1440 ? 'once a day' : `every ${min} min`;
+}
+
+function intervalShort(min: number): string {
+  return min >= 1440 ? '1 day' : `${min} min`;
+}
+
 const PANEL_CSS = WIDGET_CSS_TEMPLATE;
 
 function panelMarkup(): string {
@@ -865,14 +864,17 @@ function panelMarkup(): string {
     .replace(/\{\{SVG_GIFT\}\}/g,      SVG_GIFT)
     .replace(/\{\{SVG_FUNNEL\}\}/g,    SVG_FUNNEL)
     .replace(/\{\{SVG_GEAR\}\}/g,      SVG_GEAR)
-    .replace(/\{\{POLL_INTERVAL\}\}/g, String(cfg.pollIntervalMin));
+    .replace(/\{\{FOOTER_INTERVAL\}\}/g, intervalLabel(cfg.pollIntervalMin));
 }
 
 function renderEmpty(message: string): string {
+  const nextScanLabel = cfg.pollIntervalMin >= 1440
+    ? 'once a day'
+    : `in ${cfg.pollIntervalMin} min`;
   return WIDGET_EMPTY_TEMPLATE
     .replace(/\{\{SVG_RADAR\}\}/g,     SVG_RADAR)
     .replace(/\{\{MESSAGE\}\}/g,       message)
-    .replace(/\{\{POLL_INTERVAL\}\}/g, String(cfg.pollIntervalMin));
+    .replace(/\{\{NEXT_SCAN_LABEL\}\}/g, nextScanLabel);
 }
 
 function renderGames(
@@ -1025,10 +1027,10 @@ function renderSettings(
       <span class="fgg-toggle-knob"></span>
     </button>`;
 
-  const intervals = [30, 60, 120];
+  const intervals = [30, 120, 1440];
   const intervalsHtml = intervals.map((m) => {
     const active = cfg.pollIntervalMin === m ? ' active' : '';
-    return `<button class="fgg-int-btn${active}" data-interval="${m}">${m} min</button>`;
+    return `<button class="fgg-int-btn${active}" data-interval="${m}">${intervalShort(m)}</button>`;
   }).join('');
 
   bodyEl.innerHTML = WIDGET_SETTINGS_TEMPLATE

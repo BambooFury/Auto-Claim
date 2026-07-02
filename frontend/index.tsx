@@ -15,6 +15,8 @@ const saveFreeGamesCache = callable<StrIn, number>('save_free_games_cache_ipc');
 const loadFreeGamesCache = callable<Empty, string>('load_free_games_cache_ipc');
 const saveFreeWeekendCache = callable<StrIn, number>('save_free_weekend_cache_ipc');
 const loadFreeWeekendCache = callable<Empty, string>('load_free_weekend_cache_ipc');
+const loadLastDailyScan  = callable<Empty, string>('load_last_daily_scan_ipc');
+const saveLastDailyScan  = callable<StrIn, number>('save_last_daily_scan_ipc');
 const _loadWidgetIPC    = callable<Empty, string>('load_widget_settings_ipc');
 const _saveWidgetIPC    = callable<StrIn, number>('save_widget_settings_ipc');
 const popToasts         = callable<Empty, string>('pop_toasts_ipc');
@@ -23,6 +25,7 @@ const releaseClaimLock    = callable<StrIn, number>('release_claim_lock_ipc');
 const setCurrentSteamId   = callable<StrIn, number>('set_current_steamid_ipc');
 
 const _globalGrabbedAppids = new Set<number>();
+const _notifiedAvailableAppids = new Set<number>();
 
 async function _reloadGlobalGrabbed(): Promise<void> {
   try {
@@ -81,7 +84,7 @@ interface FreeGame {
 }
 
 function isAutoClaimable(game: FreeGame): boolean {
-  return !game.type || game.type === 'game' || game.type === 'unknown';
+	return !game.type || game.type === 'game';
 }
 
 interface GrabbedEntry {
@@ -103,10 +106,24 @@ const DEFAULTS: Settings = {
   notifyOnGrab:    true,
 };
 
+const DAILY_MODE_MIN = 1440;
+const DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function loadLastScanTs(data: any): number {
+  if (data && typeof data.ts === 'number' && data.ts > 0) return data.ts;
+  if (data && typeof data.date === 'string') {
+    const t = Date.parse(`${data.date}T00:00:00`);
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
+}
+
+const ALLOWED_INTERVALS = [30, 120, 1440];
+
 function normalizeSettings(s: Settings): Settings {
-  const poll = typeof s.pollIntervalMin === 'number' && s.pollIntervalMin >= MIN_POLL_INTERVAL_MIN
-    ? s.pollIntervalMin
-    : MIN_POLL_INTERVAL_MIN;
+  let poll = typeof s.pollIntervalMin === 'number' ? s.pollIntervalMin : MIN_POLL_INTERVAL_MIN;
+  if (poll === 60) poll = 120; 
+  if (ALLOWED_INTERVALS.indexOf(poll) === -1) poll = MIN_POLL_INTERVAL_MIN;
   return { ...s, pollIntervalMin: poll };
 }
 
@@ -147,9 +164,15 @@ function isAlreadyInLibrary(appid: number): boolean {
 
 
 function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed = false): void {
-  if (_globalGrabbedAppids.has(game.appid)) return;
-  if (!claimed && isAlreadyInLibrary(game.appid)) return;
-  _globalGrabbedAppids.add(game.appid);
+  if (claimed) {
+    if (_globalGrabbedAppids.has(game.appid)) return;
+    _globalGrabbedAppids.add(game.appid);
+  } else {
+    if (_globalGrabbedAppids.has(game.appid)) return;
+    if (_notifiedAvailableAppids.has(game.appid)) return;
+    if (isAlreadyInLibrary(game.appid)) return;
+    _notifiedAvailableAppids.add(game.appid);
+  }
   toaster.toast({
     title: claimed ? 'Free Game Claimed!' : 'Free Game Available!',
     body:  claimed
@@ -337,52 +360,49 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
 }
 
 const SettingsPanel: React.FC = () => {
-  const [settings, setSettings] = useState<Settings>(DEFAULTS);
-  const [widget,   setWidget]   = useState<WidgetSettings>(defaultWidget());
-  const [loaded,   setLoaded]   = useState(false);
+	const [widget, setWidget] = useState<WidgetSettings>(defaultWidget());
+	const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    const boot = async () => {
-      const sRaw = await withTimeout(loadSettings(), 3000, '{}');
-      let s: Settings = { ...DEFAULTS };
-      try { s = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
-      setSettings(s);
+	useEffect(() => {
+		const boot = async () => {
+			let w: WidgetSettings = defaultWidget();
+			try {
+				const wRaw = await withTimeout(_loadWidgetIPC(), 3000, '{}');
+				w = { ...w, ...JSON.parse(wRaw || '{}') };
+			} catch {}
+			setWidget(w);
+			setLoaded(true);
+		};
+		const bootTimer = setTimeout(() => { void boot(); }, 500);
+		return () => clearTimeout(bootTimer);
+	}, []);
 
-      let w: WidgetSettings = defaultWidget();
-      try {
-        const wRaw = await withTimeout(_loadWidgetIPC(), 3000, '{}');
-        w = { ...w, ...JSON.parse(wRaw || '{}') };
-      } catch {}
-      setWidget(w);
+	const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
+		setWidget((prev) => ({ ...prev, ...patch }));
+		void (async () => {
+			try {
+				const raw = await _loadWidgetIPC();
+				let current: Record<string, unknown> = {};
+				try { current = JSON.parse(raw || '{}'); } catch {}
+				await _saveWidgetIPC({ payload: JSON.stringify({ ...current, ...patch }) });
+			} catch {}
+		})();
+	}, []);
 
-      setLoaded(true);
-    };
-    const bootTimer = setTimeout(() => { void boot(); }, 500);
-    return () => clearTimeout(bootTimer);
-  }, []);
+	if (!loaded) {
+		return React.createElement('div',
+			{ style: { padding: '16px', color: 'rgba(255,255,255,0.4)', textAlign: 'center' } },
+			'Loading...',
+		);
+	}
 
-  const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
-    setWidget((prev) => {
-      const next = { ...prev, ...patch };
-      _saveWidgetIPC({ payload: JSON.stringify(next) });
-      return next;
-    });
-  }, [settings]);
-
-  if (!loaded) {
-    return React.createElement('div',
-      { style: { padding: '16px', color: 'rgba(255,255,255,0.4)', textAlign: 'center' } },
-      'Loading...',
-    );
-  }
-
-  return React.createElement('div',
-    { style: { display: 'flex', flexDirection: 'column' } },
-    React.createElement(SettingsTab, {
-      widget,
-      onWidget: updateWidget,
-    }),
-  );
+	return React.createElement('div',
+		{ style: { display: 'flex', flexDirection: 'column' } },
+		React.createElement(SettingsTab, {
+			widget,
+			onWidget: updateWidget,
+		}),
+	);
 };
 
 const SCAN_NAME_BLOCKLIST: RegExp[] = [
@@ -423,6 +443,8 @@ async function startPolling(): Promise<void> {
   _trackInterval(() => { void drainPendingToastsFiltered(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
+  const isDailyModeNow = () => settings.pollIntervalMin >= DAILY_MODE_MIN;
+  let lastDailyScanTs = 0;
   let grabbedSet  = new Set<number>();
   let notifiedSet = new Set<number>();
   const skipLogged = new Set<number>();
@@ -457,6 +479,7 @@ async function startPolling(): Promise<void> {
     } catch {}
   }
 
+  let knownSid = '';
   async function recordGrabbed(game: FreeGame, added: boolean): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -478,7 +501,7 @@ async function startPolling(): Promise<void> {
         if (!saved) throw new Error('save_grabbed_ipc returned 0');
         if (added) grabbedSet.add(game.appid);
         notifiedSet.add(game.appid);
-        _globalGrabbedAppids.add(game.appid);
+        if (added) _globalGrabbedAppids.add(game.appid);
         return;
       } catch {
         await new Promise((r) => setTimeout(r, 2000));
@@ -778,7 +801,30 @@ async function startPolling(): Promise<void> {
   let scanInProgress = false;
   let scanQueued = false;
   let pendingManualScanRequestAt = 0;
+
+  const recordDailyScanIfActive = (ok: boolean): void => {
+    if (!isDailyModeNow() || !ok) return;
+    lastDailyScanTs = Date.now();
+    withTimeout(saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }), 3000, 0)
+      .then(() => log('Once-a-day mode — scan complete, next scan in 24h'))
+      .catch(() => {});
+  };
+
+  const shouldSkipDailyScan = (reason: string): boolean => {
+    if (!isDailyModeNow()) return false;
+    if (reason === 'manual button' || reason === 'queued' || pendingManualScanRequestAt) return false;
+    if (lastDailyScanTs > 0 && Date.now() - lastDailyScanTs < DAILY_INTERVAL_MS) {
+      const elapsedH = Math.floor((Date.now() - lastDailyScanTs) / 3600000);
+      dlog(`Once-a-day mode — ${reason}: last scan ${elapsedH}h ago, skipping`);
+      return true;
+    }
+    return false;
+  };
+
     const triggerScan = async (reason: string): Promise<boolean> => {
+    if (shouldSkipDailyScan(reason)) {
+	return true;
+}
     if (scanInProgress) {
       scanQueued = true;
       dlog(`Scan queued (${reason}) — another scan is in progress`);
@@ -790,6 +836,7 @@ async function startPolling(): Promise<void> {
     try {
       dlog(`Manual scan triggered: ${reason}`);
       result = await runOneScan();
+      recordDailyScanIfActive(result);
       if (pendingManualScanRequestAt && (reason === 'manual button' || reason === 'queued')) {
         const requestedAt = pendingManualScanRequestAt;
         pendingManualScanRequestAt = 0;
@@ -807,7 +854,6 @@ async function startPolling(): Promise<void> {
 
 
   const STEAM_ID_BASE = '76561197960265728';
-  let knownSid = '';
   try {
     (window as any).SteamClient?.User?.RegisterForCurrentUserChanges?.((user: any) => {
       const sid = String(user?.strSteamID || '');
@@ -822,10 +868,13 @@ async function startPolling(): Promise<void> {
       void setCurrentSteamId({ payload: sid })
         .catch((e) => log(`set_current_steamid_ipc failed: ${String(e)}`))
         .then(() => {
-          skipLogged.clear();
-          failLogged.clear();
-          grabbedSet = new Set<number>();
-          notifiedSet = new Set<number>();
+        skipLogged.clear();
+        failLogged.clear();
+        grabbedSet = new Set<number>();
+        notifiedSet = new Set<number>();
+        _notifiedAvailableAppids.clear();
+        _globalGrabbedAppids.clear();
+        void _reloadGlobalGrabbed();
           if (scanInProgress) {
 
             dlog('queueing re-scan for new account (scan in progress)');
@@ -840,6 +889,17 @@ async function startPolling(): Promise<void> {
   } catch (e) {
     log(`RegisterForCurrentUserChanges unavailable: ${String(e)}`);
   }
+
+  let startupSettings: Settings = { ...DEFAULTS };
+  try {
+    const sRaw = await withTimeout(loadSettings(), 3000, '{}');
+    startupSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
+    settings = startupSettings;
+  } catch {}
+  try {
+  const raw = await withTimeout(loadLastDailyScan(), 3000, '{}');
+  lastDailyScanTs = loadLastScanTs(JSON.parse(raw || '{}'));
+} catch {}
 
   await triggerScan('initial');
   const WEEKEND_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -871,13 +931,31 @@ async function startPolling(): Promise<void> {
   }, 30000);
 
   const scheduleNext = (retryDelay?: number) => {
+    if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
+
+    if (!retryDelay && settings.pollIntervalMin >= DAILY_MODE_MIN) {
+      const now = Date.now();
+      const base = lastDailyScanTs > 0 ? lastDailyScanTs : now;
+      const interval = Math.max(60 * 1000, base + DAILY_INTERVAL_MS - now);
+      dlog(`Next daily scan in ${Math.round(interval / 60000)} min`);
+     _autoclaimNextScanTimer = setTimeout(async () => {
+	_autoclaimNextScanTimer = null;
+	const ok = await triggerScan('daily scheduled');
+	if (!ok) {
+		scheduleNext(5 * 60 * 1000);
+	} else {
+		scheduleNext();
+	}
+}, interval);
+return;
+    }
+
     const interval = retryDelay ?? (settings.pollIntervalMin || 30) * 60 * 1000;
     if (retryDelay) {
       log(`Scan failed — retrying in ${Math.round(interval / 1000)}s`);
     } else {
       dlog(`Next scan in ${settings.pollIntervalMin} min`);
     }
-    if (_autoclaimNextScanTimer) clearTimeout(_autoclaimNextScanTimer);
     _autoclaimNextScanTimer = setTimeout(async () => {
       _autoclaimNextScanTimer = null;
       const ok = await triggerScan(retryDelay ? 'retry after failure' : 'scheduled');

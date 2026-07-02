@@ -508,7 +508,7 @@
 }
 #fgg-body > * { flex-shrink: 0; }
 #fgg-body.is-settings {
-  max-height: calc(70vh - 150px);
+  max-height: calc(80vh - 140px);
   overflow-y: auto;
   padding-bottom: 4px;
 }
