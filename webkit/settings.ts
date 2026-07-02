@@ -116,8 +116,14 @@ export function saveSettings(): void {
     localStorage.setItem(LS_KEY, JSON.stringify(snapshotForLocalStorage()));
   } catch {}
 
-  saveWidgetSettingsIPC({ payload: JSON.stringify(widgetOnlyPayload()) })
-    .catch(() => {});
+  loadWidgetSettingsIPC()
+  .then((raw) => {
+    let existing: any = {};
+    try { existing = JSON.parse(raw || '{}'); } catch {}
+    const merged = Object.assign({}, existing, widgetOnlyPayload());
+    return saveWidgetSettingsIPC({ payload: JSON.stringify(merged) });
+  })
+  .catch(() => {});
 
   loadPluginSettingsIPC()
     .then((raw) => {
