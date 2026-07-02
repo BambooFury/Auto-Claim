@@ -944,11 +944,16 @@ async function startPolling(): Promise<void> {
       const base = lastDailyScanTs > 0 ? lastDailyScanTs : now;
       const interval = Math.max(60 * 1000, base + DAILY_INTERVAL_MS - now);
       dlog(`Next daily scan in ${Math.round(interval / 60000)} min`);
-      _autoclaimNextScanTimer = setTimeout(() => {
-        _autoclaimNextScanTimer = null;
-        void triggerScan('daily scheduled').then(() => scheduleNext());
-      }, interval);
-      return;
+     _autoclaimNextScanTimer = setTimeout(async () => {
+	_autoclaimNextScanTimer = null;
+	const ok = await triggerScan('daily scheduled');
+	if (!ok) {
+		scheduleNext(5 * 60 * 1000);
+	} else {
+		scheduleNext();
+	}
+}, interval);
+return;
     }
 
     const interval = retryDelay ?? (settings.pollIntervalMin || 30) * 60 * 1000;
