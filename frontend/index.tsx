@@ -351,52 +351,49 @@ async function addGameToLibrary(appid: number): Promise<boolean> {
 }
 
 const SettingsPanel: React.FC = () => {
-  const [settings, setSettings] = useState<Settings>(DEFAULTS);
-  const [widget,   setWidget]   = useState<WidgetSettings>(defaultWidget());
-  const [loaded,   setLoaded]   = useState(false);
+	const [widget, setWidget] = useState<WidgetSettings>(defaultWidget());
+	const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    const boot = async () => {
-      const sRaw = await withTimeout(loadSettings(), 3000, '{}');
-      let s: Settings = { ...DEFAULTS };
-      try { s = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') }); } catch {}
-      setSettings(s);
+	useEffect(() => {
+		const boot = async () => {
+			let w: WidgetSettings = defaultWidget();
+			try {
+				const wRaw = await withTimeout(_loadWidgetIPC(), 3000, '{}');
+				w = { ...w, ...JSON.parse(wRaw || '{}') };
+			} catch {}
+			setWidget(w);
+			setLoaded(true);
+		};
+		const bootTimer = setTimeout(() => { void boot(); }, 500);
+		return () => clearTimeout(bootTimer);
+	}, []);
 
-      let w: WidgetSettings = defaultWidget();
-      try {
-        const wRaw = await withTimeout(_loadWidgetIPC(), 3000, '{}');
-        w = { ...w, ...JSON.parse(wRaw || '{}') };
-      } catch {}
-      setWidget(w);
+	const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
+		setWidget((prev) => ({ ...prev, ...patch }));
+		void (async () => {
+			try {
+				const raw = await _loadWidgetIPC();
+				let current: Record<string, unknown> = {};
+				try { current = JSON.parse(raw || '{}'); } catch {}
+				await _saveWidgetIPC({ payload: JSON.stringify({ ...current, ...patch }) });
+			} catch {}
+		})();
+	}, []);
 
-      setLoaded(true);
-    };
-    const bootTimer = setTimeout(() => { void boot(); }, 500);
-    return () => clearTimeout(bootTimer);
-  }, []);
+	if (!loaded) {
+		return React.createElement('div',
+			{ style: { padding: '16px', color: 'rgba(255,255,255,0.4)', textAlign: 'center' } },
+			'Loading...',
+		);
+	}
 
-  const updateWidget = useCallback((patch: Partial<WidgetSettings>) => {
-    setWidget((prev) => {
-      const next = { ...prev, ...patch };
-      _saveWidgetIPC({ payload: JSON.stringify(next) });
-      return next;
-    });
-  }, [settings]);
-
-  if (!loaded) {
-    return React.createElement('div',
-      { style: { padding: '16px', color: 'rgba(255,255,255,0.4)', textAlign: 'center' } },
-      'Loading...',
-    );
-  }
-
-  return React.createElement('div',
-    { style: { display: 'flex', flexDirection: 'column' } },
-    React.createElement(SettingsTab, {
-      widget,
-      onWidget: updateWidget,
-    }),
-  );
+	return React.createElement('div',
+		{ style: { display: 'flex', flexDirection: 'column' } },
+		React.createElement(SettingsTab, {
+			widget,
+			onWidget: updateWidget,
+		}),
+	);
 };
 
 const SCAN_NAME_BLOCKLIST: RegExp[] = [
