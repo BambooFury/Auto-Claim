@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.9.0](https://github.com/BambooFury/Auto-Claim/compare/v1.8.3...v1.9.0) (2026-07-02)
+
+
+### Features
+
+* add last daily scan persistence IPC ([2627b35](https://github.com/BambooFury/Auto-Claim/commit/2627b35682a2987d00168ca653ee5782d995699a)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+* add once-a-day scan mode ([d41f2ce](https://github.com/BambooFury/Auto-Claim/commit/d41f2ce942b6d11213bd59fb2a4bc1b1c7185f68)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+* expose once-a-day scan interval in widget ([5e6e13f](https://github.com/BambooFury/Auto-Claim/commit/5e6e13f9c288462a6f3b83009a5906430f230e27)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+* rebuild settings panel using native Millennium UI components ([e202639](https://github.com/BambooFury/Auto-Claim/commit/e2026391c288fc60d558f4980a8262ae7bf4d717))
+
+
+### Bug Fixes
+
+* apply retry backoff to failed daily scans instead of 60s loop ([86f0076](https://github.com/BambooFury/Auto-Claim/commit/86f0076e20835f6e072785d756ed4f4decd448c0))
+* derive daily mode from live settings instead of boot-time flag ([79aa3d5](https://github.com/BambooFury/Auto-Claim/commit/79aa3d558059006fccc565e9013651fc86f31c07))
+* do not auto-claim items with unknown app type ([364597c](https://github.com/BambooFury/Auto-Claim/commit/364597c313397692aad1185afd6efc20466a37c4))
+* do not drop claimed toasts for previously notified games ([f8fd74e](https://github.com/BambooFury/Auto-Claim/commit/f8fd74e9e6f64182f7d863f60c8528264619eb80))
+* do not report skipped daily scan as completed manual scan ([7ab6996](https://github.com/BambooFury/Auto-Claim/commit/7ab69969b172c5b85ab6617ef3678a88c5b27019))
+* gate all scan triggers with 24h cooldown in daily mode ([8b1c5d6](https://github.com/BambooFury/Auto-Claim/commit/8b1c5d69b62146a519d8610264089b81a606953a))
+* hoist knownSid declaration to avoid temporal dead zone crash ([45d6449](https://github.com/BambooFury/Auto-Claim/commit/45d64496070ee745628850b6aa29dcff318a1222))
+* merge widget settings on save to preserve manual scan keys ([297064f](https://github.com/BambooFury/Auto-Claim/commit/297064fe56f6cd97107f44ad25cacc47c3207b7a))
+* move widget panel from 65% to 55% for better vertical fit ([e2ceaea](https://github.com/BambooFury/Auto-Claim/commit/e2ceaea45cb7c83ad42bc6cce1a34ce68ff54863))
+* never skip queued manual scans in daily mode ([5c2712f](https://github.com/BambooFury/Auto-Claim/commit/5c2712fa9fedf2c9ac8abf5b80ea0464ed3facba))
+* raise Settings body max-height so all rows are visible ([a27066d](https://github.com/BambooFury/Auto-Claim/commit/a27066d8cc23cbc87a64080a154ece7aaec8e337))
+* remove empty header row from Features table ([2d127ea](https://github.com/BambooFury/Auto-Claim/commit/2d127ea2bc69f24c36b957ad803a161ccc848873))
+* replace non-existent layout-panel-right icon with panel-right ([2a5f53c](https://github.com/BambooFury/Auto-Claim/commit/2a5f53c0a2464c5c131009d9f0103f594f1992cf))
+* reset notification dedupe sets on steam account change ([7fcef61](https://github.com/BambooFury/Auto-Claim/commit/7fcef61b130eb0d180567f25cc83b6e02cfda126))
+* restore Configuration heading and spacing after features table ([173403b](https://github.com/BambooFury/Auto-Claim/commit/173403b9b2edabc2df79e33100ea990b98d1b23f))
+* schedule daily scan at midnight instead of disabling timer ([171886b](https://github.com/BambooFury/Auto-Claim/commit/171886ba98fb93eb226c10cbb6117ed1dc614165)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+* show claimed toast even after availability notification ([5aa7538](https://github.com/BambooFury/Auto-Claim/commit/5aa7538c6ef4e1d305a52e83e6143c3ef446b1dc))
+* unify scan interval validation and migrate legacy 60m interval to 120m ([7b91407](https://github.com/BambooFury/Auto-Claim/commit/7b91407aa4c734da374c3c22a77df061cc850637))
+* use 24h elapsed-time gate for once-a-day scans ([3471d39](https://github.com/BambooFury/Auto-Claim/commit/3471d39bd26af0072540bda34f0dc28e674a51ef))
+* validate scan interval against allowed set ([2105ebd](https://github.com/BambooFury/Auto-Claim/commit/2105ebd467f10caed8688865cdcac37326d5efd2)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+
+
+### Refactoring
+
+* extract applyWidgetJson helper to remove duplicated parsing ([9a7b0b9](https://github.com/BambooFury/Auto-Claim/commit/9a7b0b910cc82aabf1dbee19b9cf50f04991a1d8))
+
+
+### Documentation
+
+* update scan interval references for once-a-day mode ([3bc7dbc](https://github.com/BambooFury/Auto-Claim/commit/3bc7dbc4fef78504f8dfcd2729f0f5f0fbd51406)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+
+
+### Maintenance
+
+* ignore last_daily_scan.json runtime file ([282a29c](https://github.com/BambooFury/Auto-Claim/commit/282a29c2cd75785c3f28788e5d8d49acf1591261)), closes [#77](https://github.com/BambooFury/Auto-Claim/issues/77)
+* update README.md ([1b66b38](https://github.com/BambooFury/Auto-Claim/commit/1b66b38d312700f0ff616335b562d6fc15f1c5fa))
+
 ## [1.8.3](https://github.com/BambooFury/Auto-Claim/compare/v1.8.2...v1.8.3) (2026-06-12)
 
 
