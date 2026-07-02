@@ -868,10 +868,13 @@ async function startPolling(): Promise<void> {
       void setCurrentSteamId({ payload: sid })
         .catch((e) => log(`set_current_steamid_ipc failed: ${String(e)}`))
         .then(() => {
-          skipLogged.clear();
-          failLogged.clear();
-          grabbedSet = new Set<number>();
-          notifiedSet = new Set<number>();
+        skipLogged.clear();
+        failLogged.clear();
+        grabbedSet = new Set<number>();
+        notifiedSet = new Set<number>();
+        _notifiedAvailableAppids.clear();
+        _globalGrabbedAppids.clear();
+        void _reloadGlobalGrabbed();
           if (scanInProgress) {
 
             dlog('queueing re-scan for new account (scan in progress)');
