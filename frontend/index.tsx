@@ -443,7 +443,7 @@ async function startPolling(): Promise<void> {
   _trackInterval(() => { void drainPendingToastsFiltered(); }, 5000);
 
   let settings: Settings = { ...DEFAULTS };
-  let isDailyMode = false;
+  const isDailyModeNow = () => settings.pollIntervalMin >= DAILY_MODE_MIN;
   let lastDailyScanTs = 0;
   let grabbedSet  = new Set<number>();
   let notifiedSet = new Set<number>();
@@ -803,7 +803,7 @@ async function startPolling(): Promise<void> {
   let pendingManualScanRequestAt = 0;
 
   const recordDailyScanIfActive = (ok: boolean): void => {
-    if (!isDailyMode || !ok) return;
+    if (!isDailyModeNow() || !ok) return;
     lastDailyScanTs = Date.now();
     withTimeout(saveLastDailyScan({ payload: JSON.stringify({ ts: lastDailyScanTs }) }), 3000, 0)
       .then(() => log('Once-a-day mode — scan complete, next scan in 24h'))
@@ -811,7 +811,7 @@ async function startPolling(): Promise<void> {
   };
 
   const shouldSkipDailyScan = (reason: string): boolean => {
-    if (!isDailyMode) return false;
+    if (!isDailyModeNow()) return false;
     if (reason === 'manual button') return false;
     if (lastDailyScanTs > 0 && Date.now() - lastDailyScanTs < DAILY_INTERVAL_MS) {
       const elapsedH = Math.floor((Date.now() - lastDailyScanTs) / 3600000);
@@ -893,14 +893,10 @@ async function startPolling(): Promise<void> {
     startupSettings = normalizeSettings({ ...DEFAULTS, ...JSON.parse(sRaw || '{}') });
     settings = startupSettings;
   } catch {}
-  isDailyMode = startupSettings.pollIntervalMin >= DAILY_MODE_MIN;
-
-  if (isDailyMode) {
-    try {
-      const raw = await withTimeout(loadLastDailyScan(), 3000, '{}');
-      lastDailyScanTs = loadLastScanTs(JSON.parse(raw || '{}'));
-    } catch {}
-  }
+  try {
+  const raw = await withTimeout(loadLastDailyScan(), 3000, '{}');
+  lastDailyScanTs = loadLastScanTs(JSON.parse(raw || '{}'));
+} catch {}
 
   await triggerScan('initial');
   const WEEKEND_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
