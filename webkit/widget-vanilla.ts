@@ -109,6 +109,34 @@ function arrowPoints(isLeft: boolean, opened: boolean): string {
 function isClaimableGame(g: FreeGame): boolean {
   return !g.type || g.type === 'game'
 }
+function applyWidgetJson(w: any): { changed: boolean; filterChanged: boolean } {
+	let changed = false;
+	let filterChanged = false;
+	if (!w || typeof w !== 'object') return { changed, filterChanged };
+
+	if (typeof w.tabColor === 'string' && w.tabColor && w.tabColor !== cfg.tabColor) {
+		cfg.tabColor = w.tabColor; changed = true;
+	}
+	if (typeof w.accentColor === 'string' && w.accentColor && w.accentColor !== cfg.accentColor) {
+		cfg.accentColor = w.accentColor; changed = true;
+	}
+	if (typeof w.indicatorColor === 'string' && w.indicatorColor !== cfg.indicatorColor) {
+		cfg.indicatorColor = w.indicatorColor; changed = true;
+	}
+	if (typeof w.showOverlay === 'boolean' && w.showOverlay !== cfg.showOverlay) {
+		cfg.showOverlay = w.showOverlay; changed = true;
+	}
+	if ((w.panelSide === 'left' || w.panelSide === 'right') && w.panelSide !== cfg.panelSide) {
+		cfg.panelSide = w.panelSide; changed = true;
+	}
+	if ((w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') && w.tabStyle !== cfg.tabStyle) {
+		cfg.tabStyle = w.tabStyle; changed = true;
+	}
+	if ((w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') && w.filterMode !== cfg.filterMode) {
+		cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
+	}
+	return { changed, filterChanged };
+}
 
 function gameTypeLabel(t?: string): string {
   switch (t) {
@@ -675,24 +703,13 @@ export function injectVanillaWidget(): void {
       markVisibleAsSeen();
       updateNewIndicator();
       loadWidgetSettingsIPC()
-        .then((raw) => {
-          try {
-            const w = JSON.parse(raw || '{}');
-            if (w.tabColor)                                  cfg.tabColor       = w.tabColor;
-            if (w.accentColor)                               cfg.accentColor    = w.accentColor;
-            if (typeof w.indicatorColor === 'string')        cfg.indicatorColor = w.indicatorColor;
-            if (w.showOverlay !== undefined)                 cfg.showOverlay = w.showOverlay;
-            if (w.panelSide === 'left' || w.panelSide === 'right') cfg.panelSide = w.panelSide;
-            if (w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating') {
-              cfg.tabStyle = w.tabStyle;
-            }
-            if (w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') {
-              cfg.filterMode = w.filterMode;
-            }
-            applyChrome();
-          } catch {}
-        })
-        .catch(() => {});
+  .then((raw) => {
+    try {
+      applyWidgetJson(JSON.parse(raw || '{}'));
+      applyChrome();
+    } catch {}
+  })
+  .catch(() => {});
     }
 
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -785,51 +802,25 @@ export function injectVanillaWidget(): void {
   document.body.appendChild(root);
 
   let lastWidgetJson = initialWidgetRaw;
-  const settingsPoll = setInterval(() => {
-    loadWidgetSettingsIPC()
-      .then((raw) => {
-        if (raw === lastWidgetJson) return;
-        lastWidgetJson = raw;
+const settingsPoll = setInterval(() => {
+	loadWidgetSettingsIPC()
+		.then((raw) => {
+			if (raw === lastWidgetJson) return;
+			lastWidgetJson = raw;
 
-        try {
-          const w = JSON.parse(raw || '{}');
-          let changed = false;
-
-          if (w.tabColor && w.tabColor !== cfg.tabColor) {
-            cfg.tabColor = w.tabColor; changed = true;
-          }
-          if (w.accentColor && w.accentColor !== cfg.accentColor) {
-            cfg.accentColor = w.accentColor; changed = true;
-          }
-          if (typeof w.indicatorColor === 'string' && w.indicatorColor !== cfg.indicatorColor) {
-            cfg.indicatorColor = w.indicatorColor; changed = true;
-          }
-          if (w.showOverlay !== undefined && w.showOverlay !== cfg.showOverlay) {
-            cfg.showOverlay = w.showOverlay; changed = true;
-          }
-          if ((w.panelSide === 'left' || w.panelSide === 'right') && w.panelSide !== cfg.panelSide) {
-            cfg.panelSide = w.panelSide; changed = true;
-          }
-          if ((w.tabStyle === 'slim' || w.tabStyle === 'large' || w.tabStyle === 'floating')
-              && w.tabStyle !== cfg.tabStyle) {
-            cfg.tabStyle = w.tabStyle; changed = true;
-          }
-          let filterChanged = false;
-          if ((w.filterMode === 'games' || w.filterMode === 'all' || w.filterMode === 'weekend') && w.filterMode !== cfg.filterMode) {
-            cfg.filterMode = w.filterMode; changed = true; filterChanged = true;
-          }
-
-          if (changed) applyChrome();
-          if (filterChanged) {
-            updateFilterBtnState();
-            updateNewIndicator();
-            refreshGamesBadge();
-            if (opened && activeTab === 'games') render();
-          }
-        } catch {}
-      })
-      .catch(() => {});
-  }, 2000);
+			try {
+				const { changed, filterChanged } = applyWidgetJson(JSON.parse(raw || '{}'));
+				if (changed) applyChrome();
+				if (filterChanged) {
+					updateFilterBtnState();
+					updateNewIndicator();
+					refreshGamesBadge();
+					if (opened && activeTab === 'games') render();
+				}
+			} catch {}
+		})
+		.catch(() => {});
+}, 2000);
 
   void softRefresh();
   const cachePoll = setInterval(() => {
