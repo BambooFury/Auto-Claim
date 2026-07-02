@@ -50,9 +50,9 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 `Steam Menu → Millennium Library Manager → Auto Claim`
 
 <img src="https://api.iconify.design/lucide:monitor.svg?color=%239E9E9E" width="16"> Background Overlay - ON | OFF  
-<img src="https://api.iconify.design/lucide:palette.svg?color=%231a9fff" width="16"> Button Color - Presets + Custom  
-<img src="https://api.iconify.design/lucide:paintbrush.svg?color=%23FFD43B" width="16"> Accent Color - Presets + Custom  
-<img src="https://api.iconify.design/lucide:radar.svg?color=%23ff4d4f" width="16"> Indicator Color - Presets + Custom  
+<img src="https://api.iconify.design/lucide:palette.svg?color=%231a9fff" width="16"> Button Color - Presets 
+<img src="https://api.iconify.design/lucide:paintbrush.svg?color=%23FFD43B" width="16"> Accent Color - Presets  
+<img src="https://api.iconify.design/lucide:radar.svg?color=%23ff4d4f" width="16"> Indicator Color - Presets
 <img src="https://api.iconify.design/lucide:move-horizontal.svg?color=%239E9E9E" width="16"> Panel Side - Left | Right  
 <img src="https://api.iconify.design/lucide:square.svg?color=%231a9fff" width="16"> Button Style - Slim | Large | Floating  
 <img src="https://api.iconify.design/lucide:timer.svg?color=%232ecc71" width="16"> Scan Interval - 30 min | 120 min | 1 day
