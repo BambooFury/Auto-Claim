@@ -469,7 +469,8 @@ async function startPolling(): Promise<void> {
       }
     } catch {}
   }
-
+  
+  let knownSid = '';
   async function recordGrabbed(game: FreeGame, added: boolean): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -849,7 +850,6 @@ async function startPolling(): Promise<void> {
 
 
   const STEAM_ID_BASE = '76561197960265728';
-  let knownSid = '';
   try {
     (window as any).SteamClient?.User?.RegisterForCurrentUserChanges?.((user: any) => {
       const sid = String(user?.strSteamID || '');
