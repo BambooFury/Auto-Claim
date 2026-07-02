@@ -812,7 +812,7 @@ async function startPolling(): Promise<void> {
 
   const shouldSkipDailyScan = (reason: string): boolean => {
     if (!isDailyModeNow()) return false;
-    if (reason === 'manual button') return false;
+    if (reason === 'manual button' || reason === 'queued' || pendingManualScanRequestAt) return false;
     if (lastDailyScanTs > 0 && Date.now() - lastDailyScanTs < DAILY_INTERVAL_MS) {
       const elapsedH = Math.floor((Date.now() - lastDailyScanTs) / 3600000);
       dlog(`Once-a-day mode — ${reason}: last scan ${elapsedH}h ago, skipping`);
