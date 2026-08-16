@@ -11,24 +11,14 @@ const iconsDir     = join(root, 'webkit', 'icons');
 const outPath      = join(root, 'webkit', '_assets.generated.ts');
 
 const css       = readFileSync(join(stylesDir,    'widget.css'),   'utf8');
-const welcomeCss = readFileSync(join(stylesDir,    'welcome.css'),  'utf8');
 const widget   = readFileSync(join(templatesDir, 'widget.html'),  'utf8');
 const empty    = readFileSync(join(templatesDir, 'empty.html'),   'utf8');
 const card     = readFileSync(join(templatesDir, 'card.html'),    'utf8');
 const settings = readFileSync(join(templatesDir, 'settings.html'),'utf8');
-const welcome  = readFileSync(join(templatesDir, 'welcome.html'), 'utf8');
 
 const ICONS = ['gift', 'radar', 'gear', 'check', 'funnel'];
 const icons = Object.fromEntries(
   ICONS.map((name) => [name, readFileSync(join(iconsDir, `${name}.svg`), 'utf8').trim()]),
-);
-
-const WELCOME_ICON_NAMES = ['gift', 'search', 'sparkles', 'eye', 'settings', 'funnel', 'rocket', 'x', 'gamepad'];
-const welcomeIcons = Object.fromEntries(
-  WELCOME_ICON_NAMES.map((name) => [
-    name,
-    readFileSync(join(iconsDir, 'welcome', `${name}.svg`), 'utf8').trim(),
-  ]),
 );
 
 function asTsLiteral(s) {
@@ -44,24 +34,14 @@ const iconExports = ICONS
   .map((name) => `export const SVG_${name.toUpperCase()}${' '.repeat(Math.max(0, 6 - name.length))} = ${asTsLiteral(icons[name])};`)
   .join('\n');
 
-const welcomeEntries = WELCOME_ICON_NAMES
-  .map((name) => `  ${name}: ${asTsLiteral(welcomeIcons[name])},`)
-  .join('\n');
-
 const body =
 `export const WIDGET_CSS_TEMPLATE      = ${asTsLiteral(css)};
-export const WELCOME_CSS_TEMPLATE     = ${asTsLiteral(welcomeCss)};
 export const WIDGET_HTML_TEMPLATE     = ${asTsLiteral(widget)};
 export const WIDGET_EMPTY_TEMPLATE    = ${asTsLiteral(empty)};
 export const WIDGET_CARD_TEMPLATE     = ${asTsLiteral(card)};
 export const WIDGET_SETTINGS_TEMPLATE = ${asTsLiteral(settings)};
-export const WELCOME_HTML_TEMPLATE    = ${asTsLiteral(welcome)};
 
 ${iconExports}
-
-export const WELCOME_ICONS = {
-${welcomeEntries}
-};
 `;
 
 mkdirSync(dirname(outPath), { recursive: true });
@@ -71,5 +51,5 @@ console.log(
   `[build-assets] wrote ${outPath}`
   + ` (css: ${css.length}, widget: ${widget.length},`
   + ` empty: ${empty.length}, card: ${card.length}, settings: ${settings.length},`
-  + ` icons: ${ICONS.length}, welcome icons: ${WELCOME_ICON_NAMES.length})`
+  + ` icons: ${ICONS.length})`
 );
