@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.1](https://github.com/BambooFury/Auto-Claim/compare/v1.9.0...v1.9.1) (2026-08-16)
+
+
+### Refactoring
+
+* use native Steam dialog for welcome popup ([01107ce](https://github.com/BambooFury/Auto-Claim/commit/01107ce1114243f9b8282e86421f8c005f2e7be8))
+* use native Steam dialog for welcome popup ([ffc86fd](https://github.com/BambooFury/Auto-Claim/commit/ffc86fd86c9b2844142747401e6456319bb5589f))
+
 ## [1.9.0](https://github.com/BambooFury/Auto-Claim/compare/v1.8.3...v1.9.0) (2026-07-02)
 
 
