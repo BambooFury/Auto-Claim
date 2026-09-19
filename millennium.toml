@@ -1,7 +1,7 @@
 [plugin]
 id = "auto-claim"
 name = "Auto Claim"
-version = "1.9.1"
+version = "2.0.0"
 author = "BambooFury"
 description = "Automatically detects 100% discounted games on Steam and adds them to your library."
 
