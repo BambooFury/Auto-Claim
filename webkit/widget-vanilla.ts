@@ -946,9 +946,13 @@ function renderGames(
   bodyEl.querySelectorAll<HTMLImageElement>('img[data-fallback-src]').forEach((img) => {
     const swapOrHide = () => {
       const fb = img.getAttribute('data-fallback-src');
+      const fb2 = img.getAttribute('data-fallback-2');
       if (fb) {
         img.removeAttribute('data-fallback-src');
         img.src = fb;
+      } else if (fb2) {
+        img.removeAttribute('data-fallback-2');
+        img.src = fb2;
       } else {
         img.style.display = 'none';
       }
@@ -994,6 +998,7 @@ function buildCard(
   const heroBack   = `${cdn}/${g.appid}/page_bg_generated_v6b.jpg`;
   const headerSrc  = g.header  || `${cdn}/${g.appid}/header.jpg`;
   const headerBack = g.capsule || `${cdn}/${g.appid}/capsule_231x87.jpg`;
+  const heroAsThumb = `${cdn}/${g.appid}/library_hero.jpg`;
 
   const cls = `fgg-card${isClaim ? ' claiming' : ''}${isConfirm ? ' confirming' : ''}${owned ? ' owned' : ''}${justDone ? ' just-claimed' : ''}`;
   const vars = [
@@ -1013,6 +1018,7 @@ function buildCard(
     .replace(/\{\{HERO_FALLBACK\}\}/g,  heroBack)
     .replace(/\{\{HEADER_SRC\}\}/g,      headerSrc)
     .replace(/\{\{HEADER_FALLBACK\}\}/g, headerBack)
+    .replace(/\{\{HEADER_FALLBACK_2\}\}/g, heroAsThumb)
     .replace(/\{\{NAME\}\}/g,            escapeHtml(g.name))
     .replace(/\{\{STATUS\}\}/g,         status)
     .replace(/\{\{TRAILING\}\}/g,       trailing);
