@@ -33,35 +33,18 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - name: Build plugin
-        run: npm run build
-
-      - name: Stage release files
-        run: |
-          mkdir -p _release/auto-claim
-          cp plugin.json _release/auto-claim/
-          cp README.md _release/auto-claim/
-          cp LICENSE _release/auto-claim/
-          cp -r backend _release/auto-claim/
-          cp -r .millennium _release/auto-claim/
-
-      - name: Create zip archive
-        run: |
-          cd _release
-          zip -r "../auto-claim-${{ needs.release-please.outputs.tag_name }}.zip" auto-claim
+        run: bun run build
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: auto-claim-*.zip
+          files: "*.star"
           token: ${{ secrets.GITHUB_TOKEN }}

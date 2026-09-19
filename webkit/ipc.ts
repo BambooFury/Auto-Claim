@@ -1,4 +1,4 @@
-import { callable } from '@steambrew/webkit';
+import { callable } from 'millennium';
 
 type StrIn = [{ payload: string }];
 type Empty = [];

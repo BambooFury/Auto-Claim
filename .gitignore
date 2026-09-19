@@ -2,6 +2,7 @@ node_modules/
 .millennium/
 dist/
 .vscode/
+bun.lock
 
 accounts/
 steam_cookies.json

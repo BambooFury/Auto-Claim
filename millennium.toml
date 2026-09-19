@@ -1,0 +1,22 @@
+[plugin]
+id = "auto-claim"
+name = "Auto Claim"
+version = "1.9.1"
+author = "BambooFury"
+description = "Automatically detects 100% discounted games on Steam and adds them to your library."
+
+[assets]
+resources = ["LICENSE", ".github/preview.png"]
+
+[backend]
+entry = "backend/main.lua"
+sources = ["backend/**/*.lua"]
+
+[frontend]
+entry = "frontend/index.tsx"
+
+[frontend.globals]
+"react" = "window.SP_REACT"
+
+[webkit]
+entry = "webkit/index.tsx"

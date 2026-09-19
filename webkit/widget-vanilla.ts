@@ -223,8 +223,8 @@ export function injectVanillaWidget(): void {
     transform: `translateX(${isLeft ? '-110%' : '110%'})`,
     transition: `transform 0.25s ${SMOOTH}`,
     width: PANEL_W + 'px',
-    background: '#0d0d0d',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'var(--main-bg-color, #0d0d0d)',
+    border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
     borderRadius: panelRadius(cfg.tabStyle, isLeft),
     pointerEvents: 'all', overflow: 'hidden',
   } as Partial<CSSStyleDeclaration>);
@@ -244,7 +244,7 @@ export function injectVanillaWidget(): void {
   Object.assign(dim.style, {
     position: 'fixed', top: '0', right: '0', bottom: '0', left: '0',
     background: 'rgba(0,0,0,0.4)',
-    display: 'none', pointerEvents: 'all',
+    display: 'none', pointerEvents: 'none',
   } as Partial<CSSStyleDeclaration>);
 
   let opened = false;
@@ -413,13 +413,13 @@ export function injectVanillaWidget(): void {
     if (busyClaim) {
       const current = Math.min(claimDone + 1, claimTotal);
       footerEl.textContent = `Claiming ${current}/${claimTotal}…`;
-      footerDot.style.background = 'rgba(255,255,255,0.85)';
+      footerDot.style.background = 'var(--main-text-color, rgba(255,255,255,0.85))';
       footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
       return;
     }
     footerEl.textContent = `Active · ${intervalLabel(cfg.pollIntervalMin)}`;
-    footerDot.style.background = '#55cc55';
-    footerDot.style.boxShadow  = '0 0 6px #55cc55';
+    footerDot.style.background = 'var(--accent-color, #55cc55)';
+    footerDot.style.boxShadow  = '0 0 6px var(--accent-color, #55cc55)';
   }
 
   function persistAndRefresh() {
@@ -721,7 +721,9 @@ export function injectVanillaWidget(): void {
     }
 
     panel.style.transform = `translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
-    dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
+    dim.style.display = opened ? 'block' : 'none';
+    dim.style.pointerEvents = opened ? 'all' : 'none';
+    dim.style.background = opened && cfg.showOverlay ? 'rgba(0,0,0,0.4)' : 'transparent';
     tabBtn.style.background = opened ? palette.bgHover : palette.bg;
 
     const slideOffset = opened ? pOff + PANEL_RIGHT_OFFSET_WHEN_OPEN : geom.off;
@@ -786,13 +788,14 @@ export function injectVanillaWidget(): void {
 
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
     positionTabBadge();
-    dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
+    dim.style.display = opened ? 'block' : 'none';
+    dim.style.pointerEvents = opened ? 'all' : 'none';
+    dim.style.background = opened && cfg.showOverlay ? 'rgba(0,0,0,0.4)' : 'transparent';
     render();
   }
 
   tabBtn.addEventListener('click', () => setOpen(!opened));
   dim.addEventListener('click',    () => setOpen(false));
-  $<HTMLButtonElement>('#fgg-close')?.addEventListener('click', () => setOpen(false));
   applyChrome();
 
   root.appendChild(dim);
@@ -923,12 +926,12 @@ function renderGames(
     const owned = card.classList.contains('owned');
     card.addEventListener('mouseenter', () => {
       card.style.transform = 'translateY(-1px)';
-      card.style.borderColor = 'rgba(255,255,255,0.18)';
+      card.style.borderColor = 'var(--border-color, rgba(255,255,255,0.18))';
       card.style.boxShadow   = '0 6px 18px rgba(0,0,0,0.4)';
     });
     card.addEventListener('mouseleave', () => {
       card.style.transform = '';
-      card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'rgba(255,255,255,0.08)';
+      card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'var(--border-color, rgba(255,255,255,0.08))';
       card.style.boxShadow   = '';
     });
   });
@@ -943,9 +946,13 @@ function renderGames(
   bodyEl.querySelectorAll<HTMLImageElement>('img[data-fallback-src]').forEach((img) => {
     const swapOrHide = () => {
       const fb = img.getAttribute('data-fallback-src');
+      const fb2 = img.getAttribute('data-fallback-2');
       if (fb) {
         img.removeAttribute('data-fallback-src');
         img.src = fb;
+      } else if (fb2) {
+        img.removeAttribute('data-fallback-2');
+        img.src = fb2;
       } else {
         img.style.display = 'none';
       }
@@ -991,6 +998,7 @@ function buildCard(
   const heroBack   = `${cdn}/${g.appid}/page_bg_generated_v6b.jpg`;
   const headerSrc  = g.header  || `${cdn}/${g.appid}/header.jpg`;
   const headerBack = g.capsule || `${cdn}/${g.appid}/capsule_231x87.jpg`;
+  const heroAsThumb = `${cdn}/${g.appid}/library_hero.jpg`;
 
   const cls = `fgg-card${isClaim ? ' claiming' : ''}${isConfirm ? ' confirming' : ''}${owned ? ' owned' : ''}${justDone ? ' just-claimed' : ''}`;
   const vars = [
@@ -1010,6 +1018,7 @@ function buildCard(
     .replace(/\{\{HERO_FALLBACK\}\}/g,  heroBack)
     .replace(/\{\{HEADER_SRC\}\}/g,      headerSrc)
     .replace(/\{\{HEADER_FALLBACK\}\}/g, headerBack)
+    .replace(/\{\{HEADER_FALLBACK_2\}\}/g, heroAsThumb)
     .replace(/\{\{NAME\}\}/g,            escapeHtml(g.name))
     .replace(/\{\{STATUS\}\}/g,         status)
     .replace(/\{\{TRAILING\}\}/g,       trailing);
@@ -1116,12 +1125,12 @@ function renderSettings(
     } catch {}
 
     if (!requestedAt) {
-      finish('rgba(255,255,255,0.35)', 'Could not queue scan - try again.');
+      finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Could not queue scan - try again.');
       return;
     }
 
     if (scanResult) {
-      scanResult.style.color = 'rgba(255,255,255,0.45)';
+      scanResult.style.color = 'var(--secondary-text-color, rgba(255,255,255,0.45))';
       scanResult.textContent = 'Scan queued. Waiting for results...';
     }
 
@@ -1150,20 +1159,20 @@ function renderSettings(
             ? found.length
             : found.filter(isClaimableGame).length;
           if (!ok) {
-            finish('rgba(255,255,255,0.35)', 'Scan failed - using cached results.');
+            finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan failed - using cached results.');
           } else if (visibleCount > 0) {
-            finish('#55cc55', `Scan complete - ${visibleCount} free game(s) found.`);
+            finish('var(--accent-color, #55cc55)', `Scan complete - ${visibleCount} free game(s) found.`);
           } else {
-            finish('rgba(255,255,255,0.35)', 'Scan complete - no free games found.');
+            finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan complete - no free games found.');
           }
         } catch {
-          finish('rgba(255,255,255,0.35)', 'Scan complete - could not read results.');
+          finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan complete - could not read results.');
         }
         return;
       }
 
       if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
-        finish('rgba(255,255,255,0.35)', 'Scan timed out - results will refresh automatically.');
+        finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan timed out - results will refresh automatically.');
         return;
       }
 

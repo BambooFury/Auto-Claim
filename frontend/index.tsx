@@ -1,4 +1,4 @@
-import { definePlugin, callable, toaster } from '@steambrew/client';
+import { definePlugin, callable, toaster } from 'millennium';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
 import { MIN_POLL_INTERVAL_MIN } from './constants';
@@ -731,6 +731,9 @@ async function startPolling(): Promise<void> {
       for (const g of result) {
         if (prevIds.has(g.appid)) continue;
         if (isAlreadyInLibrary(g.appid)) continue;
+        if (_notifiedAvailableAppids.has(g.appid)) continue;
+        if (notifiedSet.has(g.appid) || grabbedSet.has(g.appid)) continue;
+        _notifiedAvailableAppids.add(g.appid);
         log(`Free weekend detected: ${g.name} (${g.appid})`);
         showWeekendNotification(g);
         await new Promise((r) => setTimeout(r, 1500));

@@ -172,23 +172,32 @@ local PLUGIN_DIR = (function()
     return src:match("^(.+)\\backend\\") or "."
 end)()
 
-local GRABBED_FILE      = PLUGIN_DIR .. "\\grabbed.json"
+-- Starlight unpacks plugins into a temp dir that gets overwritten on each
+-- starlight pack. Store persistent user data in a dedicated folder under the
+-- Millennium install directory so it survives re-packs.
+local DATA_DIR = (function()
+    local install = millennium.get_install_path() or ""
+    install = install:gsub("/", "\\"):gsub("\\+$", "")
+    return install .. "\\plugins\\auto-claim-data"
+end)()
+
+local GRABBED_FILE      = DATA_DIR .. "\\grabbed.json"
 
 local _current_steamid  = ""
 
 local function _grabbed_file_for_current_user()
     if _current_steamid ~= "" and _current_steamid:match("^%d+$") then
-        return PLUGIN_DIR .. "\\grabbed_" .. _current_steamid .. ".json"
+        return DATA_DIR .. "\\grabbed_" .. _current_steamid .. ".json"
     end
     return GRABBED_FILE
 end
-local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
-local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
-local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
-local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
-local WEEKEND_FILE      = PLUGIN_DIR .. "\\free_weekend_cache.json"
-local LAST_DAILY_SCAN_FILE = PLUGIN_DIR .. "\\last_daily_scan.json"
-local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
+local SETTINGS_FILE     = DATA_DIR .. "\\settings.json"
+local WIDGETS_FILE      = DATA_DIR .. "\\widget_settings.json"
+local CACHE_FILE        = DATA_DIR .. "\\free_games_cache.json"
+local TOASTS_FILE       = DATA_DIR .. "\\pending_toasts.json"
+local WEEKEND_FILE      = DATA_DIR .. "\\free_weekend_cache.json"
+local LAST_DAILY_SCAN_FILE = DATA_DIR .. "\\last_daily_scan.json"
+local CLAIM_LOCK_FILE   = DATA_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
 
 
@@ -223,6 +232,62 @@ local function write_file(path, content)
     return true
 end
 
+-- One-time migration of existing data from PLUGIN_DIR to persistent DATA_DIR
+local function _migrate_data_file(name)
+    local src = PLUGIN_DIR .. "\\" .. name
+    local dst = DATA_DIR .. "\\" .. name
+    local d = io.open(dst, "r")
+    if d then d:close() return end
+    local content = read_file(src)
+    if content then write_file(dst, content) end
+end
+
+local function _migrate_all_data()
+    -- Skip if data dir already has settings (already migrated)
+    local marker = io.open(DATA_DIR .. "\\settings.json", "r")
+    if marker then marker:close() return end
+
+    -- Create dir if needed (only on first run)
+    local probe = io.open(DATA_DIR .. "\\.probe", "w")
+    if not probe then
+        os.execute(('cmd /c "mkdir "%s" 2>nul"'):format(DATA_DIR))
+    else
+        probe:close()
+        os.remove(DATA_DIR .. "\\.probe")
+    end
+
+    _migrate_data_file("grabbed.json")
+    _migrate_data_file("settings.json")
+    _migrate_data_file("widget_settings.json")
+    _migrate_data_file("free_games_cache.json")
+    _migrate_data_file("pending_toasts.json")
+    _migrate_data_file("free_weekend_cache.json")
+    _migrate_data_file("last_daily_scan.json")
+    _migrate_data_file("claim_inflight.json")
+    _migrate_data_file("steam_cookies.json")
+
+    -- Migrate per-user grabbed files
+    local handle = io.popen(('dir /b "%s\\grabbed_*.json" 2>nul'):format(PLUGIN_DIR))
+    if handle then
+        for line in handle:lines() do
+            if line and line:match("^grabbed_%d+%.json$") then
+                local src = PLUGIN_DIR .. "\\" .. line
+                local dst = DATA_DIR .. "\\" .. line
+                local d = io.open(dst, "r")
+                if not d then
+                    local content = read_file(src)
+                    if content then write_file(dst, content) end
+                else
+                    d:close()
+                end
+            end
+        end
+        handle:close()
+    end
+end
+
+_migrate_all_data()
+
 local _MAX_IPC_PAYLOAD = 2 * 1024 * 1024
 
 local function extract_payload(data)
@@ -237,11 +302,16 @@ local function extract_payload(data)
     return payload
 end
 
+---@ffi
+---@return string
 function load_grabbed_ipc()
 
     return read_file(_grabbed_file_for_current_user()) or "[]"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function set_current_steamid_ipc(data)
     local sid = extract_payload(data) or ""
 
@@ -291,6 +361,9 @@ local function _is_valid_json_payload(payload, expected_kind)
     return true
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
@@ -298,10 +371,15 @@ function save_grabbed_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_settings_ipc()
     return read_file(SETTINGS_FILE) or "{}"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_settings_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -309,10 +387,15 @@ function save_settings_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_widget_settings_ipc()
     return read_file(WIDGETS_FILE) or "{}"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_widget_settings_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -320,10 +403,15 @@ function save_widget_settings_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_free_games_cache_ipc()
     return read_file(CACHE_FILE) or "[]"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_free_games_cache_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
@@ -331,10 +419,15 @@ function save_free_games_cache_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_free_weekend_cache_ipc()
     return read_file(WEEKEND_FILE) or "[]"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_free_weekend_cache_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
@@ -342,10 +435,15 @@ function save_free_weekend_cache_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_last_daily_scan_ipc()
     return read_file(LAST_DAILY_SCAN_FILE) or "{}"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_last_daily_scan_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -567,6 +665,9 @@ local function _curl_popen(url)
     return body, err_msg
 end
 
+---@ffi
+---@param data table
+---@return string
 function fetch_url_via_curl_ipc(data)
     local url = extract_payload(data)
     if not _is_safe_http_url(url) then return "" end
@@ -599,6 +700,9 @@ function fetch_url_via_curl_ipc(data)
     return body
 end
 
+---@ffi
+---@param data table
+---@return integer
 function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -626,6 +730,8 @@ local function _merge_toast_arrays(a, b)
     return a:sub(1, -2) .. "," .. b:sub(2)
 end
 
+---@ffi
+---@return string
 function pop_toasts_ipc()
     local stash = TOASTS_FILE .. ".popping"
 
@@ -653,6 +759,9 @@ function pop_toasts_ipc()
 end
 
 
+---@ffi
+---@param data table
+---@return integer
 function log_plugin(data)
     local payload = extract_payload(data)
     if payload and payload ~= "" then
@@ -685,6 +794,9 @@ local function _write_claim_locks(locks)
     write_file(CLAIM_LOCK_FILE, "{" .. table.concat(chunks, ",") .. "}")
 end
 
+---@ffi
+---@param data table
+---@return integer
 function try_acquire_claim_lock_ipc(data)
     local payload = extract_payload(data)
     local appid = tostring(tonumber(payload) or "")
@@ -698,6 +810,9 @@ function try_acquire_claim_lock_ipc(data)
     return 1
 end
 
+---@ffi
+---@param data table
+---@return integer
 function release_claim_lock_ipc(data)
     local payload = extract_payload(data)
     local appid = tostring(tonumber(payload) or "")
