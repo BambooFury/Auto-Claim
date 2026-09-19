@@ -223,8 +223,8 @@ export function injectVanillaWidget(): void {
     transform: `translateX(${isLeft ? '-110%' : '110%'})`,
     transition: `transform 0.25s ${SMOOTH}`,
     width: PANEL_W + 'px',
-    background: '#0d0d0d',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'var(--main-bg-color, #0d0d0d)',
+    border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
     borderRadius: panelRadius(cfg.tabStyle, isLeft),
     pointerEvents: 'all', overflow: 'hidden',
   } as Partial<CSSStyleDeclaration>);
@@ -413,13 +413,13 @@ export function injectVanillaWidget(): void {
     if (busyClaim) {
       const current = Math.min(claimDone + 1, claimTotal);
       footerEl.textContent = `Claiming ${current}/${claimTotal}…`;
-      footerDot.style.background = 'rgba(255,255,255,0.85)';
+      footerDot.style.background = 'var(--main-text-color, rgba(255,255,255,0.85))';
       footerDot.style.boxShadow  = '0 0 6px rgba(255,255,255,0.4)';
       return;
     }
     footerEl.textContent = `Active · ${intervalLabel(cfg.pollIntervalMin)}`;
-    footerDot.style.background = '#55cc55';
-    footerDot.style.boxShadow  = '0 0 6px #55cc55';
+    footerDot.style.background = 'var(--accent-color, #55cc55)';
+    footerDot.style.boxShadow  = '0 0 6px var(--accent-color, #55cc55)';
   }
 
   function persistAndRefresh() {
@@ -923,12 +923,12 @@ function renderGames(
     const owned = card.classList.contains('owned');
     card.addEventListener('mouseenter', () => {
       card.style.transform = 'translateY(-1px)';
-      card.style.borderColor = 'rgba(255,255,255,0.18)';
+      card.style.borderColor = 'var(--border-color, rgba(255,255,255,0.18))';
       card.style.boxShadow   = '0 6px 18px rgba(0,0,0,0.4)';
     });
     card.addEventListener('mouseleave', () => {
       card.style.transform = '';
-      card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'rgba(255,255,255,0.08)';
+      card.style.borderColor = owned ? 'rgba(85,204,85,0.18)' : 'var(--border-color, rgba(255,255,255,0.08))';
       card.style.boxShadow   = '';
     });
   });
@@ -1116,12 +1116,12 @@ function renderSettings(
     } catch {}
 
     if (!requestedAt) {
-      finish('rgba(255,255,255,0.35)', 'Could not queue scan - try again.');
+      finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Could not queue scan - try again.');
       return;
     }
 
     if (scanResult) {
-      scanResult.style.color = 'rgba(255,255,255,0.45)';
+      scanResult.style.color = 'var(--secondary-text-color, rgba(255,255,255,0.45))';
       scanResult.textContent = 'Scan queued. Waiting for results...';
     }
 
@@ -1150,20 +1150,20 @@ function renderSettings(
             ? found.length
             : found.filter(isClaimableGame).length;
           if (!ok) {
-            finish('rgba(255,255,255,0.35)', 'Scan failed - using cached results.');
+            finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan failed - using cached results.');
           } else if (visibleCount > 0) {
-            finish('#55cc55', `Scan complete - ${visibleCount} free game(s) found.`);
+            finish('var(--accent-color, #55cc55)', `Scan complete - ${visibleCount} free game(s) found.`);
           } else {
-            finish('rgba(255,255,255,0.35)', 'Scan complete - no free games found.');
+            finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan complete - no free games found.');
           }
         } catch {
-          finish('rgba(255,255,255,0.35)', 'Scan complete - could not read results.');
+          finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan complete - could not read results.');
         }
         return;
       }
 
       if (Date.now() - startedAt >= SCAN_DEADLINE_MS) {
-        finish('rgba(255,255,255,0.35)', 'Scan timed out - results will refresh automatically.');
+        finish('var(--secondary-text-color, rgba(255,255,255,0.35))', 'Scan timed out - results will refresh automatically.');
         return;
       }
 
