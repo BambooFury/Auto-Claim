@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.10.0](https://github.com/BambooFury/Auto-Claim/compare/v1.9.1...v1.10.0) (2026-09-19)
+
+
+### Features
+
+* add FFI annotations for starlight backend validation ([0757f03](https://github.com/BambooFury/Auto-Claim/commit/0757f035648922136833a15f5429d5f9e0bbbcb1))
+* use Steam CSS variables for native theme support ([c9927a8](https://github.com/BambooFury/Auto-Claim/commit/c9927a85b771cee55780c9f49eae4c2a80c32cf2))
+
+
+### Bug Fixes
+
+* add multi-level image fallback for games without header art ([7370a42](https://github.com/BambooFury/Auto-Claim/commit/7370a42927cd62838fb3df2a56eaa60f0f9d0ca0))
+* prevent duplicate free weekend notifications on restart ([6571d4f](https://github.com/BambooFury/Auto-Claim/commit/6571d4f7dae9b0b1b72788afd4223aa46781405e))
+* remove close button, close widget by clicking outside ([a4ddf40](https://github.com/BambooFury/Auto-Claim/commit/a4ddf40853fc11af32e71e80fe67d9917da9ee39))
+* store plugin data in persistent directory for starlight ([427b222](https://github.com/BambooFury/Auto-Claim/commit/427b2225da50147c52be789868a7681b058f66fe))
+* update CI workflows for bun and starlight build ([86e763b](https://github.com/BambooFury/Auto-Claim/commit/86e763b846f711568a552cae8c0e6f8b113e1c36))
+* update inline styles to use Steam CSS variables ([3b910b3](https://github.com/BambooFury/Auto-Claim/commit/3b910b3a6e967d0abb8da97f481d5e4dabda233b))
+
+
+### Refactoring
+
+* migrate build system to @steambrew/starlight ([52e7c6e](https://github.com/BambooFury/Auto-Claim/commit/52e7c6e9a7ec32ad3d5686f71c7fc40a869fc512))
+* replace @steambrew/* imports with millennium module ([bd07536](https://github.com/BambooFury/Auto-Claim/commit/bd0753642849ba8f0aea0a704e8222849bf6d760))
+
 ## [1.9.1](https://github.com/BambooFury/Auto-Claim/compare/v1.9.0...v1.9.1) (2026-08-16)
 
 
