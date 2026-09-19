@@ -14,7 +14,7 @@
   },
   "type": "module",
   "name": "auto-claim",
-  "version": "1.9.1",
+  "version": "2.0.0",
   "description": "Automatically detects 100% discounted games on Steam and adds them to your library.",
   "main": "./frontend/index.tsx",
   "author": "BambooFury",
