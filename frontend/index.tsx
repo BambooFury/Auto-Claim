@@ -1,4 +1,4 @@
-import { definePlugin, callable, toaster } from '@steambrew/client';
+import { definePlugin, callable, toaster } from 'millennium';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsTab, WidgetSettings } from './settings';
 import { MIN_POLL_INTERVAL_MIN } from './constants';

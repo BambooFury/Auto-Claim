@@ -2,7 +2,7 @@ import {
 	ButtonItem,
 	DropdownItem,
 	ToggleField,
-} from '@steambrew/client';
+} from 'millennium';
 import React from 'react';
 
 export interface WidgetSettings {

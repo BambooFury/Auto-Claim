@@ -1,4 +1,4 @@
-import { callable } from '@steambrew/client';
+import { callable } from 'millennium';
 import type { ScannerLogger } from './types';
 import { safeFetch, safeParse } from './http';
 
