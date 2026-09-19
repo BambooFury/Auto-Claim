@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1](https://github.com/BambooFury/Auto-Claim/compare/v2.0.0...v2.0.1) (2026-09-19)
+
+
+### Maintenance
+
+* add build:assets step and --no-scripts to CI workflows ([4b66549](https://github.com/BambooFury/Auto-Claim/commit/4b66549da184b2e993b94e6f54eb798f3f7a6b99))
+* bump millennium.toml version to 2.0.0 ([4bac9df](https://github.com/BambooFury/Auto-Claim/commit/4bac9df04499209266959686934b767f6589a240))
+
 ## [2.0.0](https://github.com/BambooFury/Auto-Claim/compare/v1.9.1...v2.0.0) (2026-09-19)
 
 
