@@ -172,23 +172,32 @@ local PLUGIN_DIR = (function()
     return src:match("^(.+)\\backend\\") or "."
 end)()
 
-local GRABBED_FILE      = PLUGIN_DIR .. "\\grabbed.json"
+-- Starlight unpacks plugins into a temp dir that gets overwritten on each
+-- starlight pack. Store persistent user data in a dedicated folder under the
+-- Millennium install directory so it survives re-packs.
+local DATA_DIR = (function()
+    local install = millennium.get_install_path() or ""
+    install = install:gsub("/", "\\"):gsub("\\+$", "")
+    return install .. "\\plugins\\auto-claim-data"
+end)()
+
+local GRABBED_FILE      = DATA_DIR .. "\\grabbed.json"
 
 local _current_steamid  = ""
 
 local function _grabbed_file_for_current_user()
     if _current_steamid ~= "" and _current_steamid:match("^%d+$") then
-        return PLUGIN_DIR .. "\\grabbed_" .. _current_steamid .. ".json"
+        return DATA_DIR .. "\\grabbed_" .. _current_steamid .. ".json"
     end
     return GRABBED_FILE
 end
-local SETTINGS_FILE     = PLUGIN_DIR .. "\\settings.json"
-local WIDGETS_FILE      = PLUGIN_DIR .. "\\widget_settings.json"
-local CACHE_FILE        = PLUGIN_DIR .. "\\free_games_cache.json"
-local TOASTS_FILE       = PLUGIN_DIR .. "\\pending_toasts.json"
-local WEEKEND_FILE      = PLUGIN_DIR .. "\\free_weekend_cache.json"
-local LAST_DAILY_SCAN_FILE = PLUGIN_DIR .. "\\last_daily_scan.json"
-local CLAIM_LOCK_FILE   = PLUGIN_DIR .. "\\claim_inflight.json"
+local SETTINGS_FILE     = DATA_DIR .. "\\settings.json"
+local WIDGETS_FILE      = DATA_DIR .. "\\widget_settings.json"
+local CACHE_FILE        = DATA_DIR .. "\\free_games_cache.json"
+local TOASTS_FILE       = DATA_DIR .. "\\pending_toasts.json"
+local WEEKEND_FILE      = DATA_DIR .. "\\free_weekend_cache.json"
+local LAST_DAILY_SCAN_FILE = DATA_DIR .. "\\last_daily_scan.json"
+local CLAIM_LOCK_FILE   = DATA_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
 
 
@@ -222,6 +231,62 @@ local function write_file(path, content)
     os.remove(tmp)
     return true
 end
+
+-- One-time migration of existing data from PLUGIN_DIR to persistent DATA_DIR
+local function _migrate_data_file(name)
+    local src = PLUGIN_DIR .. "\\" .. name
+    local dst = DATA_DIR .. "\\" .. name
+    local d = io.open(dst, "r")
+    if d then d:close() return end
+    local content = read_file(src)
+    if content then write_file(dst, content) end
+end
+
+local function _migrate_all_data()
+    -- Skip if data dir already has settings (already migrated)
+    local marker = io.open(DATA_DIR .. "\\settings.json", "r")
+    if marker then marker:close() return end
+
+    -- Create dir if needed (only on first run)
+    local probe = io.open(DATA_DIR .. "\\.probe", "w")
+    if not probe then
+        os.execute(('cmd /c "mkdir "%s" 2>nul"'):format(DATA_DIR))
+    else
+        probe:close()
+        os.remove(DATA_DIR .. "\\.probe")
+    end
+
+    _migrate_data_file("grabbed.json")
+    _migrate_data_file("settings.json")
+    _migrate_data_file("widget_settings.json")
+    _migrate_data_file("free_games_cache.json")
+    _migrate_data_file("pending_toasts.json")
+    _migrate_data_file("free_weekend_cache.json")
+    _migrate_data_file("last_daily_scan.json")
+    _migrate_data_file("claim_inflight.json")
+    _migrate_data_file("steam_cookies.json")
+
+    -- Migrate per-user grabbed files
+    local handle = io.popen(('dir /b "%s\\grabbed_*.json" 2>nul'):format(PLUGIN_DIR))
+    if handle then
+        for line in handle:lines() do
+            if line and line:match("^grabbed_%d+%.json$") then
+                local src = PLUGIN_DIR .. "\\" .. line
+                local dst = DATA_DIR .. "\\" .. line
+                local d = io.open(dst, "r")
+                if not d then
+                    local content = read_file(src)
+                    if content then write_file(dst, content) end
+                else
+                    d:close()
+                end
+            end
+        end
+        handle:close()
+    end
+end
+
+_migrate_all_data()
 
 local _MAX_IPC_PAYLOAD = 2 * 1024 * 1024
 
