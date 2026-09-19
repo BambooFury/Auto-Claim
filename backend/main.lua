@@ -237,11 +237,16 @@ local function extract_payload(data)
     return payload
 end
 
+---@ffi
+---@return string
 function load_grabbed_ipc()
 
     return read_file(_grabbed_file_for_current_user()) or "[]"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function set_current_steamid_ipc(data)
     local sid = extract_payload(data) or ""
 
@@ -291,6 +296,9 @@ local function _is_valid_json_payload(payload, expected_kind)
     return true
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_grabbed_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
@@ -298,10 +306,15 @@ function save_grabbed_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_settings_ipc()
     return read_file(SETTINGS_FILE) or "{}"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_settings_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -309,10 +322,15 @@ function save_settings_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_widget_settings_ipc()
     return read_file(WIDGETS_FILE) or "{}"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_widget_settings_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -320,10 +338,15 @@ function save_widget_settings_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_free_games_cache_ipc()
     return read_file(CACHE_FILE) or "[]"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_free_games_cache_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
@@ -331,10 +354,15 @@ function save_free_games_cache_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_free_weekend_cache_ipc()
     return read_file(WEEKEND_FILE) or "[]"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_free_weekend_cache_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "array") then return 0 end
@@ -342,10 +370,15 @@ function save_free_weekend_cache_ipc(data)
     return 1
 end
 
+---@ffi
+---@return string
 function load_last_daily_scan_ipc()
     return read_file(LAST_DAILY_SCAN_FILE) or "{}"
 end
 
+---@ffi
+---@param data table
+---@return integer
 function save_last_daily_scan_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -567,6 +600,9 @@ local function _curl_popen(url)
     return body, err_msg
 end
 
+---@ffi
+---@param data table
+---@return string
 function fetch_url_via_curl_ipc(data)
     local url = extract_payload(data)
     if not _is_safe_http_url(url) then return "" end
@@ -599,6 +635,9 @@ function fetch_url_via_curl_ipc(data)
     return body
 end
 
+---@ffi
+---@param data table
+---@return integer
 function push_toast_ipc(data)
     local payload = extract_payload(data)
     if not _is_valid_json_payload(payload, "object") then return 0 end
@@ -626,6 +665,8 @@ local function _merge_toast_arrays(a, b)
     return a:sub(1, -2) .. "," .. b:sub(2)
 end
 
+---@ffi
+---@return string
 function pop_toasts_ipc()
     local stash = TOASTS_FILE .. ".popping"
 
@@ -653,6 +694,9 @@ function pop_toasts_ipc()
 end
 
 
+---@ffi
+---@param data table
+---@return integer
 function log_plugin(data)
     local payload = extract_payload(data)
     if payload and payload ~= "" then
@@ -685,6 +729,9 @@ local function _write_claim_locks(locks)
     write_file(CLAIM_LOCK_FILE, "{" .. table.concat(chunks, ",") .. "}")
 end
 
+---@ffi
+---@param data table
+---@return integer
 function try_acquire_claim_lock_ipc(data)
     local payload = extract_payload(data)
     local appid = tostring(tonumber(payload) or "")
@@ -698,6 +745,9 @@ function try_acquire_claim_lock_ipc(data)
     return 1
 end
 
+---@ffi
+---@param data table
+---@return integer
 function release_claim_lock_ipc(data)
     local payload = extract_payload(data)
     local appid = tostring(tonumber(payload) or "")
