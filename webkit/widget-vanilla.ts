@@ -244,7 +244,7 @@ export function injectVanillaWidget(): void {
   Object.assign(dim.style, {
     position: 'fixed', top: '0', right: '0', bottom: '0', left: '0',
     background: 'rgba(0,0,0,0.4)',
-    display: 'none', pointerEvents: 'all',
+    display: 'none', pointerEvents: 'none',
   } as Partial<CSSStyleDeclaration>);
 
   let opened = false;
@@ -721,7 +721,9 @@ export function injectVanillaWidget(): void {
     }
 
     panel.style.transform = `translateX(${opened ? '0' : isLeft ? '-110%' : '110%'})`;
-    dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
+    dim.style.display = opened ? 'block' : 'none';
+    dim.style.pointerEvents = opened ? 'all' : 'none';
+    dim.style.background = opened && cfg.showOverlay ? 'rgba(0,0,0,0.4)' : 'transparent';
     tabBtn.style.background = opened ? palette.bgHover : palette.bg;
 
     const slideOffset = opened ? pOff + PANEL_RIGHT_OFFSET_WHEN_OPEN : geom.off;
@@ -786,13 +788,14 @@ export function injectVanillaWidget(): void {
 
     arrowEl.setAttribute('points', arrowPoints(isLeft, opened));
     positionTabBadge();
-    dim.style.display = opened && cfg.showOverlay ? 'block' : 'none';
+    dim.style.display = opened ? 'block' : 'none';
+    dim.style.pointerEvents = opened ? 'all' : 'none';
+    dim.style.background = opened && cfg.showOverlay ? 'rgba(0,0,0,0.4)' : 'transparent';
     render();
   }
 
   tabBtn.addEventListener('click', () => setOpen(!opened));
   dim.addEventListener('click',    () => setOpen(false));
-  $<HTMLButtonElement>('#fgg-close')?.addEventListener('click', () => setOpen(false));
   applyChrome();
 
   root.appendChild(dim);

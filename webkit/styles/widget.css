@@ -329,14 +329,6 @@
 .fgg-icon-box svg { width: 16px; height: 16px; }
 .fgg-title    { color: var(--main-text-color, #fff); font-size: 14px; font-weight: 700; letter-spacing: 0.01em; }
 .fgg-subtitle { color: var(--secondary-text-color, rgba(255,255,255,0.4)); font-size: 11px; margin-top: 2px; }
-.fgg-close {
-  background: none; border: none;
-  color: var(--secondary-text-color, rgba(255,255,255,0.45));
-  cursor: pointer;
-  font-size: 18px; line-height: 1;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
 
 .fgg-tabs {
   display: flex;
