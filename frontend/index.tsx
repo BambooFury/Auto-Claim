@@ -541,8 +541,7 @@ async function startPolling(): Promise<void> {
       }
 
       const added = await addGameToLibrary(game.appid);
-      const confirmed = await confirmOwned();
-      if (added && confirmed) {
+      if (added) {
         await recordGrabbed(game, true);
         if (liveSettings.notifyOnGrab) {
           showFreeGameNotification(game, () => {
