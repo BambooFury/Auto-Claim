@@ -1,5 +1,60 @@
 # Changelog
 
+## [2.1.0](https://github.com/BambooFury/Auto-Claim/compare/v2.0.0...v2.1.0) (2026-09-20)
+
+
+### Features
+
+* add svg icons to manager tab buttons ([80ec150](https://github.com/BambooFury/Auto-Claim/commit/80ec1503b087a84ea6ac28d97f63fc6e1b1b56e8))
+* auto-refresh games list on ownership changes ([8d14bb5](https://github.com/BambooFury/Auto-Claim/commit/8d14bb58eb9f5072c2d7b72812c2239acd61a5b2))
+* centered empty state for games list ([61ec8ad](https://github.com/BambooFury/Auto-Claim/commit/61ec8adde83d5ae8a270920a16e444cd1dea4c41))
+* movable resizable manager window with filter button ([6f0276f](https://github.com/BambooFury/Auto-Claim/commit/6f0276fabd5001f11d43089f301b904e7dff635b))
+* new games indicator on gift button with settings toggle ([a4f4071](https://github.com/BambooFury/Auto-Claim/commit/a4f407184287d41bee65c933b96eed2a7ad742aa))
+* ownership check via hidden store popup through CDP ([0eac351](https://github.com/BambooFury/Auto-Claim/commit/0eac351f7ef05a7fa82bf1aa6a52686ce03a257f))
+* replace storefront widget with native Steam UI ([1b5fe8b](https://github.com/BambooFury/Auto-Claim/commit/1b5fe8bb6022f8a82328fd6cfab240f495602b57))
+* restyle owned badge as flat tag with accent bar ([89849ec](https://github.com/BambooFury/Auto-Claim/commit/89849ec430483dbdb398cf632994e1b9a31c1348))
+
+
+### Bug Fixes
+
+* bigger gift icon, button hit areas, image fallback chain ([c6a5ce1](https://github.com/BambooFury/Auto-Claim/commit/c6a5ce1cf5114223650615912cfb68480881e9dc))
+* bounded CDP calls, instant game list before ownership check ([201dffe](https://github.com/BambooFury/Auto-Claim/commit/201dffe1996436e83f1c500ebec97eb93dadbd26))
+* break circular import between manager and settings ([7363e99](https://github.com/BambooFury/Auto-Claim/commit/7363e99ac21c7d6734985eae4bc9b650fe9bed47))
+* bump millennium.toml version on release ([d81d307](https://github.com/BambooFury/Auto-Claim/commit/d81d30706d8fb1201751b1e127f9088963edf6ba))
+* double-confirm ownership before marking games as grabbed ([efffb19](https://github.com/BambooFury/Auto-Claim/commit/efffb193bac86f69bea35c10d99c0822ba8f6cda))
+* lazy-init dialog mining and global component ([092a3a4](https://github.com/BambooFury/Auto-Claim/commit/092a3a4c4f52005f064b314e0e56f310d1981b77))
+* new gift icon, centered button, hover fill ([76799f2](https://github.com/BambooFury/Auto-Claim/commit/76799f2c79cd51a926cff7e2a75a9cdf52ab77fb))
+* new gift icon, centered button, simple title ([4040ed5](https://github.com/BambooFury/Auto-Claim/commit/4040ed541d1b33ed9ddf7c8997e6b6fb927dbbfb))
+* ownership check, no-drag buttons, reliable toolbar patch ([a893931](https://github.com/BambooFury/Auto-Claim/commit/a893931a192ce84a8603c1c0c03ef1482c18e5f5))
+* persist notification dedup, settings overwrite, game image fallback ([3b871fe](https://github.com/BambooFury/Auto-Claim/commit/3b871fe9e9fb2b7225746e85677201a4f47e8860))
+* polish toolbar icon and manager UI ([931f98b](https://github.com/BambooFury/Auto-Claim/commit/931f98b8295f0d34fe182456474043976fd10aec))
+* re-patch toolbar on url bar re-render ([4bde792](https://github.com/BambooFury/Auto-Claim/commit/4bde7922c73ef77e3b240c8c6db0e74478c98437))
+* remove bad import ([251a364](https://github.com/BambooFury/Auto-Claim/commit/251a3646dd6547dfe418bf36147ec79bf9cbf54b))
+* replace Millennium.findElement with own DOM polling ([f01cb75](https://github.com/BambooFury/Auto-Claim/commit/f01cb75568257ce1bc31372b4b45a08e96caaf12))
+* replace Tabs with native buttons, use official gift icon ([212d26c](https://github.com/BambooFury/Auto-Claim/commit/212d26ceae44b3c904a81adefa12ecad06764633))
+* restore ownership check via direct store API fetch in starlight V2 ([60a5609](https://github.com/BambooFury/Auto-Claim/commit/60a5609f064314edee634d4bc71c786a480da59f))
+* retry popup manager setup until ready ([50f152a](https://github.com/BambooFury/Auto-Claim/commit/50f152a3e62077a1dd68076d806a51a4ad972cde))
+* retry url bar patch, ionicons gift icon ([a1534dc](https://github.com/BambooFury/Auto-Claim/commit/a1534dce18ab0a00da234d4d3a85a6a055bb0973))
+* toolbar position, window sizing, owned badge, filter labels ([c64f34c](https://github.com/BambooFury/Auto-Claim/commit/c64f34c225791c1acf477c4ff69483d280c6a9c3))
+* trust post-claim ownership check for grabbed record ([787728f](https://github.com/BambooFury/Auto-Claim/commit/787728fbfc9d2759abd1874923c4d76a9c0dcb79))
+* use Steam API as authoritative ownership source ([3e465ce](https://github.com/BambooFury/Auto-Claim/commit/3e465ce4223abf8c2d07de5b9425be320b5776a5))
+
+
+### Documentation
+
+* add preview screenshot and new indicator setting to readme ([6292936](https://github.com/BambooFury/Auto-Claim/commit/629293694be7bf87c639f210d3a2a1e4fbdedbb9))
+* configuration section wording ([85ce9b9](https://github.com/BambooFury/Auto-Claim/commit/85ce9b995537d61f7bd7b7ca2081e8f6ab68926b))
+* preview width 950 ([560e3bc](https://github.com/BambooFury/Auto-Claim/commit/560e3bc3ddeecd1f684fd72158e573f556228e12))
+
+
+### Maintenance
+
+* add starlight lsp config ([4e3a513](https://github.com/BambooFury/Auto-Claim/commit/4e3a513825c8ae1b5d67c0731a4f5c7d24596ea3))
+* add toolbar debug logging ([ab96e27](https://github.com/BambooFury/Auto-Claim/commit/ab96e277ca8460f1d82fcf402fb96e442b0738e4))
+* remove welcome modal ([96a9443](https://github.com/BambooFury/Auto-Claim/commit/96a944389f72178ac87cd91f8b7059e5b91d50bb))
+* update preview.png ([519354c](https://github.com/BambooFury/Auto-Claim/commit/519354c4244e4e95e182d4a33212e5feb04920ff))
+* use release mode for starlight pack ([c6c3bfa](https://github.com/BambooFury/Auto-Claim/commit/c6c3bfa6259c3e9add84aeecd149245668674e88))
+
 ## [2.0.0](https://github.com/BambooFury/Auto-Claim/compare/v1.9.1...v2.0.0) (2026-09-19)
 
 
