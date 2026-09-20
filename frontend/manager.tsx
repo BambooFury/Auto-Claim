@@ -136,6 +136,48 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
   );
 }
 
+function EmptyState(): React.JSX.Element {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '14px',
+        padding: '40px 24px',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: '72px',
+          height: '72px',
+          borderRadius: '50%',
+          background: 'rgba(85, 204, 85, 0.1)',
+          border: '1px solid rgba(85, 204, 85, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(85, 204, 85, 0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </div>
+      <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
+        You're all caught up
+      </div>
+      <div style={{ fontSize: '12.5px', lineHeight: 1.6, color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', maxWidth: '340px' }}>
+        There are no free games to show right now.
+        <br />
+        New giveaways appear all the time — run a scan anytime to check the store again.
+      </div>
+    </div>
+  );
+}
+
 function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element {
   const [games, setGames] = useState<FreeGame[]>([]);
   const [ownedSet, setOwnedSet] = useState<Set<number>>(new Set());
@@ -192,11 +234,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
       {!loaded ? (
         <Spinner />
       ) : visible.length === 0 ? (
-        <Field
-          label="All caught up"
-          description="No free items to show right now. Run a scan to check the store again."
-          bottomSeparator="none"
-        />
+        <EmptyState />
       ) : (
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {visible.map((g) => (
