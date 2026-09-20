@@ -62,7 +62,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 
 ## <img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="20"> Configuration
 
-Open `Steam Settings → Plugins → Auto Claim`:
+Open the plugin window and go to the Settings section:
 
 <img src="https://api.iconify.design/lucide:zap.svg?color=%23FFD43B" width="16"> Auto-add to Library - ON | OFF<br>
 <img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> Notify on Grab - ON | OFF<br>
