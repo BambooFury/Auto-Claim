@@ -10,11 +10,14 @@ const CONTAINER_CLASS = 'autoclaim-toolbar-container';
 
 const TOOLBAR_STYLES = `
 .${CONTAINER_CLASS} {
+  flex: 1 1 0;
+  min-width: 0;
   margin-left: auto;
   margin-right: 0.5rem;
   -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
 }
 .${CONTAINER_CLASS} * {
   -webkit-app-region: no-drag;

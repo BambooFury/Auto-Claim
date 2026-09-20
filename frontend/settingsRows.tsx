@@ -5,8 +5,6 @@ import {
 import React from 'react';
 import {
   DEFAULT_SETTINGS,
-  FilterMode,
-  FILTER_OPTIONS,
   INTERVAL_OPTIONS,
   PluginSettings,
   normalizeSettings,
@@ -74,14 +72,6 @@ export function SettingsRows({
         description="Don't show games you already own in the manager."
         checked={settings.hideOwned}
         onChange={(checked) => update({ hideOwned: checked })}
-      />
-
-      <DropdownItem
-        label="Claim mode"
-        description="Games only claims games automatically. All free items shows notifications for everything (DLC, soundtracks, demos)."
-        rgOptions={FILTER_OPTIONS}
-        selectedOption={settings.filterMode}
-        onChange={(opt) => update({ filterMode: opt.data as FilterMode })}
       />
 
       <DropdownItem

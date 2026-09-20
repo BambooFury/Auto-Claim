@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import {
   DEFAULT_SETTINGS,
   type FilterMode,
-  FILTER_LABELS,
+  FILTER_SHORT,
   FreeGame,
   formatUntil,
   isClaimableGame,
@@ -48,6 +48,35 @@ function subscribeManager(fn: () => void): () => void {
   return () => { managerListeners.delete(fn); };
 }
 
+const FILTER_SHORT: Record<FilterMode, string> = {
+  games: 'Games',
+  all: 'All',
+  weekend: 'Weekend',
+};
+
+function OwnedCheck(): React.JSX.Element {
+  return (
+    <div
+      title="In your library"
+      style={{
+        width: '26px',
+        height: '26px',
+        borderRadius: '50%',
+        background: 'rgba(85, 204, 85, 0.18)',
+        border: '1px solid rgba(85, 204, 85, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#55cc55" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </div>
+  );
+}
+
 function gameStatus(game: FreeGame, owned: boolean): string {
   if (owned) return 'In your library';
   if (game.type === 'weekend') return `Free to play until ${formatUntil(game.until)}`;
@@ -70,11 +99,18 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
       childrenLayout="inline"
       childrenContainerWidth="min"
     >
-      {!owned && (
-        <div style={{ marginLeft: 'auto' }}>
-          <DialogButton onClick={() => window.open(STORE_PAGE(game.appid))}>View in Store</DialogButton>
-        </div>
-      )}
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {owned ? (
+          <OwnedCheck />
+        ) : (
+          <DialogButton
+            style={{ padding: '10px 22px', whiteSpace: 'nowrap' }}
+            onClick={() => window.open(STORE_PAGE(game.appid))}
+          >
+            View in Store
+          </DialogButton>
+        )}
+      </div>
     </Field>
   );
 }
@@ -129,7 +165,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   }, [games, filterMode, hideOwned, ownedSet]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', flex: 1, minHeight: 0 }}>
       {!loaded ? (
         <Spinner />
       ) : visible.length === 0 ? (
@@ -139,7 +175,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
           bottomSeparator="none"
         />
       ) : (
-        <div style={{ maxHeight: '55vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {visible.map((g) => (
             <GameRow
               key={`${g.type ?? 'game'}-${g.appid}`}
@@ -207,14 +243,14 @@ function ManagerWindow(): React.JSX.Element | null {
     <SteamDialog
       strTitle="Auto Claim — Free Games"
       onDismiss={() => setOpen(false)}
-      popupWidth={940}
-      popupHeight={720}
-      minWidth={720}
-      minHeight={480}
+      popupWidth={860}
+      popupHeight={560}
+      minWidth={640}
+      minHeight={420}
       resizable
       saveDimensionsKey="autoClaimManager"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
         <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0' }}>
           <DialogButton
             style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
@@ -229,7 +265,7 @@ function ManagerWindow(): React.JSX.Element | null {
             Settings
           </DialogButton>
           <div style={{ marginLeft: 'auto' }}>
-            <DialogButton onClick={cycleFilter}>Filter: {FILTER_LABELS[filterMode]}</DialogButton>
+            <DialogButton onClick={cycleFilter}>Filter: {FILTER_SHORT[filterMode]}</DialogButton>
           </div>
         </div>
         {activeTab === 'games' ? <GamesTab filterMode={filterMode} /> : <ManagerSettingsTab />}
