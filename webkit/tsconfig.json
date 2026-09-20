@@ -1,9 +1,23 @@
 {
-	"extends": "../tsconfig.json",
-	"compilerOptions": {
-		"esModuleInterop": true,
-		"allowSyntheticDefaultImports": true
-	},
-	"include": ["."],
-	"exclude": ["node_modules", "../frontend"]
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "typeRoots": [
+      "../.millennium/types",
+      "../node_modules/@types"
+    ],
+    "paths": {
+      "millennium": [
+        "../.millennium/lsp/webkit-ts"
+      ]
+    }
+  },
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "node_modules",
+    "../frontend"
+  ]
 }
