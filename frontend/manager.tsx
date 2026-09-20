@@ -18,6 +18,7 @@ import {
   normalizeSettings,
 } from './config';
 import {
+  checkLibraryOwnership,
   isAlreadyInLibrary,
   loadFreeGamesCacheIPC,
   loadFreeWeekendCacheIPC,
@@ -142,6 +143,8 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
       for (const g of merged) {
         if (isAlreadyInLibrary(g.appid)) owned.add(g.appid);
       }
+      const apiOwned = await checkLibraryOwnership(merged.map((g) => g.appid));
+      for (const id of apiOwned) owned.add(id);
       setGames(merged);
       setOwnedSet(owned);
     } catch {} finally {
@@ -249,22 +252,27 @@ function ManagerWindow(): React.JSX.Element | null {
       resizable
       saveDimensionsKey="autoClaimManager"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <DialogButton
-            style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
+            style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             onClick={() => setActiveTab('games')}
           >
             Free Games
           </DialogButton>
           <DialogButton
-            style={{ fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6 }}
+            style={{ fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             onClick={() => setActiveTab('settings')}
           >
             Settings
           </DialogButton>
-          <div style={{ marginLeft: 'auto' }}>
-            <DialogButton onClick={cycleFilter}>Filter: {FILTER_SHORT[filterMode]}</DialogButton>
+          <div style={{ marginLeft: 'auto', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+            <DialogButton
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+              onClick={cycleFilter}
+            >
+              Filter: {FILTER_SHORT[filterMode]}
+            </DialogButton>
           </div>
         </div>
         {activeTab === 'games' ? <GamesTab filterMode={filterMode} /> : <ManagerSettingsTab />}
