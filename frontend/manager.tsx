@@ -202,6 +202,9 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         .map((g) => (weekendIds.has(g.appid) ? { ...g, type: 'weekend' } : g))
         .concat(weekend.filter((g) => !parsed.some((p) => p.appid === g.appid)));
 
+      setGames(merged);
+      setLoaded(true);
+
       const owned = new Set(grabbedOwned);
       const apiOwned = await checkLibraryOwnership(merged.map((g) => g.appid));
       if (apiOwned === null) {
@@ -217,11 +220,8 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
           ` appStore=${isAlreadyInLibrary(g.appid)} grabbed=${grabbedOwned.has(g.appid)}`,
         );
       }
-      setGames(merged);
       setOwnedSet(owned);
-    } catch {} finally {
-      setLoaded(true);
-    }
+    } catch {}
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);

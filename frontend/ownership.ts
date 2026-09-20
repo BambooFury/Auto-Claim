@@ -9,6 +9,16 @@ const TTL_MS = 5 * 60 * 1000;
 const cdp = ChromeDevToolsProtocol;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+function bounded<T>(p: Promise<T>, ms: number, label: string): Promise<T | null> {
+  return Promise.race([
+    p,
+    new Promise<null>((resolve) => setTimeout(() => {
+      log(`ownership: ${label} timed out after ${ms}ms`);
+      resolve(null);
+    }, ms)),
+  ]);
+}
+
 const cached = new Map<number, { owned: boolean; ts: number }>();
 let inflight: Promise<Map<number, boolean> | null> | null = null;
 
@@ -67,17 +77,30 @@ async function attachSession(): Promise<string | null> {
   if (!hidden) return null;
   if (hidden.sessionId) return hidden.sessionId;
 
-  for (let i = 0; i < 40; i++) {
+  const deadline = Date.now() + 20000;
+  while (Date.now() < deadline) {
+    let targets: any = null;
     try {
-      const { targetInfos } = (await cdp.send('Target.getTargets', {})) as any;
-      const target = (targetInfos || []).find((t: any) => (t.url || '').includes(MARKER));
-      if (target) {
-        const { sessionId } = (await cdp.send('Target.attachToTarget', { targetId: target.targetId, flatten: true })) as any;
-        hidden.sessionId = sessionId;
-        return sessionId;
-      }
+      targets = await bounded(cdp.send('Target.getTargets', {}) as Promise<any>, 5000, 'Target.getTargets');
     } catch (e) {
       log(`ownership: cdp attach failed: ${String(e)}`);
+      return null;
+    }
+    if (targets === null) {
+      log('ownership: CDP bus not responding — route disabled');
+      return null;
+    }
+    const target = (targets?.targetInfos || []).find((t: any) => (t.url || '').includes(MARKER));
+    if (target) {
+      const attached = await bounded(
+        cdp.send('Target.attachToTarget', { targetId: target.targetId, flatten: true }) as Promise<any>,
+        5000,
+        'Target.attachToTarget',
+      );
+      if (attached?.sessionId) {
+        hidden.sessionId = attached.sessionId;
+        return attached.sessionId;
+      }
       return null;
     }
     await sleep(500);
@@ -87,20 +110,22 @@ async function attachSession(): Promise<string | null> {
 }
 
 async function evaluate<T>(expression: string): Promise<T | null> {
-  const sessionId = await attachSession();
-  if (!sessionId) return null;
+  const sid = await attachSession();
+  if (!sid) return null;
 
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    let result: any = null;
     try {
-      const result = (await cdp.send(
-        'Runtime.evaluate',
-        { expression, awaitPromise: true, returnByValue: true },
-        sessionId,
-      )) as any;
-      if (result?.result?.value !== undefined) return result.result.value as T;
+      result = await bounded(
+        cdp.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sid) as Promise<any>,
+        15000,
+        `Runtime.evaluate (attempt ${attempt + 1})`,
+      );
     } catch {}
-    await sleep(500);
+    if (result?.result?.value !== undefined) return result.result.value as T;
+    await sleep(1000);
   }
+  log('ownership: Runtime.evaluate returned no value');
   return null;
 }
 
