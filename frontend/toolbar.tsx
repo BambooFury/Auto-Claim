@@ -49,11 +49,10 @@ const TOOLBAR_STYLES = `
 function GiftIcon(): React.JSX.Element {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="8" width="18" height="4" rx="1" />
-      <path d="M12 8v13" />
-      <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
-      <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5" />
-      <path d="M21 12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1" />
+      <path d="M12 7v14" />
+      <path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" />
+      <path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" />
+      <rect width="18" height="4" x="3" y="7" rx="1" />
     </svg>
   );
 }

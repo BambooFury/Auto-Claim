@@ -7,7 +7,6 @@ import {
   ProgressBar,
   Spinner,
   SuspensefulImage,
-  Tabs,
   showModal,
 } from 'millennium';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -185,18 +184,25 @@ function ManagerSettingsTab(): React.JSX.Element {
 }
 
 export const ManagerContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('games');
+  const [activeTab, setActiveTab] = useState<'games' | 'settings'>('games');
 
   return (
     <div style={{ width: '640px', minHeight: '480px' }}>
-      <Tabs
-        tabs={[
-          { id: 'games', title: 'Free Games', content: <GamesTab /> },
-          { id: 'settings', title: 'Settings', content: <ManagerSettingsTab /> },
-        ]}
-        activeTab={activeTab}
-        onShowTab={setActiveTab}
-      />
+      <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0' }}>
+        <DialogButton
+          style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
+          onClick={() => setActiveTab('games')}
+        >
+          Free Games
+        </DialogButton>
+        <DialogButton
+          style={{ fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6 }}
+          onClick={() => setActiveTab('settings')}
+        >
+          Settings
+        </DialogButton>
+      </div>
+      {activeTab === 'games' ? <GamesTab /> : <ManagerSettingsTab />}
     </div>
   );
 };
