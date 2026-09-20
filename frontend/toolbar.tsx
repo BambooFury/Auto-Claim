@@ -1,6 +1,9 @@
 import { findModule, Millennium } from 'millennium';
 import React from 'react';
 import { openManager } from './manager';
+import { logIPC } from './ipc';
+
+const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
 const MAIN_WINDOW_NAME = 'SP Desktop_uid0';
 const CONTAINER_CLASS = 'autoclaim-toolbar-container';
@@ -79,12 +82,16 @@ export async function patchUrlBar(doc: Document): Promise<void> {
       doc,
       `.${steamDesktop?.URLBar ?? steamPopupTab?.URLBar}, .${steamPopupTab?.URLBar ?? steamDesktop?.URLBar}`,
     );
-    if (!urlBar) return;
+    if (!urlBar) {
+      log('toolbar: url bar element not found');
+      return;
+    }
     if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return;
 
     const container = doc.createElement('div');
     container.className = CONTAINER_CLASS;
     urlBar.appendChild(container);
+    log('toolbar: gift button injected');
 
     const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
     reactRoot.render(<ToolbarButton />);

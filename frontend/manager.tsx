@@ -28,6 +28,9 @@ import {
 import { isScanBusy, requestManualScan, subscribeScanState } from './scanControl';
 import { SettingsRows, usePluginSettings } from './settingsRows';
 import { SteamDialog } from './steamDialog';
+import { logIPC } from './ipc';
+
+const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
 const DESKTOP_UI_MODE = 7;
 const STORE_PAGE = (appid: number) => `https://store.steampowered.com/app/${appid}/`;
@@ -235,9 +238,21 @@ function ManagerWindow(): React.JSX.Element | null {
   );
 }
 
-routerHook.addGlobalComponent('AutoClaimManager', () => <ManagerWindow />, DESKTOP_UI_MODE);
+let managerRegistered = false;
+
+export function registerManager(): void {
+  if (managerRegistered) return;
+  managerRegistered = true;
+  try {
+    routerHook.addGlobalComponent('AutoClaimManager', () => <ManagerWindow />, DESKTOP_UI_MODE);
+    log('manager: global component registered');
+  } catch (e) {
+    log(`manager: global component registration failed: ${String(e)}`);
+  }
+}
 
 export function openManager(): void {
+  registerManager();
   setOpen(false);
   setTimeout(() => setOpen(true), 1);
 }

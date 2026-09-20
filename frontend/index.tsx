@@ -4,6 +4,7 @@ import { SettingsTab } from './settings';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
 import { registerScanTrigger } from './scanControl';
+import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
 import {
   FreeGame,
@@ -793,6 +794,7 @@ async function startPolling(): Promise<void> {
 
 export default definePlugin(() => {
   void startPolling();
+  registerManager();
   setupToolbar();
   useEffect(() => {
     const t = setTimeout(() => showWelcomeIfFirstTime(), 2000);
