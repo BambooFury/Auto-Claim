@@ -1,4 +1,4 @@
-import { ConfirmModal, definePlugin, showModal, toaster } from 'millennium';
+import { definePlugin, toaster } from 'millennium';
 import React, { useEffect } from 'react';
 import { SettingsTab } from './settings';
 import { runScan } from './scanner';
@@ -121,37 +121,6 @@ function loadLastScanTs(data: any): number {
     if (!Number.isNaN(t)) return t;
   }
   return 0;
-}
-
-const WELCOME_FLAG = 'fgg_welcomed_v9';
-
-function buildWelcomeText(): string {
-  return [
-    'Free Steam games will now land in your library — automatically.',
-    '',
-    '• Watches the Steam Store for games at 100% off — every 30 min, 120 min, or once a day.',
-    '• Claims run fully silently in a hidden off-screen window. No store pages flash open, just a small toast when a game lands in your library.',
-    '• Open the Games Manager from the gift button next to the address bar or from the settings panel below.',
-    '• Customize everything in this settings panel.',
-  ].join('\n');
-}
-
-function showWelcomeIfFirstTime(): void {
-  try {
-    if (localStorage.getItem(WELCOME_FLAG) === '1') return;
-    localStorage.setItem(WELCOME_FLAG, '1');
-  } catch {
-    return;
-  }
-  showModal(
-    <ConfirmModal
-      strTitle="Welcome to Auto Claim!"
-      strDescription={buildWelcomeText()}
-      strOKButtonText="Got it — start grabbing!"
-      bAlertDialog
-    />,
-    window,
-  );
 }
 
 function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed = false): void {
@@ -862,10 +831,6 @@ export default definePlugin(() => {
   void startPolling();
   registerManager();
   setupToolbar();
-  useEffect(() => {
-    const t = setTimeout(() => showWelcomeIfFirstTime(), 2000);
-    return () => clearTimeout(t);
-  }, []);
   return {
     title: 'Auto Claim',
     icon: React.createElement('span', { style: { display: 'none' } }),
