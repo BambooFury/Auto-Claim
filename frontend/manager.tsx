@@ -258,6 +258,8 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
 
   useEffect(() => subscribeScanState(() => setScanBusy(isScanBusy())), []);
 
+  useEffect(() => subscribeScanState(() => { void refresh(); }), [refresh]);
+
   const visible = useMemo(() => {
     let list = games;
     if (filterMode === 'weekend') list = list.filter((g) => g.type === 'weekend');
