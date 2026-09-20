@@ -19,6 +19,8 @@ import {
 } from './config';
 import {
   isAlreadyInLibrary,
+  isAppOwned,
+  checkLibraryOwnership,
   loadFreeGamesCacheIPC,
   loadFreeWeekendCacheIPC,
   loadGrabbedIPC,
@@ -272,7 +274,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
   const polls = Math.floor(TIMEOUT_MS / POLL_MS);
   for (let i = 0; i < polls; i++) {
     await new Promise((r) => setTimeout(r, POLL_MS));
-    if (isAlreadyInLibrary(appid)) {
+    if (await ownershipConfirmed(appid)) {
       succeeded = true;
       break;
     }
@@ -282,7 +284,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
     if (claimTriggered) {
       for (let i = 0; i < 10; i++) {
         await new Promise((r) => setTimeout(r, 1000));
-        if (isAlreadyInLibrary(appid)) { succeeded = true; break; }
+        if (await ownershipConfirmed(appid)) { succeeded = true; break; }
       }
       if (!succeeded) {
         dlog(`[${appid}] hidden-popup: claim triggered but ownership not confirmed — will retry next scan`);
@@ -304,8 +306,15 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
   return succeeded;
 }
 
+async function ownershipConfirmed(appid: number): Promise<boolean> {
+  const owned = await isAppOwned(appid);
+  if (owned !== null) return owned;
+  return isAlreadyInLibrary(appid);
+}
+
 async function addGameToLibrary(appid: number): Promise<boolean> {
-  if (isAlreadyInLibrary(appid)) return true;
+  const alreadyOwned = await isAppOwned(appid);
+  if (alreadyOwned === true) return true;
 
   const acquired = await tryAcquireClaimLockIPC({ payload: String(appid) }).catch(() => 0);
   if (!acquired) {
@@ -415,7 +424,10 @@ async function startPolling(): Promise<void> {
     return SCAN_NAME_BLOCKLIST.some((re) => re.test(name.toLowerCase()));
   }
 
-  async function processGame(game: FreeGame): Promise<void> {
+  async function processGame(game: FreeGame, apiOwned: Set<number> | null): Promise<void> {
+    const ownedNow = (): boolean =>
+      apiOwned !== null ? apiOwned.has(game.appid) : isAlreadyInLibrary(game.appid);
+
     try {
       if (grabbedSet.has(game.appid)) {
         if (!skipLogged.has(game.appid)) {
@@ -425,7 +437,7 @@ async function startPolling(): Promise<void> {
         return;
       }
 
-      if (notifiedSet.has(game.appid) && isAlreadyInLibrary(game.appid)) {
+      if (notifiedSet.has(game.appid) && ownedNow()) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
           log(`${game.name} — already notified & in library, upgrading to grabbed`);
@@ -435,7 +447,7 @@ async function startPolling(): Promise<void> {
         return;
       }
 
-      if (isAlreadyInLibrary(game.appid)) {
+      if (ownedNow()) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
           log(`${game.name} — already in library, skipping`);
@@ -606,8 +618,13 @@ async function startPolling(): Promise<void> {
           const cached = await withTimeout(loadFreeGamesCacheIPC(), 3000, '[]');
           const games: FreeGame[] = JSON.parse(cached || '[]');
           log(`Using cache — ${games.length} game(s)`);
+          const apiOwned = await withTimeout(
+            checkLibraryOwnership(games.map((g) => g.appid)),
+            15000,
+            null,
+          );
           for (const game of games) {
-            await processGame(game);
+            await processGame(game, apiOwned);
             await new Promise((r) => setTimeout(r, 1500));
           }
         } catch {}
@@ -631,8 +648,13 @@ async function startPolling(): Promise<void> {
         );
       } catch {}
 
+      const apiOwned = await withTimeout(
+        checkLibraryOwnership(games.map((g) => g.appid)),
+        15000,
+        null,
+      );
       for (const game of games) {
-        await processGame(game);
+        await processGame(game, apiOwned);
         await new Promise((r) => setTimeout(r, 1500));
       }
       return true;

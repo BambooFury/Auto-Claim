@@ -38,7 +38,7 @@ export function isAlreadyInLibrary(appid: number): boolean {
   }
 }
 
-export async function checkLibraryOwnership(appids: number[]): Promise<Set<number>> {
+export async function checkLibraryOwnership(appids: number[]): Promise<Set<number> | null> {
   const owned = new Set<number>();
   if (appids.length === 0) return owned;
 
@@ -50,7 +50,9 @@ export async function checkLibraryOwnership(appids: number[]): Promise<Set<numbe
       const entry = data?.[id];
       if (entry?.success && (entry.data?.is_owned || entry.data?.added_to_package)) owned.add(id);
     }
-  } catch {}
+  } catch {
+    return null;
+  }
 
   const missing = appids.filter((id) => !owned.has(id));
   if (missing.length > 0) {
@@ -67,6 +69,12 @@ export async function checkLibraryOwnership(appids: number[]): Promise<Set<numbe
   }
 
   return owned;
+}
+
+export async function isAppOwned(appid: number): Promise<boolean | null> {
+  const owned = await checkLibraryOwnership([appid]);
+  if (owned === null) return null;
+  return owned.has(appid);
 }
 
 export async function loadOwnedFromGrabbed(): Promise<Set<number>> {

@@ -203,11 +203,14 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         .concat(weekend.filter((g) => !parsed.some((p) => p.appid === g.appid)));
 
       const owned = new Set(grabbedOwned);
-      for (const g of merged) {
-        if (isAlreadyInLibrary(g.appid)) owned.add(g.appid);
-      }
       const apiOwned = await checkLibraryOwnership(merged.map((g) => g.appid));
-      for (const id of apiOwned) owned.add(id);
+      if (apiOwned === null) {
+        for (const g of merged) {
+          if (isAlreadyInLibrary(g.appid)) owned.add(g.appid);
+        }
+      } else {
+        for (const id of apiOwned) owned.add(id);
+      }
       setGames(merged);
       setOwnedSet(owned);
     } catch {} finally {
@@ -224,7 +227,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
     if (filterMode === 'weekend') list = list.filter((g) => g.type === 'weekend');
     else if (filterMode !== 'all') list = list.filter(isClaimableGame);
     if (hideOwned) {
-      list = list.filter((g) => !ownedSet.has(g.appid) && !isAlreadyInLibrary(g.appid));
+      list = list.filter((g) => !ownedSet.has(g.appid));
     }
     return list;
   }, [games, filterMode, hideOwned, ownedSet]);
@@ -241,7 +244,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
             <GameRow
               key={`${g.type ?? 'game'}-${g.appid}`}
               game={g}
-              owned={ownedSet.has(g.appid) || isAlreadyInLibrary(g.appid)}
+              owned={ownedSet.has(g.appid)}
             />
           ))}
         </div>
