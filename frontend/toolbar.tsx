@@ -54,11 +54,12 @@ const TOOLBAR_STYLES = `
 
 function GiftIcon(): React.JSX.Element {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 7v14" />
-      <path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" />
-      <path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" />
-      <rect width="18" height="4" x="3" y="7" rx="1" />
+    <svg width="20" height="20" viewBox="0 0 56 56">
+      <path d="M0 0h56v56H0z" fill="none" />
+      <path
+        fill="currentColor"
+        d="M25.926 28.539V16.117h-3.492c-3.868 0-5.907-2.508-5.907-4.945c0-2.531 1.875-4.031 4.383-4.031c2.883 0 5.133 2.226 5.133 5.953v3.023h3.914v-3.023c0-3.727 2.25-5.953 5.133-5.953c2.508 0 4.406 1.5 4.406 4.03c0 2.438-2.11 4.946-5.93 4.946h-3.492V28.54h16.524c2.554 0 3.937-.984 3.937-3.492V19.61c0-2.484-1.383-3.492-3.937-3.492h-5.461c1.453-1.312 2.32-3.094 2.32-5.11c0-4.523-3.586-7.78-8.133-7.78c-3.375 0-6.117 1.874-7.312 5.203c-1.196-3.328-3.961-5.203-7.336-5.203c-4.524 0-8.133 3.257-8.133 7.78c0 2.016.844 3.798 2.32 5.11h-5.46c-2.415 0-3.938 1.008-3.938 3.492v5.438c0 2.508 1.406 3.492 3.937 3.492Zm0 24.234V31.047H8.816V46.82c0 3.914 2.297 5.953 6.211 5.953Zm4.148-21.726v21.726h10.899c3.914 0 6.21-2.039 6.21-5.953V31.047Z"
+      />
     </svg>
   );
 }
@@ -75,37 +76,45 @@ function findElement(doc: Document, selector: string): Promise<Element | undefin
   return Millennium.findElement(doc, selector).then((nodes) => [...nodes][0]);
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+async function tryPatch(doc: Document): Promise<boolean> {
+  const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
+  const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
+  if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) return false;
+
+  const urlBar = await findElement(
+    doc,
+    `.${steamDesktop?.URLBar ?? steamPopupTab?.URLBar}, .${steamPopupTab?.URLBar ?? steamDesktop?.URLBar}`,
+  );
+  if (!urlBar) return false;
+  if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return true;
+
+  const container = doc.createElement('div');
+  container.className = CONTAINER_CLASS;
+  urlBar.appendChild(container);
+
+  const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
+  reactRoot.render(<ToolbarButton />);
+
+  const observer = new MutationObserver(() => {
+    void patchUrlBar(doc);
+  });
+  observer.observe(urlBar, { childList: true, subtree: true });
+
+  return true;
+}
+
 export async function patchUrlBar(doc: Document): Promise<void> {
-  try {
-    const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
-    const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
-    if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) return;
-
-    const urlBar = await findElement(
-      doc,
-      `.${steamDesktop?.URLBar ?? steamPopupTab?.URLBar}, .${steamPopupTab?.URLBar ?? steamDesktop?.URLBar}`,
-    );
-    if (!urlBar) {
-      log('toolbar: url bar element not found');
-      return;
+  for (let attempt = 1; attempt <= 30; attempt++) {
+    try {
+      if (await tryPatch(doc)) return;
+    } catch (e) {
+      log(`toolbar: patch attempt ${attempt} failed: ${String(e)}`);
     }
-    if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return;
-
-    const container = doc.createElement('div');
-    container.className = CONTAINER_CLASS;
-    urlBar.appendChild(container);
-    log('toolbar: gift button injected');
-
-    const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
-    reactRoot.render(<ToolbarButton />);
-
-    const observer = new MutationObserver(() => {
-      patchUrlBar(doc);
-    });
-    observer.observe(urlBar, { childList: true, subtree: true });
-  } catch (e) {
-    console.error('[AutoClaim] url bar patch failed:', e);
+    await sleep(1000);
   }
+  log('toolbar: failed to patch url bar after 30 attempts');
 }
 
 function injectStyles(doc: Document): void {
@@ -125,13 +134,12 @@ async function onPopupCreated(popup: any): Promise<void> {
   if (!isMainWindow && !isBrowserPopup) return;
 
   injectStyles(popup.m_popup.document);
-  await patchUrlBar(popup.m_popup.document);
+  void patchUrlBar(popup.m_popup.document);
 }
 
-export function setupToolbar(): void {
-  let callbackRegistered = false;
-  let mainPatched = false;
+let callbackRegistered = false;
 
+export function setupToolbar(): void {
   const trySetup = (attempt: number): void => {
     const popupManager = (window as any).g_PopupManager;
     if (!popupManager) {
@@ -146,17 +154,10 @@ export function setupToolbar(): void {
       log('toolbar: popup hooks registered');
     }
 
-    if (!mainPatched) {
-      const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
-      if (main) {
-        mainPatched = true;
-        void onPopupCreated(main);
-      } else if (attempt < 120) {
-        setTimeout(() => trySetup(attempt + 1), 1000);
-      } else {
-        log('toolbar: main window popup never appeared');
-      }
-    }
+    const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
+    if (main) void onPopupCreated(main);
+    else if (attempt < 120) setTimeout(() => trySetup(attempt + 1), 1000);
+    else log('toolbar: main window popup never appeared');
   };
 
   trySetup(0);
