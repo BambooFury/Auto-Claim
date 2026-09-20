@@ -4,7 +4,7 @@
     "predev": "npm run build:assets",
     "dev": "starlight watch",
     "prebuild": "npm run build:assets",
-    "build": "starlight pack",
+    "build": "starlight pack --release",
     "prepare": "starlight lsp"
   },
   "devDependencies": {
