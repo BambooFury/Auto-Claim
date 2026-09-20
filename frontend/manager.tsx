@@ -54,25 +54,45 @@ const FILTER_SHORT: Record<FilterMode, string> = {
   weekend: 'Weekend',
 };
 
-function OwnedCheck(): React.JSX.Element {
+function OwnedBadge(): React.JSX.Element {
   return (
     <div
       title="In your library"
       style={{
-        width: '26px',
-        height: '26px',
-        borderRadius: '50%',
-        background: 'rgba(85, 204, 85, 0.18)',
-        border: '1px solid rgba(85, 204, 85, 0.5)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: '8px',
+        height: '30px',
+        padding: '0 12px 0 0',
+        borderRadius: '4px',
+        background: 'rgba(85, 204, 85, 0.1)',
+        overflow: 'hidden',
         flexShrink: 0,
       }}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#55cc55" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <div
+        style={{
+          width: '3px',
+          height: '100%',
+          background: '#55cc55',
+          flexShrink: 0,
+        }}
+      />
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#55cc55" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 6 9 17l-5-5" />
       </svg>
+      <span
+        style={{
+          fontSize: '11.5px',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.8px',
+          color: 'rgba(85, 204, 85, 0.9)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Owned
+      </span>
     </div>
   );
 }
@@ -116,13 +136,32 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
     <Field
       label={game.name}
       description={gameStatus(game, owned)}
-      icon={<GameImage game={game} />}
+      icon={
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <GameImage game={game} />
+          {owned && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: '3px',
+                background: 'rgba(85, 204, 85, 0.12)',
+                border: '1px solid rgba(85, 204, 85, 0.35)',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+        </div>
+      }
       childrenLayout="inline"
       childrenContainerWidth="min"
     >
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', alignSelf: 'stretch' }}>
         {owned ? (
-          <OwnedCheck />
+          <OwnedBadge />
         ) : (
           <DialogButton
             style={{ padding: '10px 22px', whiteSpace: 'nowrap' }}
