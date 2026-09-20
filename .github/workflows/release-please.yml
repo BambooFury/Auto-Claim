@@ -39,15 +39,12 @@ jobs:
       - name: Install dependencies
         run: bun install --no-scripts
 
-      - name: Build assets
-        run: bun run build:assets
-
       - name: Build plugin
-        run: bun run build
+        run: bunx --bun starlight pack --release -o .
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: "*.star"
+          files: auto-claim.star
           token: ${{ secrets.GITHUB_TOKEN }}
