@@ -207,12 +207,9 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
 
       const owned = new Set(grabbedOwned);
       const apiOwned = await checkLibraryOwnership(merged.map((g) => g.appid));
-      if (apiOwned === null) {
-        for (const g of merged) {
-          if (isAlreadyInLibrary(g.appid)) owned.add(g.appid);
-        }
-      } else {
-        for (const id of apiOwned) owned.add(id);
+      for (const g of merged) {
+        const apiSays = apiOwned === null ? false : apiOwned.has(g.appid);
+        if (apiSays || isAlreadyInLibrary(g.appid)) owned.add(g.appid);
       }
       for (const g of merged) {
         log(

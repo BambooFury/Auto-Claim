@@ -315,7 +315,7 @@ async function ownershipConfirmed(appid: number): Promise<boolean> {
 
 async function addGameToLibrary(appid: number): Promise<boolean> {
   const alreadyOwned = await isAppOwned(appid);
-  if (alreadyOwned === true) return true;
+  if (alreadyOwned === true || isAlreadyInLibrary(appid)) return true;
 
   const acquired = await tryAcquireClaimLockIPC({ payload: String(appid) }).catch(() => 0);
   if (!acquired) {
@@ -427,7 +427,7 @@ async function startPolling(): Promise<void> {
 
   async function processGame(game: FreeGame, apiOwned: Set<number> | null): Promise<void> {
     const ownedNow = (): boolean =>
-      apiOwned !== null ? apiOwned.has(game.appid) : isAlreadyInLibrary(game.appid);
+      (apiOwned !== null ? apiOwned.has(game.appid) : false) || isAlreadyInLibrary(game.appid);
 
     try {
       if (grabbedSet.has(game.appid)) {
