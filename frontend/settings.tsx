@@ -1,166 +1,99 @@
 import {
-	ButtonItem,
-	DropdownItem,
-	ToggleField,
+  ButtonItem,
+  DropdownItem,
+  Spinner,
+  ToggleField,
 } from 'millennium';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import {
+  DEFAULT_SETTINGS,
+  FilterMode,
+  FILTER_OPTIONS,
+  INTERVAL_OPTIONS,
+  PluginSettings,
+  normalizeSettings,
+} from './config';
+import { loadSettingsIPC, saveSettingsIPC } from './ipc';
+import { openManager } from './manager';
 
-export interface WidgetSettings {
-	panelSide: 'left' | 'right';
-	tabColor: string;
-	accentColor: string;
-	indicatorColor: string;
-	showOverlay: boolean;
-	tabStyle: 'slim' | 'large' | 'floating';
-}
+export const SettingsTab: React.FC = () => {
+  const [settings, setSettings] = useState<PluginSettings | null>(null);
 
-export const widgetDefaults = (): WidgetSettings => ({
-	panelSide: 'left',
-	tabColor: 'gray',
-	accentColor: 'rgba(255,255,255,0.5)',
-	indicatorColor: '#ff7a3c',
-	showOverlay: false,
-	tabStyle: 'large',
-});
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const raw = await loadSettingsIPC();
+        if (!cancelled) setSettings(normalizeSettings(JSON.parse(raw || '{}')));
+      } catch {
+        if (!cancelled) setSettings({ ...DEFAULT_SETTINGS });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-type Option<T> = { data: T; label: string };
+  const update = (patch: Partial<PluginSettings>): void => {
+    setSettings((prev) => {
+      const next = { ...(prev ?? DEFAULT_SETTINGS), ...patch };
+      void loadSettingsIPC()
+        .then((raw) => {
+          let current: Record<string, unknown> = {};
+          try { current = JSON.parse(raw || '{}'); } catch {}
+          return saveSettingsIPC({ payload: JSON.stringify({ ...current, ...next }) });
+        })
+        .catch(() => {});
+      return next;
+    });
+  };
 
-function options<T>(values: Array<{ value: T; label: string }>): Array<Option<T>> {
-	return values.map((entry) => ({ data: entry.value, label: entry.label }));
-}
+  if (!settings) return <Spinner />;
 
-const colorPresetOptions = options<string>([
-	{ value: 'gray', label: 'Gray' },
-	{ value: 'black', label: 'Black' },
-	{ value: 'white', label: 'White' },
-	{ value: 'blue', label: 'Blue' },
-	{ value: 'red', label: 'Red' },
-	{ value: '#ff7a3c', label: 'Orange' },
-	{ value: '#f5c542', label: 'Yellow' },
-	{ value: '#4caf50', label: 'Green' },
-	{ value: '#2dd4bf', label: 'Teal' },
-	{ value: '#22d3ee', label: 'Cyan' },
-	{ value: '#8b5cf6', label: 'Purple' },
-	{ value: '#c084fc', label: 'Violet' },
-	{ value: '#ec4899', label: 'Pink' },
-	{ value: '#d946ef', label: 'Magenta' },
-]);
+  return (
+    <>
+      <ToggleField
+        label="Auto-add to library"
+        description="Claim free games automatically on scan. When off, you only get notifications."
+        checked={settings.autoAdd}
+        onChange={(checked) => update({ autoAdd: checked })}
+      />
 
-const COLOR_VALUES = colorPresetOptions.map((option) => option.data);
+      <ToggleField
+        label="Notify on grab"
+        description="Show a toast when a game is added to your library."
+        checked={settings.notifyOnGrab}
+        onChange={(checked) => update({ notifyOnGrab: checked })}
+      />
 
-const panelSideOptions = options<WidgetSettings['panelSide']>([
-	{ value: 'left', label: 'Left' },
-	{ value: 'right', label: 'Right' },
-]);
+      <ToggleField
+        label="Hide owned games"
+        description="Don't show games you already own in the manager."
+        checked={settings.hideOwned}
+        onChange={(checked) => update({ hideOwned: checked })}
+      />
 
-const tabStyleOptions = options<WidgetSettings['tabStyle']>([
-	{ value: 'slim', label: 'Slim' },
-	{ value: 'large', label: 'Large' },
-	{ value: 'floating', label: 'Floating' },
-]);
+      <DropdownItem
+        label="Claim mode"
+        description="Games only claims games automatically. All free items shows notifications for everything (DLC, soundtracks, demos)."
+        rgOptions={FILTER_OPTIONS}
+        selectedOption={settings.filterMode}
+        onChange={(opt) => update({ filterMode: opt.data as FilterMode })}
+      />
 
-function NativeDropdown<T>({
-	label,
-	description,
-	value,
-	dropdownOptions,
-	onChange,
-}: {
-	label: string;
-	description?: string;
-	value: T;
-	dropdownOptions: Array<Option<T>>;
-	onChange: (value: T) => void;
-}) {
-	return (
-		<DropdownItem
-			label={label}
-			description={description}
-			rgOptions={dropdownOptions}
-			selectedOption={value}
-			onChange={(option) => onChange(option.data as T)}
-		/>
-	);
-}
+      <DropdownItem
+        label="Scan interval"
+        description="How often to check the Steam store for free games."
+        rgOptions={INTERVAL_OPTIONS}
+        selectedOption={settings.pollIntervalMin}
+        onChange={(opt) => update({ pollIntervalMin: opt.data as number })}
+      />
 
-function ColorSetting({
-	label,
-	description,
-	value,
-	onChange,
-}: {
-	label: string;
-	description: string;
-	value: string;
-	onChange: (value: string) => void;
-}) {
-	const known = COLOR_VALUES.indexOf(value) !== -1;
-	return (
-		<NativeDropdown<string>
-			label={label}
-			description={description}
-			value={known ? value : 'gray'}
-			dropdownOptions={colorPresetOptions}
-			onChange={onChange}
-		/>
-	);
-}
+      <ButtonItem layout="below" onClick={openManager}>
+        Open Games Manager
+      </ButtonItem>
 
-interface SettingsTabProps {
-	widget: WidgetSettings;
-	onWidget: (patch: Partial<WidgetSettings>) => void;
-}
-
-export const SettingsTab: React.FC<SettingsTabProps> = ({ widget, onWidget }) => {
-	return (
-		<>
-			<ToggleField
-				label="Background overlay"
-				description="Dim the screen while the widget panel is open."
-				checked={widget.showOverlay}
-				onChange={(checked) => onWidget({ showOverlay: checked })}
-			/>
-
-			<ColorSetting
-				label="Button color"
-				description="Color of the side tab button on store pages."
-				value={widget.tabColor}
-				onChange={(value) => onWidget({ tabColor: value })}
-			/>
-
-			<ColorSetting
-				label="Accent color"
-				description="Color of tabs, highlights and active elements."
-				value={widget.accentColor}
-				onChange={(value) => onWidget({ accentColor: value })}
-			/>
-
-			<ColorSetting
-				label="Indicator color"
-				description="Color of the new-game notification dot on the side tab."
-				value={widget.indicatorColor}
-				onChange={(value) => onWidget({ indicatorColor: value })}
-			/>
-
-			<NativeDropdown<WidgetSettings['panelSide']>
-				label="Panel side"
-				description="Side of the screen the widget panel slides out from."
-				value={widget.panelSide}
-				dropdownOptions={panelSideOptions}
-				onChange={(value) => onWidget({ panelSide: value })}
-			/>
-
-			<NativeDropdown<WidgetSettings['tabStyle']>
-				label="Button style"
-				description="Shape of the side tab button."
-				value={widget.tabStyle}
-				dropdownOptions={tabStyleOptions}
-				onChange={(value) => onWidget({ tabStyle: value })}
-			/>
-
-			<ButtonItem layout="below" onClick={() => onWidget(widgetDefaults())}>
-				Reset widget settings
-			</ButtonItem>
-		</>
-	);
+      <ButtonItem layout="below" onClick={() => setSettings({ ...DEFAULT_SETTINGS })}>
+        Reset to defaults
+      </ButtonItem>
+    </>
+  );
 };

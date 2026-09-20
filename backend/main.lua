@@ -172,9 +172,6 @@ local PLUGIN_DIR = (function()
     return src:match("^(.+)\\backend\\") or "."
 end)()
 
--- Starlight unpacks plugins into a temp dir that gets overwritten on each
--- starlight pack. Store persistent user data in a dedicated folder under the
--- Millennium install directory so it survives re-packs.
 local DATA_DIR = (function()
     local install = millennium.get_install_path() or ""
     install = install:gsub("/", "\\"):gsub("\\+$", "")
@@ -192,14 +189,11 @@ local function _grabbed_file_for_current_user()
     return GRABBED_FILE
 end
 local SETTINGS_FILE     = DATA_DIR .. "\\settings.json"
-local WIDGETS_FILE      = DATA_DIR .. "\\widget_settings.json"
 local CACHE_FILE        = DATA_DIR .. "\\free_games_cache.json"
-local TOASTS_FILE       = DATA_DIR .. "\\pending_toasts.json"
 local WEEKEND_FILE      = DATA_DIR .. "\\free_weekend_cache.json"
 local LAST_DAILY_SCAN_FILE = DATA_DIR .. "\\last_daily_scan.json"
 local CLAIM_LOCK_FILE   = DATA_DIR .. "\\claim_inflight.json"
 local CLAIM_LOCK_TTL    = 60
-
 
 local function read_file(path)
     local f = io.open(path, "r")
@@ -232,7 +226,6 @@ local function write_file(path, content)
     return true
 end
 
--- One-time migration of existing data from PLUGIN_DIR to persistent DATA_DIR
 local function _migrate_data_file(name)
     local src = PLUGIN_DIR .. "\\" .. name
     local dst = DATA_DIR .. "\\" .. name
@@ -243,11 +236,9 @@ local function _migrate_data_file(name)
 end
 
 local function _migrate_all_data()
-    -- Skip if data dir already has settings (already migrated)
     local marker = io.open(DATA_DIR .. "\\settings.json", "r")
     if marker then marker:close() return end
 
-    -- Create dir if needed (only on first run)
     local probe = io.open(DATA_DIR .. "\\.probe", "w")
     if not probe then
         os.execute(('cmd /c "mkdir "%s" 2>nul"'):format(DATA_DIR))
@@ -258,15 +249,12 @@ local function _migrate_all_data()
 
     _migrate_data_file("grabbed.json")
     _migrate_data_file("settings.json")
-    _migrate_data_file("widget_settings.json")
     _migrate_data_file("free_games_cache.json")
-    _migrate_data_file("pending_toasts.json")
     _migrate_data_file("free_weekend_cache.json")
     _migrate_data_file("last_daily_scan.json")
     _migrate_data_file("claim_inflight.json")
     _migrate_data_file("steam_cookies.json")
 
-    -- Migrate per-user grabbed files
     local handle = io.popen(('dir /b "%s\\grabbed_*.json" 2>nul'):format(PLUGIN_DIR))
     if handle then
         for line in handle:lines() do
@@ -389,22 +377,6 @@ end
 
 ---@ffi
 ---@return string
-function load_widget_settings_ipc()
-    return read_file(WIDGETS_FILE) or "{}"
-end
-
----@ffi
----@param data table
----@return integer
-function save_widget_settings_ipc(data)
-    local payload = extract_payload(data)
-    if not _is_valid_json_payload(payload, "object") then return 0 end
-    write_file(WIDGETS_FILE, payload)
-    return 1
-end
-
----@ffi
----@return string
 function load_free_games_cache_ipc()
     return read_file(CACHE_FILE) or "[]"
 end
@@ -450,7 +422,6 @@ function save_last_daily_scan_ipc(data)
     write_file(LAST_DAILY_SCAN_FILE, payload)
     return 1
 end
-
 
 local _CURL_MAX_BYTES = 8 * 1024 * 1024
 local _CURL_TIMEOUT_S = 15
@@ -703,65 +674,6 @@ end
 ---@ffi
 ---@param data table
 ---@return integer
-function push_toast_ipc(data)
-    local payload = extract_payload(data)
-    if not _is_valid_json_payload(payload, "object") then return 0 end
-
-    local raw  = read_file(TOASTS_FILE) or "[]"
-    local trim = raw:gsub("%s+$", "")
-    local combined
-    if trim == "" or trim == "[]" then
-        combined = "[" .. payload .. "]"
-    elseif trim:sub(1, 1) == "[" and trim:sub(-1) == "]" then
-        combined = trim:sub(1, -2) .. "," .. payload .. "]"
-    else
-        combined = "[" .. payload .. "]"
-    end
-    write_file(TOASTS_FILE, combined)
-
-    return 1
-end
-
-local function _merge_toast_arrays(a, b)
-    a = (a or ""):gsub("%s+$", "")
-    b = (b or ""):gsub("%s+$", "")
-    if a == "" or a == "[]" then return b ~= "" and b or "[]" end
-    if b == "" or b == "[]" then return a end
-    return a:sub(1, -2) .. "," .. b:sub(2)
-end
-
----@ffi
----@return string
-function pop_toasts_ipc()
-    local stash = TOASTS_FILE .. ".popping"
-
-    local orphan = read_file(stash)
-    if orphan then os.remove(stash) end
-
-    if os.rename(TOASTS_FILE, stash) then
-        local raw = read_file(stash) or "[]"
-        os.remove(stash)
-        return _merge_toast_arrays(orphan, raw)
-    end
-
-    os.remove(stash)
-    if os.rename(TOASTS_FILE, stash) then
-        local raw = read_file(stash) or "[]"
-        os.remove(stash)
-        return _merge_toast_arrays(orphan, raw)
-    end
-
-    if orphan and orphan ~= "" then
-        return orphan
-    end
-
-    return read_file(TOASTS_FILE) or "[]"
-end
-
-
----@ffi
----@param data table
----@return integer
 function log_plugin(data)
     local payload = extract_payload(data)
     if payload and payload ~= "" then
@@ -824,24 +736,7 @@ function release_claim_lock_ipc(data)
     return 1
 end
 
-local STORE_HOOK_REGEX = "https://store\\.steampowered\\.com/.*"
-
-local function register_store_hook()
-    if type(millennium.add_browser_css) ~= "function" then
-        logger:error("[AutoClaim] add_browser_css is not available in this Millennium version")
-        return
-    end
-    local ok, res = pcall(millennium.add_browser_css, "auto-claim.noop.css", STORE_HOOK_REGEX)
-    if ok then
-        logger:info("[AutoClaim] store hook registered, id=" .. tostring(res))
-    else
-        logger:error("[AutoClaim] store hook registration failed: " .. tostring(res))
-    end
-end
-
 local function on_load()
-    register_store_hook()
-
     logger:info("[AutoClaim] Loaded, Millennium " .. millennium.version())
     millennium.ready()
 end

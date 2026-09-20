@@ -1,9 +1,6 @@
 {
   "scripts": {
-    "build:assets": "node scripts/build-assets.mjs",
-    "predev": "npm run build:assets",
-    "dev": "starlight watch",
-    "prebuild": "npm run build:assets",
+    "dev": "starlight watch --debug",
     "build": "starlight pack --release",
     "prepare": "starlight lsp"
   },
