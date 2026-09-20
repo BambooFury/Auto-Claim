@@ -15,7 +15,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 </p>
 
 <p align="center">
-  <img src=".github/preview.png" width="640" alt="Auto Claim - Games Manager">
+  <img src=".github/preview.png" width="950" alt="Auto Claim - Games Manager">
 </p>
 
 ## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%23FFD43B" width="20"> Features
