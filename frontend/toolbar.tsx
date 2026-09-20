@@ -3,18 +3,20 @@ import React from 'react';
 import { openManager } from './manager';
 
 const MAIN_WINDOW_NAME = 'SP Desktop_uid0';
+const CONTAINER_CLASS = 'autoclaim-toolbar-container';
 
 const TOOLBAR_STYLES = `
-.autoclaim-toolbar-container {
+.${CONTAINER_CLASS} {
   margin-left: auto;
   margin-right: 0.5rem;
   -webkit-app-region: no-drag;
   display: flex;
+  align-items: center;
 }
-.autoclaim-toolbar-container * {
+.${CONTAINER_CLASS} * {
   -webkit-app-region: no-drag;
 }
-.ModalDialogBody .autoclaim-toolbar-container {
+.ModalDialogBody .${CONTAINER_CLASS} {
   margin-right: 1rem;
 }
 .autoclaim-toolbar-button {
@@ -62,27 +64,37 @@ function ToolbarButton(): React.JSX.Element {
   );
 }
 
-export async function patchUrlBar(doc: Document): Promise<void> {
-  const classes = {
-    steamdesktop: findModule((e: any) => e.FocusBar) as Record<string, string>,
-    steamPopupTab: findModule((e: any) => e.BrowserTabIcon) as Record<string, string>,
-  };
-  const urlBar = await findElement(doc, `.${classes.steamdesktop?.URLBar}, .${classes.steamPopupTab?.URLBar}`);
-
-  if (!urlBar || doc.querySelector('.autoclaim-toolbar-container') !== null) {
-    return;
-  }
-
-  const container = doc.createElement('div');
-  container.className = 'autoclaim-toolbar-container';
-  urlBar.appendChild(container);
-
-  const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
-  reactRoot.render(<ToolbarButton />);
+function findElement(doc: Document, selector: string): Promise<Element | undefined> {
+  return Millennium.findElement(doc, selector).then((nodes) => [...nodes][0]);
 }
 
-function findElement(doc: Document, selector: string): Promise<Element | undefined> {
-  return Millennium.findElement(doc, selector).then((nodes) => nodes[0]);
+export async function patchUrlBar(doc: Document): Promise<void> {
+  try {
+    const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
+    const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
+    if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) return;
+
+    const urlBar = await findElement(
+      doc,
+      `.${steamDesktop?.URLBar ?? steamPopupTab?.URLBar}, .${steamPopupTab?.URLBar ?? steamDesktop?.URLBar}`,
+    );
+    if (!urlBar) return;
+    if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return;
+
+    const container = doc.createElement('div');
+    container.className = CONTAINER_CLASS;
+    urlBar.appendChild(container);
+
+    const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
+    reactRoot.render(<ToolbarButton />);
+
+    const observer = new MutationObserver(() => {
+      patchUrlBar(doc);
+    });
+    observer.observe(urlBar, { childList: true, subtree: true });
+  } catch (e) {
+    console.error('[AutoClaim] url bar patch failed:', e);
+  }
 }
 
 function injectStyles(doc: Document): void {
@@ -107,7 +119,10 @@ async function onPopupCreated(popup: any): Promise<void> {
 
 export function setupToolbar(): void {
   const popupManager = (window as any).g_PopupManager;
-  if (!popupManager) return;
+  if (!popupManager) {
+    console.error('[AutoClaim] g_PopupManager not available');
+    return;
+  }
 
   const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
   if (main) void onPopupCreated(main);
