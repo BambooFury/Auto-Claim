@@ -14,6 +14,10 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
   <img src="https://img.shields.io/github/license/BambooFury/Auto-Claim?style=flat&label=License&color=4CAF50&labelColor=262626&logo=opensourceinitiative&logoColor=FFFFFF">
 </p>
 
+<p align="center">
+  <img src=".github/preview.png" width="640" alt="Auto Claim - Games Manager">
+</p>
+
 ## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%23FFD43B" width="20"> Features
 
 <table>
@@ -63,6 +67,7 @@ Open `Steam Settings → Plugins → Auto Claim`:
 <img src="https://api.iconify.design/lucide:zap.svg?color=%23FFD43B" width="16"> Auto-add to Library - ON | OFF<br>
 <img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> Notify on Grab - ON | OFF<br>
 <img src="https://api.iconify.design/lucide:eye-off.svg?color=%239E9E9E" width="16"> Hide Owned Games - ON | OFF<br>
+<img src="https://api.iconify.design/lucide:circle-dot.svg?color=%23ff4d4f" width="16"> New Games Indicator - ON | OFF<br>
 <img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> Claim Mode - Games only | All free items | Free weekend<br>
 <img src="https://api.iconify.design/lucide:timer.svg?color=%231a9fff" width="16"> Scan Interval - 30 min | 120 min | 1 day<br>
 <img src="https://api.iconify.design/lucide:panel-right.svg?color=%23FFD43B" width="16"> Open Games Manager - browse all detected free games<br>
