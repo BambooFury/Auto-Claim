@@ -1,4 +1,4 @@
-import { findModule, Millennium } from 'millennium';
+import { findModule } from 'millennium';
 import React from 'react';
 import { openManager } from './manager';
 import { logIPC } from './ipc';
@@ -72,16 +72,32 @@ function ToolbarButton(): React.JSX.Element {
   );
 }
 
-function findElement(doc: Document, selector: string): Promise<Element | undefined> {
-  return Millennium.findElement(doc, selector).then((nodes) => [...nodes][0]);
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+async function findElement(doc: Document, selector: string, timeoutMs = 25000): Promise<Element | undefined> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const el = doc.querySelector(selector);
+      if (el) return el;
+    } catch {}
+    await sleep(500);
+  }
+  return undefined;
 }
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+let classesLogged = false;
 
 async function tryPatch(doc: Document): Promise<boolean> {
   const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
   const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
-  if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) return false;
+  if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) {
+    if (!classesLogged) {
+      classesLogged = true;
+      log('toolbar: URLBar classes not found in webpack modules');
+    }
+    return false;
+  }
 
   const urlBar = await findElement(
     doc,
@@ -90,12 +106,18 @@ async function tryPatch(doc: Document): Promise<boolean> {
   if (!urlBar) return false;
   if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return true;
 
+  const reactRootOwner = (window as any).SP_REACTDOM;
+  if (!reactRootOwner?.createRoot) {
+    log('toolbar: SP_REACTDOM not available');
+    return true;
+  }
+
   const container = doc.createElement('div');
   container.className = CONTAINER_CLASS;
   urlBar.appendChild(container);
 
-  const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
-  reactRoot.render(<ToolbarButton />);
+  reactRootOwner.createRoot(container).render(<ToolbarButton />);
+  log('toolbar: gift button injected');
 
   const observer = new MutationObserver(() => {
     void patchUrlBar(doc);
