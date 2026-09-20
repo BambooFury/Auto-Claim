@@ -2,18 +2,17 @@ import {
   ButtonItem,
   DialogButton,
   DialogButtonPrimary,
-  Dropdown,
   Field,
   ProgressBar,
   Spinner,
   SuspensefulImage,
-  showModal,
+  routerHook,
 } from 'millennium';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   DEFAULT_SETTINGS,
-  FilterMode,
-  FILTER_OPTIONS,
+  type FilterMode,
+  FILTER_LABELS,
   FreeGame,
   formatUntil,
   isClaimableGame,
@@ -28,8 +27,23 @@ import {
 } from './ipc';
 import { isScanBusy, requestManualScan, subscribeScanState } from './scanControl';
 import { SettingsRows, usePluginSettings } from './settingsRows';
+import { SteamDialog } from './steamDialog';
 
+const DESKTOP_UI_MODE = 7;
 const STORE_PAGE = (appid: number) => `https://store.steampowered.com/app/${appid}/`;
+
+let managerOpen = false;
+const managerListeners = new Set<() => void>();
+
+function setOpen(next: boolean): void {
+  managerOpen = next;
+  for (const fn of Array.from(managerListeners)) fn();
+}
+
+function subscribeManager(fn: () => void): () => void {
+  managerListeners.add(fn);
+  return () => { managerListeners.delete(fn); };
+}
 
 function gameStatus(game: FreeGame, owned: boolean): string {
   if (owned) return 'In your library';
@@ -52,17 +66,17 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
       }
       childrenLayout="inline"
       childrenContainerWidth="min"
-      bottomSeparator="standard"
     >
       {!owned && (
-        <DialogButton onClick={() => window.open(STORE_PAGE(game.appid))}>View in Store</DialogButton>
+        <div style={{ marginLeft: 'auto' }}>
+          <DialogButton onClick={() => window.open(STORE_PAGE(game.appid))}>View in Store</DialogButton>
+        </div>
       )}
     </Field>
   );
 }
 
-function GamesTab(): React.JSX.Element {
-  const [filterMode, setFilterMode] = useState<FilterMode>('games');
+function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element {
   const [games, setGames] = useState<FreeGame[]>([]);
   const [ownedSet, setOwnedSet] = useState<Set<number>>(new Set());
   const [hideOwned, setHideOwned] = useState(false);
@@ -113,18 +127,6 @@ function GamesTab(): React.JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}>
-      <Field
-        label="Filter"
-        description="Games only shows full games. All free items also includes DLC, soundtracks and demos."
-        bottomSeparator="thick"
-      >
-        <Dropdown
-          rgOptions={FILTER_OPTIONS}
-          selectedOption={filterMode}
-          onChange={(opt) => setFilterMode(opt.data as FilterMode)}
-        />
-      </Field>
-
       {!loaded ? (
         <Spinner />
       ) : visible.length === 0 ? (
@@ -134,13 +136,15 @@ function GamesTab(): React.JSX.Element {
           bottomSeparator="none"
         />
       ) : (
-        visible.map((g) => (
-          <GameRow
-            key={`${g.type ?? 'game'}-${g.appid}`}
-            game={g}
-            owned={ownedSet.has(g.appid) || isAlreadyInLibrary(g.appid)}
-          />
-        ))
+        <div style={{ maxHeight: '55vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {visible.map((g) => (
+            <GameRow
+              key={`${g.type ?? 'game'}-${g.appid}`}
+              game={g}
+              owned={ownedSet.has(g.appid) || isAlreadyInLibrary(g.appid)}
+            />
+          ))}
+        </div>
       )}
 
       <DialogButtonPrimary
@@ -183,34 +187,57 @@ function ManagerSettingsTab(): React.JSX.Element {
   );
 }
 
-export const ManagerContent: React.FC = () => {
+function ManagerWindow(): React.JSX.Element | null {
+  const open = useSyncExternalStore(subscribeManager, () => managerOpen);
+  const [settings, update] = usePluginSettings();
   const [activeTab, setActiveTab] = useState<'games' | 'settings'>('games');
 
+  const filterMode: FilterMode = settings?.filterMode ?? 'games';
+  const cycleFilter = (): void => {
+    const next: FilterMode = filterMode === 'games' ? 'all' : filterMode === 'all' ? 'weekend' : 'games';
+    update({ filterMode: next });
+  };
+
+  if (!open) return null;
+
   return (
-    <div style={{ width: '640px', minHeight: '480px' }}>
-      <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0' }}>
-        <DialogButton
-          style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
-          onClick={() => setActiveTab('games')}
-        >
-          Free Games
-        </DialogButton>
-        <DialogButton
-          style={{ fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6 }}
-          onClick={() => setActiveTab('settings')}
-        >
-          Settings
-        </DialogButton>
+    <SteamDialog
+      strTitle="Auto Claim — Free Games"
+      onDismiss={() => setOpen(false)}
+      popupWidth={940}
+      popupHeight={720}
+      minWidth={720}
+      minHeight={480}
+      resizable
+      saveDimensionsKey="autoClaimManager"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0' }}>
+          <DialogButton
+            style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
+            onClick={() => setActiveTab('games')}
+          >
+            Free Games
+          </DialogButton>
+          <DialogButton
+            style={{ fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6 }}
+            onClick={() => setActiveTab('settings')}
+          >
+            Settings
+          </DialogButton>
+          <div style={{ marginLeft: 'auto' }}>
+            <DialogButton onClick={cycleFilter}>Filter: {FILTER_LABELS[filterMode]}</DialogButton>
+          </div>
+        </div>
+        {activeTab === 'games' ? <GamesTab filterMode={filterMode} /> : <ManagerSettingsTab />}
       </div>
-      {activeTab === 'games' ? <GamesTab /> : <ManagerSettingsTab />}
-    </div>
+    </SteamDialog>
   );
-};
+}
+
+routerHook.addGlobalComponent('AutoClaimManager', () => <ManagerWindow />, DESKTOP_UI_MODE);
 
 export function openManager(): void {
-  showModal(<ManagerContent />, window, {
-    strTitle: 'Auto Claim — Free Games',
-    popupWidth: 700,
-    popupHeight: 760,
-  });
+  setOpen(false);
+  setTimeout(() => setOpen(true), 1);
 }
