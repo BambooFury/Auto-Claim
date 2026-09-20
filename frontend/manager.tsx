@@ -77,6 +77,34 @@ function OwnedCheck(): React.JSX.Element {
   );
 }
 
+function GameImage({ game }: { game: FreeGame }): React.JSX.Element {
+  const cdn = `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}`;
+  const candidates = [
+    game.header,
+    game.capsule,
+    `${cdn}/header.jpg`,
+    `${cdn}/capsule_231x87.jpg`,
+    `${cdn}/library_hero.jpg`,
+  ].filter((src, index, all) => src && all.indexOf(src) === index);
+
+  const [failed, setFailed] = useState(0);
+  const src = candidates[failed];
+
+  if (!src) {
+    return <div style={{ width: '120px', height: '45px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />;
+  }
+
+  return (
+    <SuspensefulImage
+      src={src}
+      onError={() => setFailed((f) => f + 1)}
+      style={{ width: '120px', height: '45px', borderRadius: '3px', objectFit: 'cover' }}
+      suspenseWidth="120px"
+      suspenseHeight="45px"
+    />
+  );
+}
+
 function gameStatus(game: FreeGame, owned: boolean): string {
   if (owned) return 'In your library';
   if (game.type === 'weekend') return `Free to play until ${formatUntil(game.until)}`;
@@ -88,14 +116,7 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
     <Field
       label={game.name}
       description={gameStatus(game, owned)}
-      icon={
-        <SuspensefulImage
-          src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg`}
-          style={{ width: '120px', height: '45px', borderRadius: '3px', objectFit: 'cover' }}
-          suspenseWidth="120px"
-          suspenseHeight="45px"
-        />
-      }
+      icon={<GameImage game={game} />}
       childrenLayout="inline"
       childrenContainerWidth="min"
     >
@@ -252,23 +273,28 @@ function ManagerWindow(): React.JSX.Element | null {
       resizable
       saveDimensionsKey="autoClaimManager"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        <div style={{ display: 'flex', gap: '6px', padding: '12px 16px 0', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, paddingTop: '8px' }}>
+        <div
+          style={{
+            display: 'flex', gap: '6px', padding: '0 16px 4px',
+            position: 'relative', zIndex: 10, WebkitAppRegion: 'no-drag',
+          } as React.CSSProperties}
+        >
           <DialogButton
-            style={{ fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            style={{ padding: '10px 18px', fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             onClick={() => setActiveTab('games')}
           >
             Free Games
           </DialogButton>
           <DialogButton
-            style={{ fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            style={{ padding: '10px 18px', fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             onClick={() => setActiveTab('settings')}
           >
             Settings
           </DialogButton>
-          <div style={{ marginLeft: 'auto', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <div style={{ marginLeft: 'auto', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             <DialogButton
-              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+              style={{ padding: '10px 18px', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               onClick={cycleFilter}
             >
               Filter: {FILTER_SHORT[filterMode]}

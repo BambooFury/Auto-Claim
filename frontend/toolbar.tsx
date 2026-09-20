@@ -46,15 +46,15 @@ const TOOLBAR_STYLES = `
 }
 .autoclaim-toolbar-button svg {
   display: block !important;
-  width: 20px !important;
-  height: 20px !important;
+  width: 26px !important;
+  height: 26px !important;
   color: #ffffff;
 }
 `;
 
 function GiftIcon(): React.JSX.Element {
   return (
-    <svg width="20" height="20" viewBox="0 0 56 56">
+    <svg width="26" height="26" viewBox="0 0 56 56">
       <path d="M0 0h56v56H0z" fill="none" />
       <path
         fill="currentColor"
