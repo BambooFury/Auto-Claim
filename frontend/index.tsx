@@ -46,7 +46,60 @@ const DEBUG_LOG = false;
 const dlog = (msg: string) => { if (DEBUG_LOG) log(msg); };
 
 const _globalGrabbedAppids = new Set<number>();
+const SEEN_LS_KEY_PREFIX = 'fgg_seen_appids';
 const _notifiedAvailableAppids = new Set<number>();
+
+function _currentSteamId(): string {
+  try {
+    const m = document.cookie.match(/steamLoginSecure=(\d+)/);
+    return m ? m[1] : '';
+  } catch { return ''; }
+}
+
+function _buildSeenLsKey(): string {
+  const sid = _currentSteamId();
+  return sid ? `${SEEN_LS_KEY_PREFIX}_${sid}` : SEEN_LS_KEY_PREFIX;
+}
+
+function _loadSeenSet(): Set<number> {
+  const out = new Set<number>();
+  try {
+    const key = _buildSeenLsKey();
+    let raw = localStorage.getItem(key);
+    if (!raw && key !== SEEN_LS_KEY_PREFIX) {
+      raw = localStorage.getItem(SEEN_LS_KEY_PREFIX);
+      if (raw) {
+        try { localStorage.setItem(key, raw); } catch {}
+      }
+    }
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) for (const v of arr) if (typeof v === 'number') out.add(v);
+    }
+  } catch {}
+  return out;
+}
+
+let _seenSet = _loadSeenSet();
+
+function _saveSeenSet(): void {
+  try { localStorage.setItem(_buildSeenLsKey(), JSON.stringify(Array.from(_seenSet))); } catch {}
+}
+
+function _resetSeenSet(): void {
+  _seenSet = _loadSeenSet();
+}
+
+function isSeen(appid: number): boolean {
+  return _seenSet.has(appid);
+}
+
+function markSeen(appid: number): void {
+  if (!_seenSet.has(appid)) {
+    _seenSet.add(appid);
+    _saveSeenSet();
+  }
+}
 
 async function _reloadGlobalGrabbed(): Promise<void> {
   try {
@@ -135,9 +188,9 @@ function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed =
     _globalGrabbedAppids.add(game.appid);
   } else {
     if (_globalGrabbedAppids.has(game.appid)) return;
-    if (_notifiedAvailableAppids.has(game.appid)) return;
+    if (isSeen(game.appid)) return;
     if (isAlreadyInLibrary(game.appid)) return;
-    _notifiedAvailableAppids.add(game.appid);
+    markSeen(game.appid);
   }
   toaster.toast({
     title: claimed ? 'Free Game Claimed!' : 'Free Game Available!',
@@ -557,7 +610,6 @@ async function startPolling(): Promise<void> {
       try {
         prev = JSON.parse(await withTimeout(loadFreeWeekendCacheIPC(), 3000, '[]') || '[]');
       } catch {}
-      const prevIds = new Set(prev.map((g) => g.appid));
 
       const nowSec = Date.now() / 1000;
       const merged = [...result];
@@ -584,11 +636,10 @@ async function startPolling(): Promise<void> {
       if (!notify) return;
 
       for (const g of result) {
-        if (prevIds.has(g.appid)) continue;
         if (isAlreadyInLibrary(g.appid)) continue;
-        if (_notifiedAvailableAppids.has(g.appid)) continue;
+        if (isSeen(g.appid)) continue;
         if (notifiedSet.has(g.appid) || grabbedSet.has(g.appid)) continue;
-        _notifiedAvailableAppids.add(g.appid);
+        markSeen(g.appid);
         log(`Free weekend detected: ${g.name} (${g.appid})`);
         showWeekendNotification(g);
         await new Promise((r) => setTimeout(r, 1500));
@@ -734,6 +785,7 @@ async function startPolling(): Promise<void> {
           notifiedSet = new Set<number>();
           _notifiedAvailableAppids.clear();
           _globalGrabbedAppids.clear();
+          _resetSeenSet();
           clearOwnershipCache();
           void _reloadGlobalGrabbed();
           if (scanInProgress) {

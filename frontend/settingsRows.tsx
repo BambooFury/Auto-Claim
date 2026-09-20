@@ -34,7 +34,9 @@ export function usePluginSettings(): [PluginSettings | null, (patch: Partial<Plu
         .then((raw) => {
           let current: Record<string, unknown> = {};
           try { current = JSON.parse(raw || '{}'); } catch {}
-          return saveSettingsIPC({ payload: JSON.stringify({ ...current, ...next }) });
+          const merged = { ...current, ...patch };
+          return saveSettingsIPC({ payload: JSON.stringify(merged) })
+            .then(() => setSettings(normalizeSettings(merged)));
         })
         .catch(() => {});
       return next;

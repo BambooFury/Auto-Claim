@@ -5,7 +5,6 @@ import {
   Field,
   ProgressBar,
   Spinner,
-  SuspensefulImage,
   routerHook,
 } from 'millennium';
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -78,13 +77,15 @@ function OwnedCheck(): React.JSX.Element {
 }
 
 function GameImage({ game }: { game: FreeGame }): React.JSX.Element {
-  const cdn = `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}`;
+  const cdn = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}`;
   const candidates = [
     game.header,
     game.capsule,
     `${cdn}/header.jpg`,
-    `${cdn}/capsule_231x87.jpg`,
     `${cdn}/library_hero.jpg`,
+    `${cdn}/library_600x900.jpg`,
+    `${cdn}/capsule_231x87.jpg`,
+    `${cdn}/capsule_184x69.jpg`,
   ].filter((src, index, all) => src && all.indexOf(src) === index);
 
   const [failed, setFailed] = useState(0);
@@ -95,12 +96,10 @@ function GameImage({ game }: { game: FreeGame }): React.JSX.Element {
   }
 
   return (
-    <SuspensefulImage
+    <img
       src={src}
       onError={() => setFailed((f) => f + 1)}
-      style={{ width: '120px', height: '45px', borderRadius: '3px', objectFit: 'cover' }}
-      suspenseWidth="120px"
-      suspenseHeight="45px"
+      style={{ width: '120px', height: '45px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, background: 'rgba(255,255,255,0.06)' }}
     />
   );
 }
@@ -210,12 +209,6 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
       for (const g of merged) {
         const apiSays = apiOwned === null ? false : apiOwned.has(g.appid);
         if (apiSays || isAlreadyInLibrary(g.appid)) owned.add(g.appid);
-      }
-      for (const g of merged) {
-        log(
-          `ownership: ${g.name} (${g.appid}) — api=${apiOwned === null ? 'FAIL' : apiOwned.has(g.appid)}` +
-          ` appStore=${isAlreadyInLibrary(g.appid)} grabbed=${grabbedOwned.has(g.appid)}`,
-        );
       }
       setOwnedSet(owned);
     } catch {}

@@ -70,7 +70,7 @@ export function headerImageUrl(game: FreeGame): string {
   return (
     game.header ||
     game.capsule ||
-    `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg`
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`
   );
 }
 
