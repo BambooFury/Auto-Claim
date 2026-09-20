@@ -1,4 +1,5 @@
 import {
+  ButtonItem,
   DialogButton,
   DialogButtonPrimary,
   Dropdown,
@@ -11,6 +12,7 @@ import {
 } from 'millennium';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  DEFAULT_SETTINGS,
   FilterMode,
   FILTER_OPTIONS,
   FreeGame,
@@ -26,7 +28,7 @@ import {
   loadSettingsIPC,
 } from './ipc';
 import { isScanBusy, requestManualScan, subscribeScanState } from './scanControl';
-import { SettingsTab } from './settings';
+import { SettingsRows, usePluginSettings } from './settingsRows';
 
 const STORE_PAGE = (appid: number) => `https://store.steampowered.com/app/${appid}/`;
 
@@ -162,6 +164,26 @@ function GamesTab(): React.JSX.Element {
   );
 }
 
+function ManagerSettingsTab(): React.JSX.Element {
+  const [settings, update] = usePluginSettings();
+
+  if (!settings) return <Spinner />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}>
+      <SettingsRows settings={settings} update={update} />
+      <ButtonItem
+        layout="below"
+        onClick={() => {
+          update({ ...DEFAULT_SETTINGS });
+        }}
+      >
+        Reset to defaults
+      </ButtonItem>
+    </div>
+  );
+}
+
 export const ManagerContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('games');
 
@@ -170,7 +192,7 @@ export const ManagerContent: React.FC = () => {
       <Tabs
         tabs={[
           { id: 'games', title: 'Free Games', content: <GamesTab /> },
-          { id: 'settings', title: 'Settings', content: <SettingsTab showManagerButton={false} /> },
+          { id: 'settings', title: 'Settings', content: <ManagerSettingsTab /> },
         ]}
         activeTab={activeTab}
         onShowTab={setActiveTab}
