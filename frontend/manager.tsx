@@ -24,10 +24,11 @@ import {
   loadOwnedFromGrabbed,
   loadSettingsIPC,
 } from './ipc';
-import { isScanBusy, requestManualScan, subscribeScanState } from './scanControl';
+import { isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanState } from './scanControl';
 import { SettingsRows, usePluginSettings } from './settingsRows';
 import { SteamDialog } from './steamDialog';
 import { logIPC } from './ipc';
+import { markAllSeen } from './seenSet';
 
 const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
@@ -404,6 +405,22 @@ export function registerManager(): void {
 
 export function openManager(): void {
   registerManager();
+  void (async () => {
+    try {
+      const [gamesRaw, weekendRaw] = await Promise.all([
+        loadFreeGamesCacheIPC(),
+        loadFreeWeekendCacheIPC(),
+      ]);
+      const parsed: FreeGame[] = JSON.parse(gamesRaw || '[]');
+      const weekend: FreeGame[] = JSON.parse(weekendRaw || '[]');
+      const ids = [
+        ...parsed.map((g) => g.appid),
+        ...weekend.filter((g) => !parsed.some((p) => p.appid === g.appid)).map((g) => g.appid),
+      ];
+      markAllSeen(ids);
+    } catch {}
+    resetNewGamesCount();
+  })();
   setOpen(false);
   setTimeout(() => setOpen(true), 1);
 }

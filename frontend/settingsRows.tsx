@@ -76,6 +76,13 @@ export function SettingsRows({
         onChange={(checked) => update({ hideOwned: checked })}
       />
 
+      <ToggleField
+        label="New games indicator"
+        description="Show a red dot on the gift button when new free games are found."
+        checked={settings.showIndicator}
+        onChange={(checked) => update({ showIndicator: checked })}
+      />
+
       <DropdownItem
         label="Scan interval"
         description="How often to check the Steam store for free games."

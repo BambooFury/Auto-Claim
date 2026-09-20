@@ -1,7 +1,8 @@
 import { findModule } from 'millennium';
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { openManager } from './manager';
 import { logIPC } from './ipc';
+import { getNewGamesCount, subscribeScanState } from './scanControl';
 
 const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
@@ -52,6 +53,21 @@ const TOOLBAR_STYLES = `
   height: 26px !important;
   color: #ffffff;
 }
+.autoclaim-toolbar-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e05252;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 2px rgba(224, 82, 82, 0.5);
+  pointer-events: none;
+}
+.autoclaim-toolbar-badge.is-hidden {
+  display: none;
+}
 `;
 
 function GiftIcon(): React.JSX.Element {
@@ -69,9 +85,11 @@ function GiftIcon(): React.JSX.Element {
 }
 
 function ToolbarButton(): React.JSX.Element {
+  const count = useSyncExternalStore(subscribeScanState, getNewGamesCount);
   return (
     <button type="button" className="autoclaim-toolbar-button" onClick={openManager} title="Auto Claim">
       <GiftIcon />
+      <span className={`autoclaim-toolbar-badge${count > 0 ? '' : ' is-hidden'}`} />
     </button>
   );
 }

@@ -14,6 +14,15 @@ function bounded<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 const cached = new Map<number, { owned: boolean; ts: number }>();
 let inflight: Promise<Map<number, boolean> | null> | null = null;
+let cacheSteamId = '';
+
+export function setOwnershipOwner(sid: string): void {
+  if (sid && sid !== cacheSteamId) {
+    cached.clear();
+    cacheSteamId = sid;
+  }
+}
+
 async function fetchOwnershipViaStore(appids: number[]): Promise<Map<number, boolean> | null> {
   const owned = new Set<number>();
   const result = new Map<number, boolean>();
@@ -97,5 +106,6 @@ export async function isAppOwned(appid: number, fresh = false): Promise<boolean 
 
 export function clearOwnershipCache(): void {
   cached.clear();
+  cacheSteamId = '';
   inflight = null;
 }

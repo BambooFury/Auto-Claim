@@ -3,10 +3,11 @@ import React, { useEffect } from 'react';
 import { SettingsTab } from './settings';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
-import { registerScanTrigger } from './scanControl';
+import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount } from './scanControl';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
-import { clearOwnershipCache } from './ownership';
+import { clearOwnershipCache, setOwnershipOwner } from './ownership';
+import { isSeen, markSeen, resetSeenSet, setSeenOwner } from './seenSet';
 import {
   FreeGame,
   GrabbedEntry,
@@ -46,60 +47,7 @@ const DEBUG_LOG = false;
 const dlog = (msg: string) => { if (DEBUG_LOG) log(msg); };
 
 const _globalGrabbedAppids = new Set<number>();
-const SEEN_LS_KEY_PREFIX = 'fgg_seen_appids';
 const _notifiedAvailableAppids = new Set<number>();
-
-function _currentSteamId(): string {
-  try {
-    const m = document.cookie.match(/steamLoginSecure=(\d+)/);
-    return m ? m[1] : '';
-  } catch { return ''; }
-}
-
-function _buildSeenLsKey(): string {
-  const sid = _currentSteamId();
-  return sid ? `${SEEN_LS_KEY_PREFIX}_${sid}` : SEEN_LS_KEY_PREFIX;
-}
-
-function _loadSeenSet(): Set<number> {
-  const out = new Set<number>();
-  try {
-    const key = _buildSeenLsKey();
-    let raw = localStorage.getItem(key);
-    if (!raw && key !== SEEN_LS_KEY_PREFIX) {
-      raw = localStorage.getItem(SEEN_LS_KEY_PREFIX);
-      if (raw) {
-        try { localStorage.setItem(key, raw); } catch {}
-      }
-    }
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) for (const v of arr) if (typeof v === 'number') out.add(v);
-    }
-  } catch {}
-  return out;
-}
-
-let _seenSet = _loadSeenSet();
-
-function _saveSeenSet(): void {
-  try { localStorage.setItem(_buildSeenLsKey(), JSON.stringify(Array.from(_seenSet))); } catch {}
-}
-
-function _resetSeenSet(): void {
-  _seenSet = _loadSeenSet();
-}
-
-function isSeen(appid: number): boolean {
-  return _seenSet.has(appid);
-}
-
-function markSeen(appid: number): void {
-  if (!_seenSet.has(appid)) {
-    _seenSet.add(appid);
-    _saveSeenSet();
-  }
-}
 
 async function _reloadGlobalGrabbed(): Promise<void> {
   try {
@@ -108,6 +56,30 @@ async function _reloadGlobalGrabbed(): Promise<void> {
     for (const e of list) {
       if (e && typeof e.appid === 'number') _globalGrabbedAppids.add(e.appid);
     }
+  } catch {}
+}
+
+async function _updateNewGamesIndicator(): Promise<void> {
+  try {
+    const [freeRaw, weekendRaw] = await Promise.all([
+      withTimeout(loadFreeGamesCacheIPC(), 3000, '[]'),
+      withTimeout(loadFreeWeekendCacheIPC(), 3000, '[]'),
+    ]);
+    const free: FreeGame[] = JSON.parse(freeRaw || '[]');
+    const weekend: FreeGame[] = JSON.parse(weekendRaw || '[]');
+    const weekendIds = new Set(weekend.map((g) => g.appid));
+    const merged = free
+      .map((g) => (weekendIds.has(g.appid) ? { ...g, type: 'weekend' as const } : g))
+      .concat(weekend.filter((g) => !free.some((p) => p.appid === g.appid)));
+    let count = 0;
+    for (const g of merged) {
+      if (g.type && g.type !== 'game' && g.type !== 'weekend') continue;
+      if (isAlreadyInLibrary(g.appid)) continue;
+      if (_globalGrabbedAppids.has(g.appid)) continue;
+      if (isSeen(g.appid)) continue;
+      count++;
+    }
+    setNewGamesCount(count);
   } catch {}
 }
 
@@ -418,6 +390,7 @@ async function startPolling(): Promise<void> {
   await waitForSteamReady();
 
   await _reloadGlobalGrabbed();
+  void _updateNewGamesIndicator();
 
   let settings: PluginSettings = DEFAULT_SETTINGS;
   const isDailyModeNow = () => settings.pollIntervalMin >= DAILY_MODE_MIN;
@@ -491,7 +464,7 @@ async function startPolling(): Promise<void> {
         return;
       }
 
-      if (notifiedSet.has(game.appid) && ownedNow()) {
+      if (notifiedSet.has(game.appid) && isAlreadyInLibrary(game.appid)) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
           log(`${game.name} — already notified & in library, upgrading to grabbed`);
@@ -507,7 +480,7 @@ async function startPolling(): Promise<void> {
           log(`${game.name} — already in library, skipping`);
         }
         grabbedSet.add(game.appid);
-        void recordGrabbed(game, true);
+        void recordGrabbed(game, isAlreadyInLibrary(game.appid));
         return;
       }
 
@@ -551,7 +524,7 @@ async function startPolling(): Promise<void> {
         log(`${game.name} — ${reason}, showing notification only`);
         showFreeGameNotification(game, async () => {
           const added = await addGameToLibrary(game.appid);
-          await recordGrabbed(game, added);
+          await recordGrabbed(game, added && isAlreadyInLibrary(game.appid));
           log(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
         });
         await recordGrabbed(game, false);
@@ -559,7 +532,7 @@ async function startPolling(): Promise<void> {
       }
 
       const added = await addGameToLibrary(game.appid);
-      if (added) {
+      if (added && isAlreadyInLibrary(game.appid)) {
         await recordGrabbed(game, true);
         if (liveSettings.notifyOnGrab) {
           showFreeGameNotification(game, () => {
@@ -620,6 +593,7 @@ async function startPolling(): Promise<void> {
       try {
         await withTimeout(saveFreeWeekendCacheIPC({ payload: JSON.stringify(merged) }), 3000, 0);
       } catch {}
+      void _updateNewGamesIndicator();
       const weekendSummary = `Weekend scan complete — ${merged.length} game(s) playable for free`;
       if (weekendSummary !== lastWeekendSummary) {
         lastWeekendSummary = weekendSummary;
@@ -709,6 +683,7 @@ async function startPolling(): Promise<void> {
         await processGame(game, apiOwned);
         await new Promise((r) => setTimeout(r, 1500));
       }
+      void _updateNewGamesIndicator();
       return true;
     } catch (e) {
       log(`Scan error: ${String(e)}`);
@@ -776,6 +751,8 @@ async function startPolling(): Promise<void> {
       const isFirstRealLogin = knownSid === '';
       knownSid = sid;
       log(`Steam account: ${sid}`);
+      setSeenOwner(sid);
+      setOwnershipOwner(sid);
       void setCurrentSteamIdIPC({ payload: sid })
         .catch((e) => log(`set_current_steamid_ipc failed: ${String(e)}`))
         .then(() => {
@@ -785,9 +762,9 @@ async function startPolling(): Promise<void> {
           notifiedSet = new Set<number>();
           _notifiedAvailableAppids.clear();
           _globalGrabbedAppids.clear();
-          _resetSeenSet();
+          resetSeenSet();
           clearOwnershipCache();
-          void _reloadGlobalGrabbed();
+          void _reloadGlobalGrabbed().then(() => _updateNewGamesIndicator());
           if (scanInProgress) {
             dlog('queueing re-scan for new account (scan in progress)');
             scanQueued = true;
@@ -805,6 +782,7 @@ async function startPolling(): Promise<void> {
   try {
     const sRaw = await withTimeout(loadSettings(), 3000, '{}');
     settings = normalizeSettings(JSON.parse(sRaw || '{}'));
+    setIndicatorEnabled(settings.showIndicator);
   } catch {}
   try {
     const raw = await withTimeout(loadLastDailyScanIPC(), 3000, '{}');
@@ -826,6 +804,7 @@ async function startPolling(): Promise<void> {
     try {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
       settings = normalizeSettings(JSON.parse(sRaw || '{}'));
+      setIndicatorEnabled(settings.showIndicator);
     } catch {}
   }, 30000);
 

@@ -21,6 +21,7 @@ export interface PluginSettings {
   pollIntervalMin: number;
   notifyOnGrab: boolean;
   hideOwned: boolean;
+  showIndicator: boolean;
   filterMode: FilterMode;
 }
 
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   pollIntervalMin: 30,
   notifyOnGrab: true,
   hideOwned: false,
+  showIndicator: true,
   filterMode: 'games',
 };
 

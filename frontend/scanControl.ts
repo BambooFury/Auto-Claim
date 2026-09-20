@@ -34,3 +34,30 @@ export async function requestManualScan(): Promise<boolean> {
     notify();
   }
 }
+
+let newGamesCount = 0;
+let indicatorEnabled = true;
+
+export function getNewGamesCount(): number {
+  return indicatorEnabled ? newGamesCount : 0;
+}
+
+export function setIndicatorEnabled(enabled: boolean): void {
+  const next = enabled === true;
+  if (next === indicatorEnabled) return;
+  indicatorEnabled = next;
+  notify();
+}
+
+export function setNewGamesCount(count: number): void {
+  const next = Math.max(0, Math.floor(count));
+  if (next === newGamesCount) return;
+  newGamesCount = next;
+  notify();
+}
+
+export function resetNewGamesCount(): void {
+  if (newGamesCount === 0) return;
+  newGamesCount = 0;
+  notify();
+}
