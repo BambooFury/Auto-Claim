@@ -12,7 +12,6 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import {
   DEFAULT_SETTINGS,
   type FilterMode,
-  FILTER_SHORT,
   FreeGame,
   formatUntil,
   isClaimableGame,
