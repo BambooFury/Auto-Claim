@@ -26,17 +26,17 @@ const TOOLBAR_STYLES = `
   margin-right: 1rem;
 }
 .autoclaim-toolbar-button {
-  width: 32px;
+  width: 34px;
   min-width: unset !important;
-  height: 32px;
+  height: 34px;
   min-height: unset !important;
-  padding: 6px;
+  padding: 4px;
   box-sizing: border-box;
   border-radius: 50%;
   position: relative;
-  transition: background 0.2s ease;
+  transition: border 0.2s ease, background 0.2s ease;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -44,23 +44,26 @@ const TOOLBAR_STYLES = `
 }
 .autoclaim-toolbar-button:hover {
   background: rgba(255, 255, 255, 0.2);
+  border-color: transparent;
 }
 .autoclaim-toolbar-button svg {
   display: block !important;
-  width: 20px !important;
-  height: 20px !important;
+  width: 26px !important;
+  height: 26px !important;
   color: #ffffff;
 }
 `;
 
 function GiftIcon(): React.JSX.Element {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20">
-      <path d="M0 0h20v20H0z" fill="none" />
-      <path
-        fill="currentColor"
-        d="M12 2a2.5 2.5 0 0 1 2 4.001L16 6a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1v4.5a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 4 15.5V11a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1l2 .001a2.5 2.5 0 1 1 4-3A2.49 2.49 0 0 1 12 2m-2.5 9H5v4.5A1.5 1.5 0 0 0 6.5 17h3zm5.5 0h-4.5v6h3a1.5 1.5 0 0 0 1.5-1.5zM9.5 7H4v3h5.5zM16 7h-5.5v3H16zm-4-4a1.5 1.5 0 0 0-1.5 1.5V6H12a1.5 1.5 0 0 0 0-3M8 3a1.5 1.5 0 0 0-.144 2.993L8 6h1.5V4.5l-.007-.144A1.5 1.5 0 0 0 8 3"
-      />
+    <svg width="26" height="26" viewBox="0 0 56 56">
+      <path d="M0 0h56v56H0z" fill="none" />
+      <g transform="translate(1.5, 0)">
+        <path
+          fill="#b0b0b0"
+          d="M25.926 28.539V16.117h-3.492c-3.868 0-5.907-2.508-5.907-4.945c0-2.531 1.875-4.031 4.383-4.031c2.883 0 5.133 2.226 5.133 5.953v3.023h3.914v-3.023c0-3.727 2.25-5.953 5.133-5.953c2.508 0 4.406 1.5 4.406 4.03c0 2.438-2.11 4.946-5.93 4.946h-3.492V28.54h16.524c2.554 0 3.937-.984 3.937-3.492V19.61c0-2.484-1.383-3.492-3.937-3.492h-5.461c1.453-1.312 2.32-3.094 2.32-5.11c0-4.523-3.586-7.78-8.133-7.78c-3.375 0-6.117 1.874-7.312 5.203c-1.196-3.328-3.961-5.203-7.336-5.203c-4.524 0-8.133 3.257-8.133 7.78c0 2.016.844 3.798 2.32 5.11h-5.46c-2.415 0-3.938 1.008-3.938 3.492v5.438c0 2.508 1.406 3.492 3.937 3.492Zm0 24.234V31.047H8.816V46.82c0 3.914 2.297 5.953 6.211 5.953Zm4.148-21.726v21.726h10.899c3.914 0 6.21-2.039 6.21-5.953V31.047Z"
+        />
+      </g>
     </svg>
   );
 }
