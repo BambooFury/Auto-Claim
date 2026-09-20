@@ -455,6 +455,14 @@ async function startPolling(): Promise<void> {
     const ownedNow = (): boolean =>
       (apiOwned !== null ? apiOwned.has(game.appid) : false) || isAlreadyInLibrary(game.appid);
 
+    const confirmOwned = async (): Promise<boolean> => {
+      if (isAlreadyInLibrary(game.appid)) return true;
+      if (apiOwned === null || !apiOwned.has(game.appid)) return false;
+      await new Promise((r) => setTimeout(r, 2000));
+      const again = await isAppOwned(game.appid, true);
+      return again === true;
+    };
+
     try {
       if (grabbedSet.has(game.appid)) {
         if (!skipLogged.has(game.appid)) {
@@ -464,7 +472,7 @@ async function startPolling(): Promise<void> {
         return;
       }
 
-      if (notifiedSet.has(game.appid) && isAlreadyInLibrary(game.appid)) {
+      if (notifiedSet.has(game.appid) && (await confirmOwned())) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
           log(`${game.name} — already notified & in library, upgrading to grabbed`);
@@ -475,12 +483,13 @@ async function startPolling(): Promise<void> {
       }
 
       if (ownedNow()) {
+        const confirmed = await confirmOwned();
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — already in library, skipping`);
+          log(`${game.name} — already in library, skipping (${confirmed ? 'confirmed' : 'unconfirmed'})`);
         }
         grabbedSet.add(game.appid);
-        void recordGrabbed(game, isAlreadyInLibrary(game.appid));
+        void recordGrabbed(game, confirmed);
         return;
       }
 
@@ -532,7 +541,8 @@ async function startPolling(): Promise<void> {
       }
 
       const added = await addGameToLibrary(game.appid);
-      if (added && isAlreadyInLibrary(game.appid)) {
+      const confirmed = await confirmOwned();
+      if (added && confirmed) {
         await recordGrabbed(game, true);
         if (liveSettings.notifyOnGrab) {
           showFreeGameNotification(game, () => {
@@ -771,7 +781,8 @@ async function startPolling(): Promise<void> {
           } else {
             const reason = isFirstRealLogin ? 'post-login' : 'account-change';
             log(`triggering ${reason} scan for ${sid}`);
-            void triggerScan(reason);
+            const switchDelay = isFirstRealLogin ? 8000 : 5000;
+            setTimeout(() => { void triggerScan(reason); }, switchDelay);
           }
         });
     });
