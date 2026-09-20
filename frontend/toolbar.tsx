@@ -129,11 +129,21 @@ async function onPopupCreated(popup: any): Promise<void> {
 }
 
 export function setupToolbar(): void {
-  const popupManager = (window as any).g_PopupManager;
-  if (!popupManager) return;
+  const trySetup = (attempt: number): void => {
+    const popupManager = (window as any).g_PopupManager;
+    if (!popupManager) {
+      if (attempt < 60) setTimeout(() => trySetup(attempt + 1), 1000);
+      else log('toolbar: g_PopupManager never became available');
+      return;
+    }
 
-  const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
-  if (main) void onPopupCreated(main);
+    const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
+    if (main) void onPopupCreated(main);
+    else log('toolbar: main popup not found yet, relying on created callback');
 
-  popupManager.AddPopupCreatedCallback?.(onPopupCreated);
+    popupManager.AddPopupCreatedCallback?.(onPopupCreated);
+    log('toolbar: popup hooks registered');
+  };
+
+  trySetup(0);
 }

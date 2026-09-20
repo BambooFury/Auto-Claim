@@ -793,6 +793,7 @@ async function startPolling(): Promise<void> {
 }
 
 export default definePlugin(() => {
+  log('frontend: plugin init');
   void startPolling();
   registerManager();
   setupToolbar();
