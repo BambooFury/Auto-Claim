@@ -211,6 +211,12 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
       } else {
         for (const id of apiOwned) owned.add(id);
       }
+      for (const g of merged) {
+        log(
+          `ownership: ${g.name} (${g.appid}) — api=${apiOwned === null ? 'FAIL' : apiOwned.has(g.appid)}` +
+          ` appStore=${isAlreadyInLibrary(g.appid)} grabbed=${grabbedOwned.has(g.appid)}`,
+        );
+      }
       setGames(merged);
       setOwnedSet(owned);
     } catch {} finally {

@@ -6,6 +6,7 @@ import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
 import { registerScanTrigger } from './scanControl';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
+import { clearOwnershipCache } from './ownership';
 import {
   FreeGame,
   GrabbedEntry,
@@ -307,7 +308,7 @@ async function addViaHiddenPopup(appid: number): Promise<boolean> {
 }
 
 async function ownershipConfirmed(appid: number): Promise<boolean> {
-  const owned = await isAppOwned(appid);
+  const owned = await isAppOwned(appid, true);
   if (owned !== null) return owned;
   return isAlreadyInLibrary(appid);
 }
@@ -733,6 +734,7 @@ async function startPolling(): Promise<void> {
           notifiedSet = new Set<number>();
           _notifiedAvailableAppids.clear();
           _globalGrabbedAppids.clear();
+          clearOwnershipCache();
           void _reloadGlobalGrabbed();
           if (scanInProgress) {
             dlog('queueing re-scan for new account (scan in progress)');

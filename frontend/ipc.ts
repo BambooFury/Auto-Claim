@@ -1,5 +1,6 @@
 import { callable } from 'millennium';
 import type { GrabbedEntry } from './config';
+import { getOwnership, isAppOwned as getIsAppOwned } from './ownership';
 
 type StrIn = [{ payload: string }];
 type Empty = [];
@@ -39,42 +40,18 @@ export function isAlreadyInLibrary(appid: number): boolean {
 }
 
 export async function checkLibraryOwnership(appids: number[]): Promise<Set<number> | null> {
+  const map = await getOwnership(appids);
+  if (map === null) return null;
+
   const owned = new Set<number>();
-  if (appids.length === 0) return owned;
-
-  try {
-    const url = `https://store.steampowered.com/api/appuserdetails/?appids=${appids.join(',')}&cc=us`;
-    const response = await fetch(url, { credentials: 'include' });
-    const data: any = await response.json();
-    for (const id of appids) {
-      const entry = data?.[id];
-      if (entry?.success && (entry.data?.is_owned || entry.data?.added_to_package)) owned.add(id);
-    }
-  } catch {
-    return null;
+  for (const [id, isOwned] of map) {
+    if (isOwned) owned.add(id);
   }
-
-  const missing = appids.filter((id) => !owned.has(id));
-  if (missing.length > 0) {
-    try {
-      const response = await fetch('https://store.steampowered.com/dynamicstore/userdata/', { credentials: 'include' });
-      const data: any = await response.json();
-      if (Array.isArray(data?.rgOwnedApps)) {
-        const ownedApps = new Set<number>(data.rgOwnedApps);
-        for (const id of missing) {
-          if (ownedApps.has(id)) owned.add(id);
-        }
-      }
-    } catch {}
-  }
-
   return owned;
 }
 
-export async function isAppOwned(appid: number): Promise<boolean | null> {
-  const owned = await checkLibraryOwnership([appid]);
-  if (owned === null) return null;
-  return owned.has(appid);
+export async function isAppOwned(appid: number, fresh = false): Promise<boolean | null> {
+  return getIsAppOwned(appid, fresh);
 }
 
 export async function loadOwnedFromGrabbed(): Promise<Set<number>> {
