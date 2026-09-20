@@ -4,7 +4,7 @@ import {
   Spinner,
   ToggleField,
 } from 'millennium';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   DEFAULT_SETTINGS,
   FilterMode,
@@ -16,7 +16,7 @@ import {
 import { loadSettingsIPC, saveSettingsIPC } from './ipc';
 import { openManager } from './manager';
 
-export const SettingsTab: React.FC = () => {
+export function usePluginSettings(): [PluginSettings | null, (patch: Partial<PluginSettings>) => void] {
   const [settings, setSettings] = useState<PluginSettings | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export const SettingsTab: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
-  const update = (patch: Partial<PluginSettings>): void => {
+  const update = useCallback((patch: Partial<PluginSettings>): void => {
     setSettings((prev) => {
       const next = { ...(prev ?? DEFAULT_SETTINGS), ...patch };
       void loadSettingsIPC()
@@ -44,12 +44,18 @@ export const SettingsTab: React.FC = () => {
         .catch(() => {});
       return next;
     });
-  };
+  }, []);
+
+  return [settings, update];
+}
+
+export const SettingsTab: React.FC<{ showManagerButton?: boolean }> = ({ showManagerButton = true }) => {
+  const [settings, update] = usePluginSettings();
 
   if (!settings) return <Spinner />;
 
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}>
       <ToggleField
         label="Auto-add to library"
         description="Claim free games automatically on scan. When off, you only get notifications."
@@ -87,13 +93,20 @@ export const SettingsTab: React.FC = () => {
         onChange={(opt) => update({ pollIntervalMin: opt.data as number })}
       />
 
-      <ButtonItem layout="below" onClick={openManager}>
-        Open Games Manager
-      </ButtonItem>
+      {showManagerButton && (
+        <ButtonItem layout="below" onClick={openManager}>
+          Open Games Manager
+        </ButtonItem>
+      )}
 
-      <ButtonItem layout="below" onClick={() => setSettings({ ...DEFAULT_SETTINGS })}>
+      <ButtonItem
+        layout="below"
+        onClick={() => {
+          update({ ...DEFAULT_SETTINGS });
+        }}
+      >
         Reset to defaults
       </ButtonItem>
-    </>
+    </div>
   );
 };

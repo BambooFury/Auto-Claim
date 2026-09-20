@@ -1,9 +1,6 @@
 import { findModule, Millennium } from 'millennium';
 import React from 'react';
 import { openManager } from './manager';
-import { logIPC } from './ipc';
-
-const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
 const MAIN_WINDOW_NAME = 'SP Desktop_uid0';
 const CONTAINER_CLASS = 'autoclaim-toolbar-container';
@@ -23,11 +20,11 @@ const TOOLBAR_STYLES = `
   margin-right: 1rem;
 }
 .autoclaim-toolbar-button {
-  width: 31px;
+  width: 32px;
   min-width: unset !important;
-  height: 31px;
+  height: 32px;
   min-height: unset !important;
-  padding: 7px;
+  padding: 6px;
   border-radius: 50%;
   position: relative;
   transition: background 0.2s ease;
@@ -39,17 +36,19 @@ const TOOLBAR_STYLES = `
   justify-content: center;
 }
 .autoclaim-toolbar-button:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.2);
 }
 .autoclaim-toolbar-button svg {
   display: block !important;
-  color: currentColor;
+  width: 20px !important;
+  height: 20px !important;
+  color: #ffffff;
 }
 `;
 
 function GiftIcon(): React.JSX.Element {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="8" width="18" height="4" rx="1" />
       <path d="M12 8v13" />
       <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
@@ -75,25 +74,18 @@ export async function patchUrlBar(doc: Document): Promise<void> {
   try {
     const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
     const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
-    if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) {
-      log('toolbar: URLBar classes not found in steam modules');
-      return;
-    }
+    if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) return;
 
     const urlBar = await findElement(
       doc,
       `.${steamDesktop?.URLBar ?? steamPopupTab?.URLBar}, .${steamPopupTab?.URLBar ?? steamDesktop?.URLBar}`,
     );
-    if (!urlBar) {
-      log('toolbar: url bar not found');
-      return;
-    }
+    if (!urlBar) return;
     if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return;
 
     const container = doc.createElement('div');
     container.className = CONTAINER_CLASS;
     urlBar.appendChild(container);
-    log('toolbar: button injected');
 
     const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
     reactRoot.render(<ToolbarButton />);
@@ -129,14 +121,10 @@ async function onPopupCreated(popup: any): Promise<void> {
 
 export function setupToolbar(): void {
   const popupManager = (window as any).g_PopupManager;
-  if (!popupManager) {
-    log('toolbar: g_PopupManager not available');
-    return;
-  }
+  if (!popupManager) return;
 
   const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
   if (main) void onPopupCreated(main);
-  else log('toolbar: main window popup not found yet, waiting for callback');
 
   popupManager.AddPopupCreatedCallback?.(onPopupCreated);
 }
