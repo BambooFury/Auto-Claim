@@ -1,6 +1,9 @@
 import { findModule, Millennium } from 'millennium';
 import React from 'react';
 import { openManager } from './manager';
+import { logIPC } from './ipc';
+
+const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
 const MAIN_WINDOW_NAME = 'SP Desktop_uid0';
 const CONTAINER_CLASS = 'autoclaim-toolbar-container';
@@ -72,18 +75,25 @@ export async function patchUrlBar(doc: Document): Promise<void> {
   try {
     const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
     const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
-    if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) return;
+    if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) {
+      log('toolbar: URLBar classes not found in steam modules');
+      return;
+    }
 
     const urlBar = await findElement(
       doc,
       `.${steamDesktop?.URLBar ?? steamPopupTab?.URLBar}, .${steamPopupTab?.URLBar ?? steamDesktop?.URLBar}`,
     );
-    if (!urlBar) return;
+    if (!urlBar) {
+      log('toolbar: url bar not found');
+      return;
+    }
     if (doc.querySelector(`.${CONTAINER_CLASS}`) !== null) return;
 
     const container = doc.createElement('div');
     container.className = CONTAINER_CLASS;
     urlBar.appendChild(container);
+    log('toolbar: button injected');
 
     const reactRoot = (window as any).SP_REACTDOM.createRoot(container);
     reactRoot.render(<ToolbarButton />);
@@ -120,12 +130,13 @@ async function onPopupCreated(popup: any): Promise<void> {
 export function setupToolbar(): void {
   const popupManager = (window as any).g_PopupManager;
   if (!popupManager) {
-    console.error('[AutoClaim] g_PopupManager not available');
+    log('toolbar: g_PopupManager not available');
     return;
   }
 
   const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
   if (main) void onPopupCreated(main);
+  else log('toolbar: main window popup not found yet, waiting for callback');
 
   popupManager.AddPopupCreatedCallback?.(onPopupCreated);
 }
