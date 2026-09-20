@@ -15,7 +15,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 </p>
 
 <p align="center">
-  <img src=".github/preview.png" alt="Auto Claim widget on the Steam Store" width="850">
+  <img src=".github/preview.png" width="950" alt="Auto Claim - Games Manager">
 </p>
 
 ## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%23FFD43B" width="20"> Features
@@ -26,20 +26,20 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
     <td><img src="https://api.iconify.design/lucide:ghost.svg?color=%239E9E9E" width="16"> <b>Silent Claiming</b> - games are claimed in the background, no browser windows</td>
   </tr>
   <tr>
-    <td><img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> <b>Notifications</b> - toast after each successful claim</td>
+    <td><img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> <b>Notifications</b> - native Steam toast after each successful claim</td>
     <td><img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> <b>Smart Filtering</b> - skips DLCs, soundtracks, demos and skin packs</td>
   </tr>
   <tr>
-    <td><img src="https://api.iconify.design/lucide:panel-right.svg?color=%231a9fff" width="16"> <b>Store Widget</b> - live panel right on the Steam Store page, works with the default theme</td>
     <td><img src="https://api.iconify.design/lucide:gamepad-2.svg?color=%23FFD43B" width="16"> <b>Free Weekends</b> - see what's playable for free right now</td>
-  </tr>
-  <tr>
     <td><img src="https://api.iconify.design/lucide:users.svg?color=%231a9fff" width="16"> <b>Multi-Account Support</b> - picks up account switches automatically</td>
-    <td><img src="https://api.iconify.design/lucide:clock.svg?color=%239E9E9E" width="16"> <b>Scheduled Scanning</b> - every 30 / 120 minutes or once a day</td>
   </tr>
   <tr>
+    <td><img src="https://api.iconify.design/lucide:clock.svg?color=%239E9E9E" width="16"> <b>Scheduled Scanning</b> - every 30 / 120 minutes or once a day</td>
     <td><img src="https://api.iconify.design/lucide:toggle-left.svg?color=%23FFD43B" width="16"> <b>Flexible Modes</b> - Auto Claim or Notification Only</td>
-    <td><img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="16"> <b>Customizable Widget</b> - colors, position, button style</td>
+  </tr>
+  <tr>
+    <td><img src="https://api.iconify.design/lucide:gamepad-2.svg?color=%231a9fff" width="16"> <b>Native UI</b> - built entirely with Steam's own components, fully theme-aware</td>
+    <td><img src="https://api.iconify.design/lucide:panel-right.svg?color=%232ecc71" width="16"> <b>Games Manager</b> - browse detected free games and run a manual scan</td>
   </tr>
 </table>
 
@@ -52,7 +52,7 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 
 ## <img src="https://api.iconify.design/lucide:rocket.svg?color=%232ecc71" width="20"> Installation
 
-> Requires [Millennium](https://steambrew.app) to be installed first.
+> Requires [Millennium](https://steambrew.app) v3.4.0 or higher to be installed first.
 
 1. <img src="https://api.iconify.design/lucide:chevron-right.svg?color=%239E9E9E" width="16"> Open the Steam Menu
 2. <img src="https://api.iconify.design/lucide:boxes.svg?color=%231a9fff" width="16"> Go to **Millennium**
@@ -60,23 +60,18 @@ Automatically detects and claims every <b>100% discounted Steam game</b> directl
 4. <img src="https://api.iconify.design/lucide:key.svg?color=%23FFD43B" width="16"> Insert the plugin ID
 5. <img src="https://api.iconify.design/lucide:refresh-cw.svg?color=%23ff4d4f" width="16"> Restart Steam - done!
 
-`Steam Menu → Millennium Library Manager → Auto Claim`
+## <img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="20"> Configuration
 
-<img src="https://api.iconify.design/lucide:monitor.svg?color=%239E9E9E" width="16"> Background Overlay - ON | OFF<br>
-<img src="https://api.iconify.design/lucide:palette.svg?color=%231a9fff" width="16"> Button Color - Presets<br>
-<img src="https://api.iconify.design/lucide:paintbrush.svg?color=%23FFD43B" width="16"> Accent Color - Presets<br>
-<img src="https://api.iconify.design/lucide:radar.svg?color=%23ff4d4f" width="16"> Indicator Color - Presets<br>
-<img src="https://api.iconify.design/lucide:move-horizontal.svg?color=%239E9E9E" width="16"> Panel Side - Left | Right<br>
-<img src="https://api.iconify.design/lucide:square.svg?color=%231a9fff" width="16"> Button Style - Slim | Large | Floating<br>
-<img src="https://api.iconify.design/lucide:rotate-ccw.svg?color=%239E9E9E" width="16"> Reset Widget Settings
-
-`Store Widget → gear icon (Settings tab)`
+Open the plugin window and go to the Settings section:
 
 <img src="https://api.iconify.design/lucide:zap.svg?color=%23FFD43B" width="16"> Auto-add to Library - ON | OFF<br>
 <img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> Notify on Grab - ON | OFF<br>
 <img src="https://api.iconify.design/lucide:eye-off.svg?color=%239E9E9E" width="16"> Hide Owned Games - ON | OFF<br>
-<img src="https://api.iconify.design/lucide:timer.svg?color=%232ecc71" width="16"> Scan Interval - 30 min | 120 min | 1 day<br>
-<img src="https://api.iconify.design/lucide:refresh-cw.svg?color=%231a9fff" width="16"> Scan Now - run a check immediately
+<img src="https://api.iconify.design/lucide:circle-dot.svg?color=%23ff4d4f" width="16"> New Games Indicator - ON | OFF<br>
+<img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> Claim Mode - Games only | All free items | Free weekend<br>
+<img src="https://api.iconify.design/lucide:timer.svg?color=%231a9fff" width="16"> Scan Interval - 30 min | 120 min | 1 day<br>
+<img src="https://api.iconify.design/lucide:panel-right.svg?color=%23FFD43B" width="16"> Open Games Manager - browse all detected free games<br>
+<img src="https://api.iconify.design/lucide:rotate-ccw.svg?color=%239E9E9E" width="16"> Reset to Defaults
 
 ## <img src="https://api.iconify.design/lucide:circle-help.svg?color=%23FFD43B" width="20"> FAQ
 

@@ -8,7 +8,13 @@
       "include-v-in-tag": true,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
-      "extra-files": [],
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "millennium.toml",
+          "jsonpath": "$.plugin.version"
+        }
+      ],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
