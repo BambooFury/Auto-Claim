@@ -3,6 +3,7 @@ import {
   DialogButton,
   DialogButtonPrimary,
   Field,
+  Navigation,
   ProgressBar,
   Spinner,
   routerHook,
@@ -159,9 +160,21 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
       childrenLayout="inline"
       childrenContainerWidth="min"
     >
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', alignSelf: 'stretch' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'stretch' }}>
         {owned ? (
-          <OwnedBadge />
+          <>
+            <OwnedBadge />
+            <DialogButton
+              style={{ padding: '8px', minWidth: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => Navigation.Navigate(`/library/app/${game.appid}`)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 3h7v7" />
+                <path d="M10 14 21 3" />
+                <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+              </svg>
+            </DialogButton>
+          </>
         ) : (
           <DialogButton
             style={{ padding: '10px 22px', whiteSpace: 'nowrap' }}
