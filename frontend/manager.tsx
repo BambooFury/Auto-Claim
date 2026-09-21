@@ -9,6 +9,7 @@ import {
   routerHook,
 } from 'millennium';
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { MdCheck, MdCheckCircle, MdFilterList, MdOpenInNew, MdRefresh, MdRadar, MdSettings, MdSportsEsports, MdStorefront } from 'react-icons/md';
 import {
   DEFAULT_SETTINGS,
   type FilterMode,
@@ -80,9 +81,7 @@ function OwnedBadge(): React.JSX.Element {
           flexShrink: 0,
         }}
       />
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#55cc55" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 6 9 17l-5-5" />
-      </svg>
+      <MdCheck size={12} color="#55cc55" />
       <span
         style={{
           fontSize: '11.5px',
@@ -188,11 +187,7 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
               style={{ padding: '8px', minWidth: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={() => Navigation.Navigate(`/library/app/${game.appid}`)}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 3h7v7" />
-                <path d="M10 14 21 3" />
-                <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
-              </svg>
+              <MdOpenInNew size={14} />
             </DialogButton>
           </>
         ) : claimStatus === 'claiming' ? (
@@ -204,7 +199,10 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
             style={{ padding: '10px 22px', whiteSpace: 'nowrap' }}
             onClick={() => window.open(STORE_PAGE(game.appid))}
           >
-            View in Store
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+              <MdStorefront size={14} />
+              View in Store
+            </span>
           </DialogButton>
         )}
       </div>
@@ -238,9 +236,7 @@ function EmptyState(): React.JSX.Element {
           justifyContent: 'center',
         }}
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(85, 204, 85, 0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
+        <MdCheckCircle size={36} color="rgba(85, 204, 85, 0.7)" />
       </div>
       <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
         You're all caught up
@@ -358,12 +354,20 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
           void refresh();
         }}
       >
-        {scanBusy ? 'Scanning…' : 'Scan Now'}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+          <MdRadar size={16} />
+          {scanBusy ? 'Scanning…' : 'Scan Now'}
+        </span>
       </DialogButtonPrimary>
 
       {scanBusy && <ProgressBar indeterminate />}
       {scanStatus && !scanBusy && (
-        <Field label={scanStatus} bottomSeparator="none" padding="compact" />
+        <Field
+          label={scanStatus}
+          bottomSeparator="none"
+          padding="compact"
+          icon={<MdCheckCircle size={16} color={scanStatus.includes('complete') ? '#5dc26a' : '#e05252'} />}
+        />
       )}
     </div>
   );
@@ -383,45 +387,12 @@ function ManagerSettingsTab(): React.JSX.Element {
           update({ ...DEFAULT_SETTINGS });
         }}
       >
-        Reset to defaults
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+          <MdRefresh size={16} />
+          Reset to defaults
+        </span>
       </ButtonItem>
     </div>
-  );
-}
-
-function GamesIcon(): React.JSX.Element {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
-      <path d="M0 0h20v20H0z" fill="none" />
-      <path
-        fill="currentColor"
-        d="M15.9 5.5C15.3 4.5 14.2 4 13 4H7c-1.2 0-2.3.5-2.9 1.5c-2.3 3.5-2.8 8.8-1.2 9.9s5.2-3.7 7.1-3.7s5.4 4.8 7.1 3.7c1.6-1.1 1.1-6.4-1.2-9.9M8 9H7v1H6V9H5V8h1V7h1v1h1zm5.4.5c0 .5-.4.9-.9.9s-.9-.4-.9-.9s.4-.9.9-.9s.9.4.9.9m1.9-2c0 .5-.4.9-.9.9s-.9-.4-.9-.9s.4-.9.9-.9s.9.4.9.9"
-      />
-    </svg>
-  );
-}
-
-function SettingsIcon(): React.JSX.Element {
-  return (
-    <svg width="15" height="15" viewBox="0 0 36 36" style={{ flexShrink: 0 }}>
-      <path d="M0 0h36v36H0z" fill="none" />
-      <path
-        fill="currentColor"
-        d="m32.57 15.72l-3.35-1a11.7 11.7 0 0 0-.95-2.33l1.64-3.07a.61.61 0 0 0-.11-.72l-2.39-2.4a.61.61 0 0 0-.72-.11l-3.05 1.63a11.6 11.6 0 0 0-2.36-1l-1-3.31a.61.61 0 0 0-.59-.41h-3.38a.61.61 0 0 0-.58.43l-1 3.3a11.6 11.6 0 0 0-2.38 1l-3-1.62a.61.61 0 0 0-.72.11L6.2 8.59a.61.61 0 0 0-.11.72l1.62 3a11.6 11.6 0 0 0-1 2.37l-3.31 1a.61.61 0 0 0-.43.58v3.38a.61.61 0 0 0 .43.58l3.33 1a11.6 11.6 0 0 0 1 2.33l-1.64 3.14a.61.61 0 0 0 .11.72l2.39 2.39a.61.61 0 0 0 .72.11l3.09-1.65a11.7 11.7 0 0 0 2.3.94l1 3.37a.61.61 0 0 0 .58.43h3.38a.61.61 0 0 0 .58-.43l1-3.38a11.6 11.6 0 0 0 2.28-.94l3.11 1.66a.61.61 0 0 0 .72-.11l2.39-2.39a.61.61 0 0 0 .11-.72l-1.66-3.1a11.6 11.6 0 0 0 .95-2.29l3.37-1a.61.61 0 0 0 .43-.58v-3.41a.61.61 0 0 0-.37-.59M18 23.5a5.5 5.5 0 1 1 5.5-5.5a5.5 5.5 0 0 1-5.5 5.5"
-      />
-    </svg>
-  );
-}
-
-function FilterIcon(): React.JSX.Element {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
-      <path d="M0 0h16v16H0z" fill="none" />
-      <path
-        fill="currentColor"
-        d="M14 1a1 1 0 0 1 1 1v1.586a1 1 0 0 1-.293.707L10 9v4.219a1 1 0 0 1-.758.97l-2.62.656A.5.5 0 0 1 6 14.359V9L1.293 4.293A1 1 0 0 1 1 3.586V2a1 1 0 0 1 1-1z"
-      />
-    </svg>
   );
 }
 
@@ -461,7 +432,7 @@ function ManagerWindow(): React.JSX.Element | null {
             onClick={() => setActiveTab('games')}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-              <GamesIcon />
+              <MdSportsEsports size={16} />
               Free Games
             </span>
           </DialogButton>
@@ -470,7 +441,7 @@ function ManagerWindow(): React.JSX.Element | null {
             onClick={() => setActiveTab('settings')}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-              <SettingsIcon />
+              <MdSettings size={15} />
               Settings
             </span>
           </DialogButton>
@@ -480,7 +451,7 @@ function ManagerWindow(): React.JSX.Element | null {
               onClick={cycleFilter}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-                <FilterIcon />
+                <MdFilterList size={13} />
                 Filter: {FILTER_SHORT[filterMode]}
               </span>
             </DialogButton>
