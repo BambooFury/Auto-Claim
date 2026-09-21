@@ -350,11 +350,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         onClick={async () => {
           setScanStatus('Scanning the store…');
           const ok = await requestManualScan();
-          if (!ok && !isScanBusy()) {
-            setScanStatus('Scan already running…');
-          } else {
-            setScanStatus(ok ? 'Scan complete' : 'Scan failed — showing cached results');
-          }
+          setScanStatus(ok ? 'Scan complete' : 'Scan failed — showing cached results');
           void refresh();
         }}
       >

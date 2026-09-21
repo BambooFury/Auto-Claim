@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { SettingsTab } from './settings';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
-import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount } from './scanControl';
+import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount, setScanBusyState } from './scanControl';
 import { setClaiming, setClaimed, setClaimFailed } from './claimState';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
@@ -704,6 +704,7 @@ async function startPolling(): Promise<void> {
       return false;
     }
     scanInProgress = true;
+    setScanBusyState(true);
     scanQueued = false;
     let result = false;
     try {
@@ -712,6 +713,7 @@ async function startPolling(): Promise<void> {
       recordDailyScanIfActive(result);
     } finally {
       scanInProgress = false;
+      setScanBusyState(false);
     }
     if (scanQueued) {
       scanQueued = false;
