@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.2.0](https://github.com/BambooFury/Auto-Claim/compare/v2.1.0...v2.2.0) (2026-09-21)
+
+
+### Features
+
+* add open-in-library button for owned games ([1d53021](https://github.com/BambooFury/Auto-Claim/commit/1d53021db3e6bda76b7833165420572c49f69a45))
+* align toolbar button to end of url bar ([67c83ec](https://github.com/BambooFury/Auto-Claim/commit/67c83ec6c6f502c836299cf250e9b3fa6a789540))
+* improve toolbar button hover style and icon size ([23ba997](https://github.com/BambooFury/Auto-Claim/commit/23ba997a69441e7402c11dcb2d737a585fee48d1))
+* replace custom SVG icons with react-icons ([d0f86d9](https://github.com/BambooFury/Auto-Claim/commit/d0f86d9c2d6265695171778201e5f955f556adf6))
+* show claiming progress on game cards with real-time owned update ([8d446b8](https://github.com/BambooFury/Auto-Claim/commit/8d446b83b718e9868ea8cb642cdbc3488603d55d))
+* theme-agnostic toolbar button styles ([3ebd835](https://github.com/BambooFury/Auto-Claim/commit/3ebd8359c95aadbf43279e0d6a9b0b1ec81e24bb))
+* use curl IPC for all network requests and clean up logs ([0f68c92](https://github.com/BambooFury/Auto-Claim/commit/0f68c92e209ed776d1633bb266963edc66c17941))
+
+
+### Bug Fixes
+
+* sync scan state to prevent failed manual scan during auto scan ([16bb88e](https://github.com/BambooFury/Auto-Claim/commit/16bb88e62d4a1a9f1bd1a57567696f1e5467a09d))
+
+
+### Maintenance
+
+* update preview image ([cf1a19e](https://github.com/BambooFury/Auto-Claim/commit/cf1a19e1fc03494b096eedf60c2432d6e3ee976c))
+
 ## [2.1.0](https://github.com/BambooFury/Auto-Claim/compare/v2.0.0...v2.1.0) (2026-09-20)
 
 
