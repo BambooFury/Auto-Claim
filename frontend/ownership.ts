@@ -1,4 +1,5 @@
 import { callable } from 'millennium';
+import { isAlreadyInLibrary } from './ipc';
 
 const logIPC = callable<[{ payload: string }], number>('log_plugin');
 const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
@@ -26,26 +27,35 @@ export function setOwnershipOwner(sid: string): void {
 async function fetchOwnershipViaStore(appids: number[]): Promise<Map<number, boolean> | null> {
   const owned = new Set<number>();
   const result = new Map<number, boolean>();
+
+  for (const id of appids) {
+    if (isAlreadyInLibrary(id)) owned.add(id);
+  }
+
+  const needApi = appids.filter((id) => !owned.has(id));
+  if (needApi.length === 0) {
+    for (const id of appids) result.set(id, owned.has(id));
+    return result;
+  }
+
   try {
-    const url = 'https://store.steampowered.com/api/appuserdetails/?appids=' + appids.join(',') + '&cc=us&_=' + Date.now();
+    const url = 'https://store.steampowered.com/api/appuserdetails/?appids=' + needApi.join(',') + '&cc=us&_=' + Date.now();
     const r = await bounded(
       fetch(url, { credentials: 'include', cache: 'no-store' }).then((x) => x.json()),
       12000,
       null,
     );
     if (r && typeof r === 'object') {
-      for (const id of appids) {
+      for (const id of needApi) {
         const e = (r as any)[id];
         if (e && e.success && e.data && (e.data.is_owned || e.data.added_to_package)) {
           owned.add(id);
         }
       }
     }
-  } catch (e) {
-    log(`ownership: appuserdetails fetch error: ${String(e)}`);
-  }
+  } catch {}
 
-  const missing = appids.filter((id) => !owned.has(id));
+  const missing = needApi.filter((id) => !owned.has(id));
   if (missing.length > 0) {
     try {
       const r2 = await bounded(
@@ -60,9 +70,7 @@ async function fetchOwnershipViaStore(appids: number[]): Promise<Map<number, boo
           if (set.has(id)) owned.add(id);
         }
       }
-    } catch (e) {
-      log(`ownership: dynamicstore fetch error: ${String(e)}`);
-    }
+    } catch {}
   }
 
   for (const id of appids) result.set(id, owned.has(id));

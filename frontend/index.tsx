@@ -352,7 +352,7 @@ const SCAN_NAME_BLOCKLIST: RegExp[] = [
 
 async function startPolling(): Promise<void> {
   if (_autoclaimPollingStarted) {
-    log('startPolling re-entered — clearing previous timers');
+    dlog('startPolling re-entered — clearing previous timers');
     _clearAutoclaimTimers();
   }
   _autoclaimPollingStarted = true;
@@ -437,7 +437,7 @@ async function startPolling(): Promise<void> {
       if (grabbedSet.has(game.appid)) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — already grabbed, skipping`);
+          dlog(`${game.name} — already grabbed, skipping`);
         }
         return;
       }
@@ -445,7 +445,7 @@ async function startPolling(): Promise<void> {
       if (notifiedSet.has(game.appid) && (await confirmOwned())) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — already notified & in library, upgrading to grabbed`);
+          dlog(`${game.name} — already notified & in library, upgrading to grabbed`);
         }
         grabbedSet.add(game.appid);
         await recordGrabbed(game, true);
@@ -456,7 +456,7 @@ async function startPolling(): Promise<void> {
         const confirmed = await confirmOwned();
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — already in library, skipping (${confirmed ? 'confirmed' : 'unconfirmed'})`);
+          dlog(`${game.name} — already in library, skipping (${confirmed ? 'confirmed' : 'unconfirmed'})`);
         }
         grabbedSet.add(game.appid);
         void recordGrabbed(game, confirmed);
@@ -466,7 +466,7 @@ async function startPolling(): Promise<void> {
       if (!isClaimableGame(game)) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — skipping (type=${game.type}, not a game)`);
+          dlog(`${game.name} — skipping (type=${game.type}, not a game)`);
         }
         return;
       }
@@ -474,7 +474,7 @@ async function startPolling(): Promise<void> {
       if (shouldSkipByName(game.name)) {
         if (!skipLogged.has(game.appid)) {
           skipLogged.add(game.appid);
-          log(`${game.name} — skipping (DLC/pack detected by name)`);
+          dlog(`${game.name} — skipping (DLC/pack detected by name)`);
         }
         grabbedSet.add(game.appid);
         return;
@@ -494,19 +494,18 @@ async function startPolling(): Promise<void> {
         if (notifiedSet.has(game.appid)) {
           if (!skipLogged.has(game.appid)) {
             skipLogged.add(game.appid);
-            log(`${game.name} — already notified, skipping (manual-claim mode)`);
+            dlog(`${game.name} — already notified, skipping (manual-claim mode)`);
           }
           return;
         }
 
-        const reason = liveSettings.filterMode === 'all' ? "filter='all'" : 'auto-add OFF';
-        log(`${game.name} — ${reason}, showing notification only`);
+        log(`${game.name} — showing notification`);
         showFreeGameNotification(game, async () => {
           setClaiming(game.appid);
           const added = await addGameToLibrary(game.appid);
           if (added) setClaimed(game.appid); else setClaimFailed(game.appid);
           await recordGrabbed(game, added && isAlreadyInLibrary(game.appid));
-          log(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
+          dlog(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
         });
         await recordGrabbed(game, false);
         return;
@@ -529,7 +528,7 @@ async function startPolling(): Promise<void> {
         await recordGrabbed(game, false);
         if (!failLogged.has(game.appid)) {
           failLogged.add(game.appid);
-          log(`${game.name} — claim not confirmed yet, will keep retrying in background`);
+          dlog(`${game.name} — claim not confirmed yet, will keep retrying in background`);
         } else {
           dlog(`${game.name} — failed to add, will retry next scan`);
         }
@@ -559,7 +558,7 @@ async function startPolling(): Promise<void> {
     try {
       const result = await scanFreeWeekend({ info: (m) => log(m), warn: (m) => log(m) });
       if (!result) {
-        log('Weekend scan failed — keeping previous list');
+        dlog('Weekend scan failed — keeping previous list');
         return;
       }
 
@@ -581,8 +580,6 @@ async function startPolling(): Promise<void> {
       const weekendSummary = `Weekend scan complete — ${merged.length} game(s) playable for free`;
       if (weekendSummary !== lastWeekendSummary) {
         lastWeekendSummary = weekendSummary;
-        log(weekendSummary);
-      } else {
         dlog(weekendSummary);
       }
 
@@ -598,7 +595,7 @@ async function startPolling(): Promise<void> {
         if (isSeen(g.appid)) continue;
         if (notifiedSet.has(g.appid) || grabbedSet.has(g.appid)) continue;
         markSeen(g.appid);
-        log(`Free weekend detected: ${g.name} (${g.appid})`);
+        dlog(`Free weekend detected: ${g.name} (${g.appid})`);
         showWeekendNotification(g);
         await new Promise((r) => setTimeout(r, 1500));
       }
@@ -614,7 +611,7 @@ async function startPolling(): Promise<void> {
     try {
       const scannerLog = {
         info: (m: string) => dlog(m),
-        warn: (m: string) => log(m),
+        warn: (m: string) => dlog(m),
       };
       const result = await withTimeout(
         runScan(scannerLog),
@@ -623,11 +620,12 @@ async function startPolling(): Promise<void> {
       );
 
       if (!result.anyOk) {
-        log('Scan: Steam search unreachable, keeping cached results');
+        dlog('Scan: Steam search unreachable, keeping cached results');
+        let cachedOk = false;
         try {
           const cached = await withTimeout(loadFreeGamesCacheIPC(), 3000, '[]');
           const games: FreeGame[] = JSON.parse(cached || '[]');
-          log(`Using cache — ${games.length} game(s)`);
+          dlog(`Using cache — ${games.length} game(s)`);
           const apiOwned = await withTimeout(
             checkLibraryOwnership(games.map((g) => g.appid)),
             15000,
@@ -637,8 +635,9 @@ async function startPolling(): Promise<void> {
             await processGame(game, apiOwned);
             await new Promise((r) => setTimeout(r, 1500));
           }
+          cachedOk = games.length > 0;
         } catch {}
-        return false;
+        return cachedOk;
       }
 
       const games: FreeGame[] = result.games;
@@ -682,7 +681,7 @@ async function startPolling(): Promise<void> {
     if (!isDailyModeNow() || !ok) return;
     lastDailyScanTs = Date.now();
     withTimeout(saveLastDailyScanIPC({ payload: JSON.stringify({ ts: lastDailyScanTs }) }), 3000, 0)
-      .then(() => log('Once-a-day mode — scan complete, next scan in 24h'))
+      .then(() => dlog('Once-a-day mode — scan complete, next scan in 24h'))
       .catch(() => {});
   };
 
@@ -729,7 +728,7 @@ async function startPolling(): Promise<void> {
       const sid = String(user?.strSteamID || '');
       if (!sid || sid === knownSid) return;
       if (sid === STEAM_ID_BASE) {
-        log('ignoring phantom user change (accountID=0, Steam not logged in yet)');
+        dlog('ignoring phantom user change (accountID=0, Steam not logged in yet)');
         return;
       }
       const isFirstRealLogin = knownSid === '';
@@ -754,7 +753,7 @@ async function startPolling(): Promise<void> {
             scanQueued = true;
           } else {
             const reason = isFirstRealLogin ? 'post-login' : 'account-change';
-            log(`triggering ${reason} scan for ${sid}`);
+            dlog(`triggering ${reason} scan for ${sid}`);
             const switchDelay = isFirstRealLogin ? 8000 : 5000;
             setTimeout(() => { void triggerScan(reason); }, switchDelay);
           }
@@ -833,7 +832,6 @@ async function startPolling(): Promise<void> {
 }
 
 export default definePlugin(() => {
-  log('frontend: plugin init');
   void startPolling();
   registerManager();
   setupToolbar();

@@ -350,7 +350,11 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         onClick={async () => {
           setScanStatus('Scanning the store…');
           const ok = await requestManualScan();
-          setScanStatus(ok ? 'Scan complete' : 'Scan failed — showing cached results');
+          if (!ok && !isScanBusy()) {
+            setScanStatus('Scan already running…');
+          } else {
+            setScanStatus(ok ? 'Scan complete' : 'Scan failed — showing cached results');
+          }
           void refresh();
         }}
       >
@@ -470,9 +474,8 @@ export function registerManager(): void {
   managerRegistered = true;
   try {
     routerHook.addGlobalComponent('AutoClaimManager', () => <ManagerWindow />, DESKTOP_UI_MODE);
-    log('manager: global component registered');
   } catch (e) {
-    log(`manager: global component registration failed: ${String(e)}`);
+    log(`manager: registration failed: ${String(e)}`);
   }
 }
 

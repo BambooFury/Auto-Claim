@@ -89,16 +89,11 @@ async function findElement(doc: Document, selector: string, timeoutMs = 25000): 
   return undefined;
 }
 
-let classesLogged = false;
 
 async function tryPatch(doc: Document): Promise<boolean> {
   const steamDesktop = findModule((e: any) => e.FocusBar) as Record<string, string> | undefined;
   const steamPopupTab = findModule((e: any) => e.BrowserTabIcon) as Record<string, string> | undefined;
   if (!steamDesktop?.URLBar && !steamPopupTab?.URLBar) {
-    if (!classesLogged) {
-      classesLogged = true;
-      log('toolbar: URLBar classes not found in webpack modules');
-    }
     return false;
   }
 
@@ -111,7 +106,6 @@ async function tryPatch(doc: Document): Promise<boolean> {
 
   const reactRootOwner = (window as any).SP_REACTDOM;
   if (!reactRootOwner?.createRoot) {
-    log('toolbar: SP_REACTDOM not available');
     return true;
   }
 
@@ -120,7 +114,6 @@ async function tryPatch(doc: Document): Promise<boolean> {
   urlBar.appendChild(container);
 
   reactRootOwner.createRoot(container).render(<ToolbarButton />);
-  log('toolbar: gift button injected');
 
   const observer = new MutationObserver(() => {
     void patchUrlBar(doc);
@@ -134,12 +127,9 @@ export async function patchUrlBar(doc: Document): Promise<void> {
   for (let attempt = 1; attempt <= 30; attempt++) {
     try {
       if (await tryPatch(doc)) return;
-    } catch (e) {
-      log(`toolbar: patch attempt ${attempt} failed: ${String(e)}`);
-    }
+    } catch {}
     await sleep(1000);
   }
-  log('toolbar: failed to patch url bar after 30 attempts');
 }
 
 function injectStyles(doc: Document): void {
@@ -169,20 +159,17 @@ export function setupToolbar(): void {
     const popupManager = (window as any).g_PopupManager;
     if (!popupManager) {
       if (attempt < 120) setTimeout(() => trySetup(attempt + 1), 1000);
-      else log('toolbar: g_PopupManager never became available');
       return;
     }
 
     if (!callbackRegistered) {
       popupManager.AddPopupCreatedCallback?.(onPopupCreated);
       callbackRegistered = true;
-      log('toolbar: popup hooks registered');
     }
 
     const main = popupManager.GetExistingPopup?.(MAIN_WINDOW_NAME);
     if (main) void onPopupCreated(main);
     else if (attempt < 120) setTimeout(() => trySetup(attempt + 1), 1000);
-    else log('toolbar: main window popup never appeared');
   };
 
   trySetup(0);
