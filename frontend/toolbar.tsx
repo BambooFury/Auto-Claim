@@ -14,6 +14,7 @@ const TOOLBAR_STYLES = `
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  margin-left: auto;
   order: 999;
   -webkit-app-region: no-drag;
 }
