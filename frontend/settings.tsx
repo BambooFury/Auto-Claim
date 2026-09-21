@@ -3,6 +3,7 @@ import {
   Spinner,
 } from 'millennium';
 import React from 'react';
+import { MdRefresh, MdSportsEsports } from 'react-icons/md';
 import { DEFAULT_SETTINGS } from './config';
 import { openManager } from './manager';
 import { SettingsRows, usePluginSettings } from './settingsRows';
@@ -18,7 +19,10 @@ export const SettingsTab: React.FC<{ showManagerButton?: boolean }> = ({ showMan
 
       {showManagerButton && (
         <ButtonItem layout="below" onClick={openManager}>
-          Open Games Manager
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            <MdSportsEsports size={16} />
+            Open Games Manager
+          </span>
         </ButtonItem>
       )}
 
@@ -28,7 +32,10 @@ export const SettingsTab: React.FC<{ showManagerButton?: boolean }> = ({ showMan
           update({ ...DEFAULT_SETTINGS });
         }}
       >
-        Reset to defaults
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+          <MdRefresh size={16} />
+          Reset to defaults
+        </span>
       </ButtonItem>
     </div>
   );

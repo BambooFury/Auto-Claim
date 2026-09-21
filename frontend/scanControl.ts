@@ -23,16 +23,14 @@ export function subscribeScanState(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
+export function setScanBusyState(busy: boolean): void {
+  scanBusy = busy;
+  notify();
+}
+
 export async function requestManualScan(): Promise<boolean> {
   if (!scanTrigger || scanBusy) return false;
-  scanBusy = true;
-  notify();
-  try {
-    return await scanTrigger();
-  } finally {
-    scanBusy = false;
-    notify();
-  }
+  return await scanTrigger();
 }
 
 let newGamesCount = 0;

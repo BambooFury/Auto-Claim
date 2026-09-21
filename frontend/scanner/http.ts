@@ -1,4 +1,7 @@
+import { callable } from 'millennium';
 import type { ScannerLogger } from './types';
+
+const fetchUrlViaCurl = callable<[{ payload: string }], string>('fetch_url_via_curl_ipc');
 
 export interface HttpResponse {
   ok:     boolean;
@@ -11,21 +14,12 @@ export async function safeFetch(
   timeoutMs: number,
   log?: ScannerLogger,
 ): Promise<HttpResponse | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-      credentials: 'omit',
-    });
-    const body = await res.text();
-    return { ok: res.ok, status: res.status, body };
-  } catch (e: any) {
-    log?.warn(`[scanner] fetch failed (${url}): ${e?.message || e}`);
+    const body = await fetchUrlViaCurl({ payload: url });
+    if (!body || body.length === 0) return null;
+    return { ok: true, status: 200, body };
+  } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
