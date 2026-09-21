@@ -26,6 +26,7 @@ import {
   loadSettingsIPC,
 } from './ipc';
 import { isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanState } from './scanControl';
+import { subscribeClaimState, getClaimSnapshot } from './claimState';
 import { SettingsRows, usePluginSettings } from './settingsRows';
 import { SteamDialog } from './steamDialog';
 import { logIPC } from './ipc';
@@ -132,7 +133,7 @@ function gameStatus(game: FreeGame, owned: boolean): string {
   return '100% off — not in your library yet';
 }
 
-function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX.Element {
+function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean; claimStatus: 'idle' | 'claiming' | 'claimed' | 'failed' }): React.JSX.Element {
   return (
     <Field
       label={game.name}
@@ -155,6 +156,25 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
               }}
             />
           )}
+          {claimStatus === 'claiming' && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: '3px',
+                background: 'rgba(0, 0, 0, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <Spinner style={{ width: '20px', height: '20px' }} />
+            </div>
+          )}
         </div>
       }
       childrenLayout="inline"
@@ -175,6 +195,10 @@ function GameRow({ game, owned }: { game: FreeGame; owned: boolean }): React.JSX
               </svg>
             </DialogButton>
           </>
+        ) : claimStatus === 'claiming' ? (
+          <DialogButton disabled style={{ padding: '10px 22px', whiteSpace: 'nowrap', opacity: 0.6 }}>
+            Claiming…
+          </DialogButton>
         ) : (
           <DialogButton
             style={{ padding: '10px 22px', whiteSpace: 'nowrap' }}
@@ -283,6 +307,29 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
     return list;
   }, [games, filterMode, hideOwned, ownedSet]);
 
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => subscribeClaimState(() => {
+    const snap = getClaimSnapshot();
+    if (snap.claimed.size > 0) {
+      setOwnedSet((prev) => {
+        const next = new Set(prev);
+        for (const id of snap.claimed) next.add(id);
+        return next;
+      });
+    }
+    forceUpdate((n) => n + 1);
+  }), []);
+
+  const claimSnap = getClaimSnapshot();
+
+  function claimStatusFor(appid: number): 'idle' | 'claiming' | 'claimed' | 'failed' {
+    if (claimSnap.claiming.has(appid)) return 'claiming';
+    if (claimSnap.claimed.has(appid)) return 'claimed';
+    if (claimSnap.failed.has(appid)) return 'failed';
+    return 'idle';
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', flex: 1, minHeight: 0 }}>
       {!loaded ? (
@@ -296,6 +343,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
               key={`${g.type ?? 'game'}-${g.appid}`}
               game={g}
               owned={ownedSet.has(g.appid)}
+              claimStatus={claimStatusFor(g.appid)}
             />
           ))}
         </div>

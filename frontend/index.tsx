@@ -4,6 +4,7 @@ import { SettingsTab } from './settings';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
 import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount } from './scanControl';
+import { setClaiming, setClaimed, setClaimFailed } from './claimState';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
 import { clearOwnershipCache, setOwnershipOwner } from './ownership';
@@ -501,7 +502,9 @@ async function startPolling(): Promise<void> {
         const reason = liveSettings.filterMode === 'all' ? "filter='all'" : 'auto-add OFF';
         log(`${game.name} — ${reason}, showing notification only`);
         showFreeGameNotification(game, async () => {
+          setClaiming(game.appid);
           const added = await addGameToLibrary(game.appid);
+          if (added) setClaimed(game.appid); else setClaimFailed(game.appid);
           await recordGrabbed(game, added && isAlreadyInLibrary(game.appid));
           log(`${game.name} — grabbed via click (${added ? 'added' : 'failed'})`);
         });
@@ -509,8 +512,10 @@ async function startPolling(): Promise<void> {
         return;
       }
 
+      setClaiming(game.appid);
       const added = await addGameToLibrary(game.appid);
       if (added) {
+        setClaimed(game.appid);
         await recordGrabbed(game, true);
         if (liveSettings.notifyOnGrab) {
           showFreeGameNotification(game, () => {
@@ -520,6 +525,7 @@ async function startPolling(): Promise<void> {
         failLogged.delete(game.appid);
         log(`${game.name} — successfully added to library`);
       } else {
+        setClaimFailed(game.appid);
         await recordGrabbed(game, false);
         if (!failLogged.has(game.appid)) {
           failLogged.add(game.appid);
