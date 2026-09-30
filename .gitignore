@@ -3,6 +3,7 @@ node_modules/
 dist/
 .vscode/
 bun.lock
+*.star
 
 accounts/
 steam_cookies.json
