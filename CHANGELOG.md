@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.2](https://github.com/BambooFury/Auto-Claim/compare/v2.2.1...v2.2.2) (2026-09-30)
+
+
+### Maintenance
+
+* declare lua backend type in plugin.json ([9d0f397](https://github.com/BambooFury/Auto-Claim/commit/9d0f397c5aa77026408c190ae337e3b81423eb0a))
+* ignore star build output ([128650d](https://github.com/BambooFury/Auto-Claim/commit/128650d44fdc7f7ad0e4dec6ef9d7ecf927a39d0))
+
 ## [2.2.1](https://github.com/BambooFury/Auto-Claim/compare/v2.2.0...v2.2.1) (2026-09-30)
 
 
