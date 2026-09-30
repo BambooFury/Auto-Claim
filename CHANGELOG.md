@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.1](https://github.com/BambooFury/Auto-Claim/compare/v2.2.0...v2.2.1) (2026-09-30)
+
+
+### Maintenance
+
+* add plugin.json for plugin database builds ([20e9ad4](https://github.com/BambooFury/Auto-Claim/commit/20e9ad418600311c0c6d13aeedbdf5cdbeba0f1b))
+* bump plugin.json version on release ([84d0432](https://github.com/BambooFury/Auto-Claim/commit/84d04322e1346eaab699d655d9499ecb4b3f07ff))
+* update preview image ([df16f8b](https://github.com/BambooFury/Auto-Claim/commit/df16f8b44ffcd804ad7899b0d5721a53d7bd45f2))
+
 ## [2.2.0](https://github.com/BambooFury/Auto-Claim/compare/v2.1.0...v2.2.0) (2026-09-21)
 
 
