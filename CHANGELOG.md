@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.3.0](https://github.com/BambooFury/Auto-Claim/compare/v2.2.2...v2.3.0) (2026-10-04)
+
+
+### Features
+
+* add i18n core and language tables ([04548d5](https://github.com/BambooFury/Auto-Claim/commit/04548d574552c3986f76b7a25c292e7d068164ca))
+* localize interface and follow steam language ([e1b1889](https://github.com/BambooFury/Auto-Claim/commit/e1b1889889f4a56f4d72bb03dba6d4f98b31f3e2))
+
+
+### Documentation
+
+* mention localization in readme ([9212a62](https://github.com/BambooFury/Auto-Claim/commit/9212a62923c09d504c082bbc39a97c9bbda9947e))
+* redesign readme ([f95fd73](https://github.com/BambooFury/Auto-Claim/commit/f95fd735cb744cd29a683a1637b8aad042b1c498))
+
 ## [2.2.2](https://github.com/BambooFury/Auto-Claim/compare/v2.2.1...v2.2.2) (2026-09-30)
 
 
