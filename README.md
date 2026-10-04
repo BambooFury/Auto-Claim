@@ -28,6 +28,7 @@
 - **Notifications** - a toast appears when a new game is grabbed, nothing silent or scary
 - **Runs on schedule** - background scans every 30 minutes, every 2 hours or once a day, your choice
 - **Nothing is ever lost** - every claimed game is remembered, so nothing is claimed twice
+- **Localized** - the interface follows your Steam language: English, Russian, French, German, Italian, Polish, Spanish, Chinese, Japanese, Ukrainian
 
 ## Installation
 
