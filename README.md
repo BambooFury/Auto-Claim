@@ -1,93 +1,89 @@
-<h1 align="center">
-  <img src="https://api.iconify.design/lucide:gift.svg?color=%231a9fff" width="28" style="vertical-align: middle;">
-  Auto Claim
-</h1>
+<h1 align="center">Auto Claim</h1>
 
 <p align="center">
-Automatically detects and claims every <b>100% discounted Steam game</b> directly to your library - silently, in the background, without interrupting your gameplay.
+  Every 100% discount and free game on Steam, claimed for you.<br>
+  The plugin watches the store - you just open your library.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/BambooFury/Auto-Claim?style=flat&label=Version&color=1a9fff&labelColor=262626&logo=github&logoColor=FFFFFF">
-  <img src="https://img.shields.io/github/downloads/BambooFury/Auto-Claim/total?style=flat&label=Downloads&color=2ecc71&labelColor=262626&logo=github&logoColor=FFFFFF">
-  <img src="https://img.shields.io/github/stars/BambooFury/Auto-Claim?style=flat&label=%E2%98%85&logo=github&color=FFD43B&labelColor=262626&logoColor=FFFFFF">
-  <img src="https://img.shields.io/github/license/BambooFury/Auto-Claim?style=flat&label=License&color=4CAF50&labelColor=262626&logo=opensourceinitiative&logoColor=FFFFFF">
+  <a href="https://github.com/BambooFury/Auto-Claim/releases"><img src="https://img.shields.io/github/v/release/BambooFury/Auto-Claim?style=flat-square&label=Version&color=1a9fff"></a>
+  <a href="https://github.com/BambooFury/Auto-Claim/releases"><img src="https://img.shields.io/github/downloads/BambooFury/Auto-Claim/total?style=flat-square&label=Downloads&color=2ecc71"></a>
+  <a href="https://github.com/BambooFury/Auto-Claim/stargazers"><img src="https://img.shields.io/github/stars/BambooFury/Auto-Claim?style=flat-square&label=Stars&color=FFD43B"></a>
+  <img src="https://img.shields.io/github/license/BambooFury/Auto-Claim?style=flat-square&label=License&color=4CAF50">
 </p>
 
 <p align="center">
-  <img src=".github/preview.png" width="950" alt="Auto Claim - Games Manager">
+  <img src=".github/preview.png" alt="Auto Claim" width="850">
 </p>
 
-## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%23FFD43B" width="20"> Features
+---
 
-<table>
-  <tr>
-    <td><img src="https://api.iconify.design/lucide:activity.svg?color=%231a9fff" width="16"> <b>Automatic Detection</b> - scans the Steam Store for newly available 100% off games</td>
-    <td><img src="https://api.iconify.design/lucide:ghost.svg?color=%239E9E9E" width="16"> <b>Silent Claiming</b> - games are claimed in the background, no browser windows</td>
-  </tr>
-  <tr>
-    <td><img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> <b>Notifications</b> - native Steam toast after each successful claim</td>
-    <td><img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> <b>Smart Filtering</b> - skips DLCs, soundtracks, demos and skin packs</td>
-  </tr>
-  <tr>
-    <td><img src="https://api.iconify.design/lucide:gamepad-2.svg?color=%23FFD43B" width="16"> <b>Free Weekends</b> - see what's playable for free right now</td>
-    <td><img src="https://api.iconify.design/lucide:users.svg?color=%231a9fff" width="16"> <b>Multi-Account Support</b> - picks up account switches automatically</td>
-  </tr>
-  <tr>
-    <td><img src="https://api.iconify.design/lucide:clock.svg?color=%239E9E9E" width="16"> <b>Scheduled Scanning</b> - every 30 / 120 minutes or once a day</td>
-    <td><img src="https://api.iconify.design/lucide:toggle-left.svg?color=%23FFD43B" width="16"> <b>Flexible Modes</b> - Auto Claim or Notification Only</td>
-  </tr>
-  <tr>
-    <td><img src="https://api.iconify.design/lucide:gamepad-2.svg?color=%231a9fff" width="16"> <b>Native UI</b> - built entirely with Steam's own components, fully theme-aware</td>
-    <td><img src="https://api.iconify.design/lucide:panel-right.svg?color=%232ecc71" width="16"> <b>Games Manager</b> - browse detected free games and run a manual scan</td>
-  </tr>
-</table>
+## Features
 
-## <img src="https://api.iconify.design/lucide:cog.svg?color=%231a9fff" width="20"> How It Works
+- **Automatic claiming** - 100% discounted games are added to your library without you opening the store
+- **Three sources** - store discounts, Steam free weekends and GamerPower giveaways are all watched
+- **Gift button** - a small gift icon on the toolbar shows everything that was found, ready to grab
+- **Progress on game cards** - claiming shows its progress right on the game card, ownership updates in real time
+- **Smart filtering** - choose what to watch: paid games only, everything, or free weekends only
+- **Notifications** - a toast appears when a new game is grabbed, nothing silent or scary
+- **Runs on schedule** - background scans every 30 minutes, every 2 hours or once a day, your choice
+- **Nothing is ever lost** - every claimed game is remembered, so nothing is claimed twice
 
-1. <img src="https://api.iconify.design/lucide:radar.svg?color=%231a9fff" width="16"> Auto Claim periodically scans the Steam Store (plus extra giveaway sources) for games with a 100% discount
-2. <img src="https://api.iconify.design/lucide:shield-check.svg?color=%232ecc71" width="16"> Every hit is verified against the official Steam API - only real, fully free games pass the filter
-3. <img src="https://api.iconify.design/lucide:ghost.svg?color=%239E9E9E" width="16"> The game is claimed silently in the background and appears in your library seconds later
-4. <img src="https://api.iconify.design/lucide:bell-ring.svg?color=%23ff4d4f" width="16"> You get a notification - keep playing, nothing ever pops up over your game
+## Installation
 
-## <img src="https://api.iconify.design/lucide:rocket.svg?color=%232ecc71" width="20"> Installation
+1. Install [Millennium](https://steambrew.app)
+2. Open **Millennium** in the Steam menu
+3. Install **Auto Claim** from the plugin store, or download `auto-claim.star` from [Releases](https://github.com/BambooFury/Auto-Claim/releases) and drop it into `<Steam>/millennium/plugins/`
+4. Restart Steam
 
-> Requires [Millennium](https://steambrew.app) v3.4.0 or higher to be installed first.
+## How it works
 
-1. <img src="https://api.iconify.design/lucide:chevron-right.svg?color=%239E9E9E" width="16"> Open the Steam Menu
-2. <img src="https://api.iconify.design/lucide:boxes.svg?color=%231a9fff" width="16"> Go to **Millennium**
-3. <img src="https://api.iconify.design/lucide:download.svg?color=%232ecc71" width="16"> Choose **Install the plugin**
-4. <img src="https://api.iconify.design/lucide:key.svg?color=%23FFD43B" width="16"> Insert the plugin ID
-5. <img src="https://api.iconify.design/lucide:refresh-cw.svg?color=%23ff4d4f" width="16"> Restart Steam - done!
+1. The plugin scans the store in the background - Steam discounts, free weekends and giveaways
+2. Every new 100% deal is detected and, if **Auto Add** is on, claimed to your library instantly
+3. The toolbar gift icon fills in as games are found and claimed
+4. Claimed games are cached locally, so each one is only ever processed once
 
-## <img src="https://api.iconify.design/lucide:settings.svg?color=%239E9E9E" width="20"> Configuration
+## The gift button
 
-Open the plugin window and go to the Settings section:
+The toolbar gets a small gift icon at the end of the URL bar. It opens a panel where you can:
 
-<img src="https://api.iconify.design/lucide:zap.svg?color=%23FFD43B" width="16"> Auto-add to Library - ON | OFF<br>
-<img src="https://api.iconify.design/lucide:bell.svg?color=%23ff4d4f" width="16"> Notify on Grab - ON | OFF<br>
-<img src="https://api.iconify.design/lucide:eye-off.svg?color=%239E9E9E" width="16"> Hide Owned Games - ON | OFF<br>
-<img src="https://api.iconify.design/lucide:circle-dot.svg?color=%23ff4d4f" width="16"> New Games Indicator - ON | OFF<br>
-<img src="https://api.iconify.design/lucide:filter.svg?color=%232ecc71" width="16"> Claim Mode - Games only | All free items | Free weekend<br>
-<img src="https://api.iconify.design/lucide:timer.svg?color=%231a9fff" width="16"> Scan Interval - 30 min | 120 min | 1 day<br>
-<img src="https://api.iconify.design/lucide:panel-right.svg?color=%23FFD43B" width="16"> Open Games Manager - browse all detected free games<br>
-<img src="https://api.iconify.design/lucide:rotate-ccw.svg?color=%239E9E9E" width="16"> Reset to Defaults
+- **See everything found** - every detected deal with its discount and status
+- **Claim manually** - grab any game with one click if auto add is off
+- **Open in library** - jump straight to any game you already own
+- **Control scanning** - start a scan right now instead of waiting for the schedule
 
-## <img src="https://api.iconify.design/lucide:circle-help.svg?color=%23FFD43B" width="20"> FAQ
+## Settings
 
-**Will it claim DLCs and soundtracks?**
-No, those are filtered out automatically. Only full games reach your library.
+- **Auto Add** - claim games automatically or review them first
+- **Scan interval** - every 30 minutes, every 2 hours or once a day
+- **Filter mode** - paid games, everything, or free weekends only
+- **Notifications** - toast for every grabbed game
+- **Hide owned** - keep your library out of the found list
 
-**Can it get my account banned?**
-Auto Claim only adds free games to your library the same way the store button does - no purchases, no trades, no third-party logins.
+Everything is stored locally in `<Steam>/millennium/plugins/auto-claim-data/` - your account credentials are never saved anywhere.
 
-**I switched accounts, do I need to restart?**
-No, the plugin detects account changes and rescans automatically.
+## FAQ
 
-## <img src="https://api.iconify.design/lucide:scale.svg?color=%234CAF50" width="20"> License
+**Does it slow down Steam?**
+
+No. Scans run in the background on a schedule and results are cached after the first check.
+
+**Is it safe?**
+
+It uses your current Steam session inside your own client and only adds games that are 100% free. No passwords, no tokens, nothing leaves your machine.
+
+**A game was claimed twice?**
+
+Never. Every claimed game is remembered in the local cache - the same deal is never processed twice.
+
+**Can I review games before they are claimed?**
+
+Yes - turn **Auto Add** off and claim everything yourself from the gift button panel.
+
+## License
 
 MIT - see [LICENSE](LICENSE). Not affiliated with Valve or Steam.
 
 <p align="center">
-  <sub>Made for <a href="https://steambrew.app">Millennium</a> with 💕</sub>
+  Made for <a href="https://steambrew.app">Millennium</a>
 </p>
