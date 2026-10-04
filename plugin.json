@@ -3,7 +3,7 @@
   "name": "auto-claim",
   "common_name": "Auto Claim",
   "description": "Automatically detects 100% discounted games on Steam and adds them to your library.",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "backendType": "lua",
   "useBackend": true,
   "include": [
