@@ -6,9 +6,11 @@ import React from 'react';
 import { MdRefresh, MdSportsEsports } from 'react-icons/md';
 import { DEFAULT_SETTINGS } from './config';
 import { openManager } from './manager';
-import { SettingsRows, usePluginSettings } from './settingsRows';
+import { SettingsRows, useLocalization, usePluginSettings } from './settingsRows';
+import { t } from './i18n';
 
 export const SettingsTab: React.FC<{ showManagerButton?: boolean }> = ({ showManagerButton = true }) => {
+  useLocalization();
   const [settings, update] = usePluginSettings();
 
   if (!settings) return <Spinner />;
@@ -21,7 +23,7 @@ export const SettingsTab: React.FC<{ showManagerButton?: boolean }> = ({ showMan
         <ButtonItem layout="below" onClick={openManager}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
             <MdSportsEsports size={16} />
-            Open Games Manager
+            {t('Open Games Manager')}
           </span>
         </ButtonItem>
       )}
@@ -34,7 +36,7 @@ export const SettingsTab: React.FC<{ showManagerButton?: boolean }> = ({ showMan
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
           <MdRefresh size={16} />
-          Reset to defaults
+          {t('Reset to defaults')}
         </span>
       </ButtonItem>
     </div>
