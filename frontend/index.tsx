@@ -20,6 +20,7 @@ import {
   isClaimableGame,
   normalizeSettings,
 } from './config';
+import { setLocalizationEnabled, t } from './i18n';
 import {
   isAlreadyInLibrary,
   isAppOwned,
@@ -135,10 +136,10 @@ function showFreeGameNotification(game: FreeGame, onClick: () => void, claimed =
     markSeen(game.appid);
   }
   toaster.toast({
-    title: claimed ? 'Free Game Claimed!' : 'Free Game Available!',
+    title: claimed ? t('Free Game Claimed!') : t('Free Game Available!'),
     body: claimed
-      ? `${game.name} was added to your library.`
-      : `${game.name} is 100% off — grab it now!`,
+      ? t('{name} was added to your library.', { name: game.name })
+      : t('{name} is 100% off — grab it now!', { name: game.name }),
     logo: React.createElement('img', {
       src: headerImageUrl(game),
       style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' },
@@ -379,6 +380,7 @@ async function startPolling(): Promise<void> {
       withTimeout(loadGrabbed(), 3000, '[]'),
     ]);
     try { settings = normalizeSettings(JSON.parse(sRaw || '{}')); } catch {}
+    setLocalizationEnabled(settings.localized !== false);
     try {
       const list: GrabbedEntry[] = JSON.parse(gRaw || '[]');
       grabbedSet = new Set(list.filter((e) => e.added !== false).map((e) => e.appid));
@@ -540,8 +542,8 @@ async function startPolling(): Promise<void> {
 
   function showWeekendNotification(game: WeekendGame): void {
     toaster.toast({
-      title: 'Free Weekend!',
-      body: `${game.name} is free to play until ${formatUntil(game.until)}.`,
+      title: t('Free Weekend!'),
+      body: t('{name} is free to play until {until}.', { name: game.name, until: formatUntil(game.until) }),
       logo: React.createElement('img', {
         src: `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
         style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' },
@@ -769,6 +771,7 @@ async function startPolling(): Promise<void> {
     const sRaw = await withTimeout(loadSettings(), 3000, '{}');
     settings = normalizeSettings(JSON.parse(sRaw || '{}'));
     setIndicatorEnabled(settings.showIndicator);
+    setLocalizationEnabled(settings.localized !== false);
   } catch {}
   try {
     const raw = await withTimeout(loadLastDailyScanIPC(), 3000, '{}');
@@ -791,6 +794,7 @@ async function startPolling(): Promise<void> {
       const sRaw = await withTimeout(loadSettings(), 3000, '{}');
       settings = normalizeSettings(JSON.parse(sRaw || '{}'));
       setIndicatorEnabled(settings.showIndicator);
+      setLocalizationEnabled(settings.localized !== false);
     } catch {}
   }, 30000);
 

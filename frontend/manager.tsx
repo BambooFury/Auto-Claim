@@ -28,10 +28,11 @@ import {
 } from './ipc';
 import { isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanState } from './scanControl';
 import { subscribeClaimState, getClaimSnapshot } from './claimState';
-import { SettingsRows, usePluginSettings } from './settingsRows';
+import { SettingsRows, useLocalization, usePluginSettings } from './settingsRows';
 import { SteamDialog } from './steamDialog';
 import { logIPC } from './ipc';
 import { markAllSeen } from './seenSet';
+import { t } from './i18n';
 
 const log = (msg: string) => { logIPC({ payload: msg }).catch(() => {}); };
 
@@ -60,7 +61,7 @@ const FILTER_SHORT: Record<FilterMode, string> = {
 function OwnedBadge(): React.JSX.Element {
   return (
     <div
-      title="In your library"
+      title={t('In your library')}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -92,7 +93,7 @@ function OwnedBadge(): React.JSX.Element {
           whiteSpace: 'nowrap',
         }}
       >
-        Owned
+        {t('Owned')}
       </span>
     </div>
   );
@@ -127,9 +128,9 @@ function GameImage({ game }: { game: FreeGame }): React.JSX.Element {
 }
 
 function gameStatus(game: FreeGame, owned: boolean): string {
-  if (owned) return 'In your library';
-  if (game.type === 'weekend') return `Free to play until ${formatUntil(game.until)}`;
-  return '100% off — not in your library yet';
+  if (owned) return t('In your library');
+  if (game.type === 'weekend') return t('Free to play until {until}', { until: formatUntil(game.until) });
+  return t('100% off — not in your library yet');
 }
 
 function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean; claimStatus: 'idle' | 'claiming' | 'claimed' | 'failed' }): React.JSX.Element {
@@ -192,7 +193,7 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
           </>
         ) : claimStatus === 'claiming' ? (
           <DialogButton disabled style={{ padding: '10px 22px', whiteSpace: 'nowrap', opacity: 0.6 }}>
-            Claiming…
+            {t('Claiming…')}
           </DialogButton>
         ) : (
           <DialogButton
@@ -201,7 +202,7 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
               <MdStorefront size={14} />
-              View in Store
+              {t('View in Store')}
             </span>
           </DialogButton>
         )}
@@ -239,24 +240,25 @@ function EmptyState(): React.JSX.Element {
         <MdCheckCircle size={36} color="rgba(85, 204, 85, 0.7)" />
       </div>
       <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
-        You're all caught up
+        {t("You're all caught up")}
       </div>
       <div style={{ fontSize: '12.5px', lineHeight: 1.6, color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', maxWidth: '340px' }}>
-        There are no free games to show right now.
+        {t('There are no free games to show right now.')}
         <br />
-        New giveaways appear all the time — run a scan anytime to check the store again.
+        {t('New giveaways appear all the time — run a scan anytime to check the store again.')}
       </div>
     </div>
   );
 }
 
 function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element {
+  useLocalization();
   const [games, setGames] = useState<FreeGame[]>([]);
   const [ownedSet, setOwnedSet] = useState<Set<number>>(new Set());
   const [hideOwned, setHideOwned] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [scanBusy, setScanBusy] = useState(isScanBusy());
-  const [scanStatus, setScanStatus] = useState('');
+  const [scanState, setScanState] = useState<'' | 'ok' | 'fail'>('');
 
   const refresh = useCallback(async () => {
     try {
@@ -348,25 +350,24 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
       <DialogButtonPrimary
         disabled={scanBusy}
         onClick={async () => {
-          setScanStatus('Scanning the store…');
           const ok = await requestManualScan();
-          setScanStatus(ok ? 'Scan complete' : 'Scan failed — showing cached results');
+          setScanState(ok ? 'ok' : 'fail');
           void refresh();
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
           <MdRadar size={16} />
-          {scanBusy ? 'Scanning…' : 'Scan Now'}
+          {scanBusy ? t('Scanning…') : t('Scan Now')}
         </span>
       </DialogButtonPrimary>
 
       {scanBusy && <ProgressBar indeterminate />}
-      {scanStatus && !scanBusy && (
+      {scanState && !scanBusy && (
         <Field
-          label={scanStatus}
+          label={scanState === 'ok' ? t('Scan complete') : t('Scan failed — showing cached results')}
           bottomSeparator="none"
           padding="compact"
-          icon={<MdCheckCircle size={16} color={scanStatus.includes('complete') ? '#5dc26a' : '#e05252'} />}
+          icon={<MdCheckCircle size={16} color={scanState === 'ok' ? '#5dc26a' : '#e05252'} />}
         />
       )}
     </div>
@@ -389,7 +390,7 @@ function ManagerSettingsTab(): React.JSX.Element {
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
           <MdRefresh size={16} />
-          Reset to defaults
+          {t('Reset to defaults')}
         </span>
       </ButtonItem>
     </div>
@@ -397,6 +398,7 @@ function ManagerSettingsTab(): React.JSX.Element {
 }
 
 function ManagerWindow(): React.JSX.Element | null {
+  useLocalization();
   const open = useSyncExternalStore(subscribeManager, () => managerOpen);
   const [settings, update] = usePluginSettings();
   const [activeTab, setActiveTab] = useState<'games' | 'settings'>('games');
@@ -411,7 +413,7 @@ function ManagerWindow(): React.JSX.Element | null {
 
   return (
     <SteamDialog
-      strTitle="Auto Claim — Free Games"
+      strTitle={t('Auto Claim — Free Games')}
       onDismiss={() => setOpen(false)}
       popupWidth={860}
       popupHeight={560}
@@ -433,7 +435,7 @@ function ManagerWindow(): React.JSX.Element | null {
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
               <MdSportsEsports size={16} />
-              Free Games
+              {t('Free Games')}
             </span>
           </DialogButton>
           <DialogButton
@@ -442,7 +444,7 @@ function ManagerWindow(): React.JSX.Element | null {
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
               <MdSettings size={15} />
-              Settings
+              {t('Settings')}
             </span>
           </DialogButton>
           <div style={{ marginLeft: 'auto', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
@@ -452,7 +454,7 @@ function ManagerWindow(): React.JSX.Element | null {
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
                 <MdFilterList size={13} />
-                Filter: {FILTER_SHORT[filterMode]}
+                {t('Filter: {mode}', { mode: t(FILTER_SHORT[filterMode]) })}
               </span>
             </DialogButton>
           </div>

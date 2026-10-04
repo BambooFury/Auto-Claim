@@ -1,3 +1,5 @@
+import { currentLocale, t } from './i18n';
+
 export type FilterMode = 'games' | 'all' | 'weekend';
 
 export interface FreeGame {
@@ -23,6 +25,7 @@ export interface PluginSettings {
   hideOwned: boolean;
   showIndicator: boolean;
   filterMode: FilterMode;
+  localized: boolean;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -32,11 +35,12 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   hideOwned: false,
   showIndicator: true,
   filterMode: 'games',
+  localized: true,
 };
 
 export const MIN_POLL_INTERVAL_MIN = 30;
 
-const ALLOWED_INTERVALS = [30, 120, 1440];
+export const ALLOWED_INTERVALS = [30, 120, 1440];
 const ALLOWED_FILTERS: FilterMode[] = ['games', 'all', 'weekend'];
 
 export function normalizeSettings(raw: unknown): PluginSettings {
@@ -48,21 +52,18 @@ export function normalizeSettings(raw: unknown): PluginSettings {
   return { ...s, pollIntervalMin: poll };
 }
 
-export const FILTER_LABELS: Record<FilterMode, string> = {
-  games: 'Games only',
-  all: 'All free items',
-  weekend: 'Free weekend',
-};
+export function filterLabel(mode: FilterMode): string {
+  const labels: Record<FilterMode, string> = {
+    games: 'Games only',
+    all: 'All free items',
+    weekend: 'Free weekend',
+  };
+  return t(labels[mode]);
+}
 
-export const FILTER_OPTIONS = ALLOWED_FILTERS.map((mode) => ({
-  data: mode,
-  label: FILTER_LABELS[mode],
-}));
-
-export const INTERVAL_OPTIONS = ALLOWED_INTERVALS.map((min) => ({
-  data: min,
-  label: min >= 1440 ? 'Once a day' : `Every ${min} min`,
-}));
+export function intervalLabel(min: number): string {
+  return min >= 1440 ? t('Once a day') : t('Every {min} min', { min });
+}
 
 export function isClaimableGame(game: FreeGame): boolean {
   return !game.type || game.type === 'game';
@@ -77,10 +78,10 @@ export function headerImageUrl(game: FreeGame): string {
 }
 
 export function formatUntil(unix?: number): string {
-  if (!unix) return 'this weekend';
+  if (!unix) return t('this weekend');
   try {
-    return new Date(unix * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return new Date(unix * 1000).toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric' });
   } catch {
-    return 'this weekend';
+    return t('this weekend');
   }
 }
