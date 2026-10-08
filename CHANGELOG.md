@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/BambooFury/Auto-Claim/compare/v2.3.0...v2.3.1) (2026-10-08)
+
+
+### Maintenance
+
+* remove plugin.json for star pipeline ([4cf4c06](https://github.com/BambooFury/Auto-Claim/commit/4cf4c06e93287f9643bacbe77a62e8c6b4f6d1ff))
+
 ## [2.3.0](https://github.com/BambooFury/Auto-Claim/compare/v2.2.2...v2.3.0) (2026-10-04)
 
 
