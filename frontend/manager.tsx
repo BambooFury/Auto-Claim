@@ -289,24 +289,23 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', paddingTop: '2px' }}>
-        <div style={{ fontSize: '13px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', paddingLeft: '4px' }}>
-          {t('{count} Free Games', { count: visible.length })}
-        </div>
-        <DialogButtonPrimary
-          disabled={scanBusy}
-          onClick={async () => {
-            const ok = await requestManualScan();
-            setScanState(ok ? 'ok' : 'fail');
-            void refresh();
-          }}
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-            <MdRadar size={16} />
-            {scanBusy ? t('Scanning…') : t('Scan Now')}
-          </span>
-        </DialogButtonPrimary>
+      <div style={{ fontSize: '13px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', padding: '2px 4px 0' }}>
+        {t('{count} Free Games', { count: visible.length })}
       </div>
+
+      <DialogButtonPrimary
+        disabled={scanBusy}
+        onClick={async () => {
+          const ok = await requestManualScan();
+          setScanState(ok ? 'ok' : 'fail');
+          void refresh();
+        }}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+          <MdRadar size={16} />
+          {scanBusy ? t('Scanning…') : t('Scan Now')}
+        </span>
+      </DialogButtonPrimary>
 
       {scanBusy && <ProgressBar indeterminate />}
       {scanState && !scanBusy && (
@@ -368,24 +367,22 @@ function ManagerWindow(): React.JSX.Element | null {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, paddingTop: '8px' }}>
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px 4px',
+            display: 'flex', gap: '6px', padding: '0 16px 4px',
             position: 'relative', zIndex: 10, WebkitAppRegion: 'no-drag',
           } as React.CSSProperties}
         >
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {(['games', 'all', 'weekend'] as FilterMode[]).map((mode) => (
-              <DialogButton
-                key={mode}
-                style={{ padding: '6px 14px', fontWeight: filterMode === mode ? 700 : 400, opacity: filterMode === mode ? 1 : 0.6 }}
-                onClick={() => update({ filterMode: mode })}
-              >
-                {t(FILTER_SHORT[mode])}
-              </DialogButton>
-            ))}
-          </div>
+          {(['games', 'all', 'weekend'] as FilterMode[]).map((mode) => (
+            <DialogButton
+              key={mode}
+              style={{ padding: '10px 18px', fontWeight: filterMode === mode ? 700 : 400, opacity: filterMode === mode ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+              onClick={() => update({ filterMode: mode })}
+            >
+              {t(FILTER_SHORT[mode])}
+            </DialogButton>
+          ))}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             <DialogButton
-              style={{ padding: '6px 16px', fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
+              style={{ padding: '10px 18px', fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               onClick={() => setActiveTab('games')}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
@@ -394,7 +391,7 @@ function ManagerWindow(): React.JSX.Element | null {
               </span>
             </DialogButton>
             <DialogButton
-              style={{ padding: '6px 16px', fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6 }}
+              style={{ padding: '10px 18px', fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               onClick={() => setActiveTab('settings')}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
