@@ -1,6 +1,6 @@
 import { findModule } from 'millennium';
 import React, { useSyncExternalStore } from 'react';
-import { TbGift } from 'react-icons/tb';
+import { TbGift } from './icons';
 import { openManager } from './manager';
 import { logIPC } from './ipc';
 import { getNewGamesCount, subscribeScanState } from './scanControl';

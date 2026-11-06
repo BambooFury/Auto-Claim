@@ -3,7 +3,7 @@ import {
   Spinner,
 } from 'millennium';
 import React from 'react';
-import { MdRefresh, MdSportsEsports } from 'react-icons/md';
+import { MdRefresh, MdSportsEsports } from './icons';
 import { DEFAULT_SETTINGS } from './config';
 import { openManager } from './manager';
 import { SettingsRows, useLocalization, usePluginSettings } from './settingsRows';

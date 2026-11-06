@@ -9,7 +9,7 @@ import {
   routerHook,
 } from 'millennium';
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { MdCheck, MdCheckCircle, MdFilterList, MdOpenInNew, MdRefresh, MdRadar, MdSettings, MdSportsEsports, MdStorefront } from 'react-icons/md';
+import { MdCheck, MdCheckCircle, MdOpenInNew, MdRadar, MdRefresh, MdSettings, MdSportsEsports, MdStorefront } from './icons';
 import {
   DEFAULT_SETTINGS,
   type FilterMode,
