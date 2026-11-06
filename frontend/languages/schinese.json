@@ -25,7 +25,6 @@
   "Auto Claim — Free Games": "Auto Claim — 免费游戏",
   "Free Games": "免费游戏",
   "Settings": "设置",
-  "Filter: {mode}": "筛选：{mode}",
   "Reset to defaults": "恢复默认设置",
   "Open Games Manager": "打开游戏管理器",
   "Auto-add to library": "自动添加到库",
@@ -45,5 +44,6 @@
   "Free weekend": "免费周末",
   "Once a day": "每天一次",
   "Every {min} min": "每 {min} 分钟",
-  "this weekend": "本周末"
+  "this weekend": "本周末",
+  "{count} Free Games": "免费游戏：{count}"
 }

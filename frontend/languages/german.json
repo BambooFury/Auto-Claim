@@ -25,7 +25,6 @@
   "Auto Claim — Free Games": "Auto Claim — Kostenlose Spiele",
   "Free Games": "Kostenlose Spiele",
   "Settings": "Einstellungen",
-  "Filter: {mode}": "Filter: {mode}",
   "Reset to defaults": "Auf Standard zurücksetzen",
   "Open Games Manager": "Spiele-Manager öffnen",
   "Auto-add to library": "Automatisch zur Bibliothek hinzufügen",
@@ -45,5 +44,6 @@
   "Free weekend": "Freies Wochenende",
   "Once a day": "Einmal täglich",
   "Every {min} min": "Alle {min} Min.",
-  "this weekend": "dieses Wochenende"
+  "this weekend": "dieses Wochenende",
+  "{count} Free Games": "Kostenlose Spiele: {count}"
 }

@@ -25,7 +25,6 @@
   "Auto Claim — Free Games": "Auto Claim — безкоштовні ігри",
   "Free Games": "Безкоштовні ігри",
   "Settings": "Налаштування",
-  "Filter: {mode}": "Фільтр: {mode}",
   "Reset to defaults": "Скинути налаштування",
   "Open Games Manager": "Відкрити менеджер ігор",
   "Auto-add to library": "Автододавання до бібліотеки",
@@ -45,5 +44,6 @@
   "Free weekend": "Безкоштовні вихідні",
   "Once a day": "Раз на день",
   "Every {min} min": "Кожні {min} хв",
-  "this weekend": "цими вихідними"
+  "this weekend": "цими вихідними",
+  "{count} Free Games": "Безкоштовних ігор: {count}"
 }

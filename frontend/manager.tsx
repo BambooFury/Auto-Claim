@@ -60,42 +60,12 @@ const FILTER_SHORT: Record<FilterMode, string> = {
 
 function OwnedBadge(): React.JSX.Element {
   return (
-    <div
-      title={t('In your library')}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        height: '30px',
-        padding: '0 12px 0 0',
-        borderRadius: '4px',
-        background: 'rgba(85, 204, 85, 0.1)',
-        overflow: 'hidden',
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          width: '3px',
-          height: '100%',
-          background: '#55cc55',
-          flexShrink: 0,
-        }}
-      />
-      <MdCheck size={12} color="#55cc55" />
-      <span
-        style={{
-          fontSize: '11.5px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.8px',
-          color: 'rgba(85, 204, 85, 0.9)',
-          whiteSpace: 'nowrap',
-        }}
-      >
+    <DialogButton disabled style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+        <MdCheck size={14} />
         {t('Owned')}
       </span>
-    </div>
+    </DialogButton>
   );
 }
 
@@ -141,21 +111,6 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
       icon={
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <GameImage game={game} />
-          {owned && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderRadius: '3px',
-                background: 'rgba(85, 204, 85, 0.12)',
-                border: '1px solid rgba(85, 204, 85, 0.35)',
-                pointerEvents: 'none',
-              }}
-            />
-          )}
           {claimStatus === 'claiming' && (
             <div
               style={{
@@ -220,26 +175,13 @@ function EmptyState(): React.JSX.Element {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '14px',
+        gap: '12px',
         padding: '40px 24px',
         textAlign: 'center',
       }}
     >
-      <div
-        style={{
-          width: '72px',
-          height: '72px',
-          borderRadius: '50%',
-          background: 'rgba(85, 204, 85, 0.1)',
-          border: '1px solid rgba(85, 204, 85, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <MdCheckCircle size={36} color="rgba(85, 204, 85, 0.7)" />
-      </div>
-      <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
+      <MdCheckCircle size={38} color="var(--color-online, #5dc26a)" />
+      <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
         {t("You're all caught up")}
       </div>
       <div style={{ fontSize: '12.5px', lineHeight: 1.6, color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', maxWidth: '340px' }}>
@@ -347,19 +289,24 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         </div>
       )}
 
-      <DialogButtonPrimary
-        disabled={scanBusy}
-        onClick={async () => {
-          const ok = await requestManualScan();
-          setScanState(ok ? 'ok' : 'fail');
-          void refresh();
-        }}
-      >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-          <MdRadar size={16} />
-          {scanBusy ? t('Scanning…') : t('Scan Now')}
-        </span>
-      </DialogButtonPrimary>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', paddingTop: '2px' }}>
+        <div style={{ fontSize: '13px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', paddingLeft: '4px' }}>
+          {t('{count} Free Games', { count: visible.length })}
+        </div>
+        <DialogButtonPrimary
+          disabled={scanBusy}
+          onClick={async () => {
+            const ok = await requestManualScan();
+            setScanState(ok ? 'ok' : 'fail');
+            void refresh();
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            <MdRadar size={16} />
+            {scanBusy ? t('Scanning…') : t('Scan Now')}
+          </span>
+        </DialogButtonPrimary>
+      </div>
 
       {scanBusy && <ProgressBar indeterminate />}
       {scanState && !scanBusy && (
@@ -367,7 +314,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
           label={scanState === 'ok' ? t('Scan complete') : t('Scan failed — showing cached results')}
           bottomSeparator="none"
           padding="compact"
-          icon={<MdCheckCircle size={16} color={scanState === 'ok' ? '#5dc26a' : '#e05252'} />}
+          icon={<MdCheckCircle size={16} color={scanState === 'ok' ? 'var(--color-online, #5dc26a)' : '#e05252'} />}
         />
       )}
     </div>
@@ -404,10 +351,6 @@ function ManagerWindow(): React.JSX.Element | null {
   const [activeTab, setActiveTab] = useState<'games' | 'settings'>('games');
 
   const filterMode: FilterMode = settings?.filterMode ?? 'games';
-  const cycleFilter = (): void => {
-    const next: FilterMode = filterMode === 'games' ? 'all' : filterMode === 'all' ? 'weekend' : 'games';
-    update({ filterMode: next });
-  };
 
   if (!open) return null;
 
@@ -425,36 +368,38 @@ function ManagerWindow(): React.JSX.Element | null {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, paddingTop: '8px' }}>
         <div
           style={{
-            display: 'flex', gap: '6px', padding: '0 16px 4px',
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px 4px',
             position: 'relative', zIndex: 10, WebkitAppRegion: 'no-drag',
           } as React.CSSProperties}
         >
-          <DialogButton
-            style={{ padding: '10px 18px', fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            onClick={() => setActiveTab('games')}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-              <MdSportsEsports size={16} />
-              {t('Free Games')}
-            </span>
-          </DialogButton>
-          <DialogButton
-            style={{ padding: '10px 18px', fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            onClick={() => setActiveTab('settings')}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-              <MdSettings size={15} />
-              {t('Settings')}
-            </span>
-          </DialogButton>
-          <div style={{ marginLeft: 'auto', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {(['games', 'all', 'weekend'] as FilterMode[]).map((mode) => (
+              <DialogButton
+                key={mode}
+                style={{ padding: '6px 14px', fontWeight: filterMode === mode ? 700 : 400, opacity: filterMode === mode ? 1 : 0.6 }}
+                onClick={() => update({ filterMode: mode })}
+              >
+                {t(FILTER_SHORT[mode])}
+              </DialogButton>
+            ))}
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             <DialogButton
-              style={{ padding: '10px 18px', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-              onClick={cycleFilter}
+              style={{ padding: '6px 16px', fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6 }}
+              onClick={() => setActiveTab('games')}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-                <MdFilterList size={13} />
-                {t('Filter: {mode}', { mode: t(FILTER_SHORT[filterMode]) })}
+                <MdSportsEsports size={16} />
+                {t('Free Games')}
+              </span>
+            </DialogButton>
+            <DialogButton
+              style={{ padding: '6px 16px', fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6 }}
+              onClick={() => setActiveTab('settings')}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+                <MdSettings size={15} />
+                {t('Settings')}
               </span>
             </DialogButton>
           </div>
