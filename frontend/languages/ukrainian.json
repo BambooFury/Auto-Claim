@@ -44,5 +44,7 @@
   "Once a day": "Раз на день",
   "Every {min} min": "Кожні {min} хв",
   "this weekend": "цими вихідними",
-  "{count} Free Games": "Безкоштовних ігор: {count}"
+  "{count} Free Games": "Безкоштовних ігор: {count}",
+  "Checking giveaways…": "Перевіряємо роздачі…",
+  "Verifying games…": "Перевіряємо ігри…"
 }

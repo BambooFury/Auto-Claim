@@ -2,7 +2,7 @@ import { definePlugin, toaster } from 'millennium';
 import React, { useEffect } from 'react';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
-import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount, setScanBusyState } from './scanControl';
+import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount, setScanBusyState, setScanProgress } from './scanControl';
 import { setClaiming, setClaimed, setClaimFailed } from './claimState';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
@@ -615,7 +615,7 @@ async function startPolling(): Promise<void> {
         warn: (m: string) => dlog(m),
       };
       const result = await withTimeout(
-        runScan(scannerLog),
+        runScan(scannerLog, (progress) => setScanProgress(progress)),
         120000,
         { games: [] as FreeGame[], anyOk: false } as { games: FreeGame[]; anyOk: boolean },
       );
@@ -715,6 +715,7 @@ async function startPolling(): Promise<void> {
     } finally {
       scanInProgress = false;
       setScanBusyState(false);
+      setScanProgress(null);
     }
     if (scanQueued) {
       scanQueued = false;

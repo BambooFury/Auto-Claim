@@ -44,5 +44,7 @@
   "Once a day": "Einmal täglich",
   "Every {min} min": "Alle {min} Min.",
   "this weekend": "dieses Wochenende",
-  "{count} Free Games": "Kostenlose Spiele: {count}"
+  "{count} Free Games": "Kostenlose Spiele: {count}",
+  "Checking giveaways…": "Gratis-Angebote werden geprüft…",
+  "Verifying games…": "Spiele werden geprüft…"
 }

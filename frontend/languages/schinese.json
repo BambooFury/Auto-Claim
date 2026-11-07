@@ -44,5 +44,7 @@
   "Once a day": "每天一次",
   "Every {min} min": "每 {min} 分钟",
   "this weekend": "本周末",
-  "{count} Free Games": "免费游戏：{count}"
+  "{count} Free Games": "免费游戏：{count}",
+  "Checking giveaways…": "正在检查免费游戏…",
+  "Verifying games…": "正在验证游戏…"
 }

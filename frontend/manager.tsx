@@ -25,7 +25,7 @@ import {
   loadOwnedFromGrabbed,
   loadSettingsIPC,
 } from './ipc';
-import { isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanState } from './scanControl';
+import { getScanProgress, isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanProgress, subscribeScanState, type ScanProgressState } from './scanControl';
 import { subscribeClaimState, getClaimSnapshot } from './claimState';
 import { SettingsRows, useLocalization, usePluginSettings } from './settingsRows';
 import { SteamDialog } from './steamDialog';
@@ -273,6 +273,16 @@ function EmptyState(): React.JSX.Element {
   );
 }
 
+function scanOperationText(progress: ScanProgressState | null): string {
+  if (progress && progress.stage === 'verify' && progress.total > 0) {
+    return `${t('Verifying games…')} ${progress.current}/${progress.total}`;
+  }
+  if (progress && progress.stage === 'giveaways') {
+    return t('Checking giveaways…');
+  }
+  return t('Scanning the store…');
+}
+
 function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element {
   useLocalization();
   const [games, setGames] = useState<FreeGame[]>([]);
@@ -281,6 +291,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   const [loaded, setLoaded] = useState(false);
   const [scanBusy, setScanBusy] = useState(isScanBusy());
   const [scanState, setScanState] = useState<'' | 'ok' | 'fail'>('');
+  const [progress, setProgress] = useState<ScanProgressState | null>(getScanProgress());
 
   const refresh = useCallback(async () => {
     try {
@@ -314,6 +325,8 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   useEffect(() => { void refresh(); }, [refresh]);
 
   useEffect(() => subscribeScanState(() => setScanBusy(isScanBusy())), []);
+
+  useEffect(() => subscribeScanProgress(() => setProgress(getScanProgress())), []);
 
   useEffect(() => subscribeScanState(() => { void refresh(); }), [refresh]);
 
@@ -389,10 +402,29 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         </DialogButtonPrimary>
       </div>
 
-      {scanBusy && <ProgressBar indeterminate />}
-      {scanState && !scanBusy && (
-        <div style={{ fontSize: '12.5px', color: scanState === 'ok' ? 'var(--color-online, #5dc26a)' : '#e05252', paddingTop: '8px' }}>
-          {scanState === 'ok' ? t('Scan complete') : t('Scan failed — showing cached results')}
+      {scanBusy && (
+        <div style={{ marginTop: '14px' }}>
+          <ProgressBar
+            indeterminate={!(progress && progress.stage === 'verify' && progress.total > 0)}
+            nProgress={progress && progress.stage === 'verify' && progress.total > 0 ? (progress.current / progress.total) * 100 : undefined}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', paddingTop: '8px' }}>
+            <Spinner style={{ width: '13px', height: '13px' }} />
+            <span style={{ fontSize: '12.5px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
+              {scanOperationText(progress)}
+            </span>
+          </div>
+        </div>
+      )}
+      {scanState === 'ok' && !scanBusy && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '8px' }}>
+          <MdCheck size={16} color="var(--color-online, #5dc26a)" />
+          <span style={{ fontSize: '12.5px', color: 'var(--main-text-color, #ffffff)' }}>{t('Scan complete')}</span>
+        </div>
+      )}
+      {scanState === 'fail' && !scanBusy && (
+        <div style={{ fontSize: '12.5px', color: '#e05252', paddingTop: '8px' }}>
+          {t('Scan failed — showing cached results')}
         </div>
       )}
     </div>

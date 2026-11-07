@@ -44,5 +44,7 @@
   "Once a day": "Раз в день",
   "Every {min} min": "Каждые {min} мин",
   "this weekend": "в эти выходные",
-  "{count} Free Games": "Бесплатных игр: {count}"
+  "{count} Free Games": "Бесплатных игр: {count}",
+  "Checking giveaways…": "Проверяем раздачи…",
+  "Verifying games…": "Проверяем игры…"
 }
