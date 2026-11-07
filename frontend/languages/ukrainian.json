@@ -10,7 +10,6 @@
   "Weekend": "Вихідні",
   "In your library": "У вашій бібліотеці",
   "Owned": "Є у вас",
-  "Free to play until {until}": "Безкоштовна до {until}",
   "100% off — not in your library yet": "Знижка 100% — ще не у вашій бібліотеці",
   "Claiming…": "Отримуємо…",
   "View in Store": "Переглянути в крамниці",
@@ -46,5 +45,10 @@
   "this weekend": "цими вихідними",
   "{count} Free Games": "Безкоштовних ігор: {count}",
   "Checking giveaways…": "Перевіряємо роздачі…",
-  "Verifying games…": "Перевіряємо ігри…"
+  "Verifying games…": "Перевіряємо ігри…",
+  "{time} left": "залишилося {time}",
+  "d": "дн",
+  "h": "год",
+  "min": "хв",
+  "Offer has ended": "Акцію завершено"
 }

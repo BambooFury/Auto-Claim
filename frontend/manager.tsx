@@ -13,6 +13,7 @@ import {
   DEFAULT_SETTINGS,
   type FilterMode,
   FreeGame,
+  formatRemaining,
   formatUntil,
   isClaimableGame,
   normalizeSettings,
@@ -152,13 +153,18 @@ function GameImage({ game }: { game: FreeGame }): React.JSX.Element {
   );
 }
 
-function gameStatus(game: FreeGame, owned: boolean): string {
-  if (owned) return t('In your library');
-  if (game.type === 'weekend') return t('Free to play until {until}', { until: formatUntil(game.until) });
-  return t('100% off — not in your library yet');
+function gameStatus(game: FreeGame, owned: boolean): { text: string; urgent: boolean } {
+  if (owned) return { text: t('In your library'), urgent: false };
+  if (game.until) {
+    const msLeft = game.until * 1000 - Date.now();
+    if (msLeft <= 0) return { text: t('Offer has ended'), urgent: false };
+    return { text: t('{time} left', { time: formatRemaining(game.until) }), urgent: msLeft < 24 * 60 * 60 * 1000 };
+  }
+  return { text: t('100% off — not in your library yet'), urgent: false };
 }
 
 function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean; claimStatus: 'idle' | 'claiming' | 'claimed' | 'failed' }): React.JSX.Element {
+  const status = gameStatus(game, owned);
   return (
     <div
       style={{
@@ -196,8 +202,8 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
         <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {game.name}
         </div>
-        <div style={{ fontSize: '12.5px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
-          {gameStatus(game, owned)}
+        <div style={{ fontSize: '12.5px', color: status.urgent ? '#e05252' : 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
+          {status.text}
         </div>
       </div>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -327,6 +333,11 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   useEffect(() => subscribeScanState(() => setScanBusy(isScanBusy())), []);
 
   useEffect(() => subscribeScanProgress(() => setProgress(getScanProgress())), []);
+
+  useEffect(() => {
+    const timer = setInterval(() => forceUpdate((n) => n + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => subscribeScanState(() => { void refresh(); }), [refresh]);
 

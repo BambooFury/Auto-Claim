@@ -10,7 +10,6 @@
   "Weekend": "ウィークエンド",
   "In your library": "ライブラリにあります",
   "Owned": "所持済み",
-  "Free to play until {until}": "{until} まで無料",
   "100% off — not in your library yet": "100%オフ — まだライブラリにありません",
   "Claiming…": "獲得中…",
   "View in Store": "ストアで見る",
@@ -46,5 +45,10 @@
   "this weekend": "今週末",
   "{count} Free Games": "無料ゲーム: {count}",
   "Checking giveaways…": "無料ゲームを確認中…",
-  "Verifying games…": "ゲームを検証中…"
+  "Verifying games…": "ゲームを検証中…",
+  "{time} left": "あと {time}",
+  "d": "日",
+  "h": "時間",
+  "min": "分",
+  "Offer has ended": "キャンペーンは終了しました"
 }

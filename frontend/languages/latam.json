@@ -10,7 +10,6 @@
   "Weekend": "Fin de semana",
   "In your library": "En tu biblioteca",
   "Owned": "Obtenido",
-  "Free to play until {until}": "Gratis hasta el {until}",
   "100% off — not in your library yet": "100% de descuento — aún no está en tu biblioteca",
   "Claiming…": "Reclamando…",
   "View in Store": "Ver en la tienda",
@@ -46,5 +45,10 @@
   "this weekend": "este fin de semana",
   "{count} Free Games": "Juegos gratis: {count}",
   "Checking giveaways…": "Revisando promociones…",
-  "Verifying games…": "Verificando juegos…"
+  "Verifying games…": "Verificando juegos…",
+  "{time} left": "quedan {time}",
+  "d": "d",
+  "h": "h",
+  "min": "min",
+  "Offer has ended": "La promoción ha terminado"
 }
