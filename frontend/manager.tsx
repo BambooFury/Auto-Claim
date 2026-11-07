@@ -57,23 +57,40 @@ const FILTER_SHORT: Record<FilterMode, string> = {
   weekend: 'Weekend',
 };
 
+const PILL_STYLES = `
+.autoclaim-pill {
+  background: transparent;
+  border: none;
+  color: var(--secondary-text-color, rgba(255, 255, 255, 0.5));
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.autoclaim-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--main-text-color, #ffffff);
+}
+.autoclaim-pill.is-active,
+.autoclaim-pill.is-active:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--main-text-color, #ffffff);
+  font-weight: 700;
+}
+`;
+
 function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }): React.JSX.Element {
   return (
-    <DialogButton
-      style={{
-        padding: '8px 16px',
-        borderRadius: '6px',
-        background: active ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-        fontWeight: active ? 700 : 400,
-        color: active ? 'var(--main-text-color, #ffffff)' : 'var(--secondary-text-color, rgba(255,255,255,0.5))',
-        whiteSpace: 'nowrap',
-      }}
+    <button
+      type="button"
+      className={`autoclaim-pill${active ? ' is-active' : ''}`}
       onClick={onClick}
     >
       {children}
-    </DialogButton>
+    </button>
   );
 }
 
@@ -346,7 +363,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         </span>
         <DialogButtonPrimary
           disabled={scanBusy}
-          style={{ borderRadius: '8px', padding: '10px 22px' }}
+          style={{ borderRadius: '8px', padding: '10px 22px', width: 'auto', flex: 'none' }}
           onClick={async () => {
             const ok = await requestManualScan();
             setScanState(ok ? 'ok' : 'fail');
@@ -415,10 +432,11 @@ function ManagerWindow(): React.JSX.Element | null {
       saveDimensionsKey="autoClaimManager"
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        <style>{PILL_STYLES}</style>
         <div
           style={{
             display: 'flex', alignItems: 'center', padding: '10px 24px 0',
-            WebkitAppRegion: 'no-drag',
+            position: 'relative', zIndex: 10, WebkitAppRegion: 'no-drag',
           } as React.CSSProperties}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
