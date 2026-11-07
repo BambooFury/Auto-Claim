@@ -508,7 +508,7 @@ function ManagerWindow(): React.JSX.Element | null {
         </div>
 
         <div style={{ display: 'flex', gap: '4px', padding: '12px 24px 0', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          {(['games', 'all', 'weekend'] as FilterMode[]).map((mode) => (
+          {(['games', 'weekend', 'all'] as FilterMode[]).map((mode) => (
             <PillButton key={mode} active={filterMode === mode} onClick={() => update({ filterMode: mode })}>
               {t(FILTER_SHORT[mode])}
             </PillButton>
