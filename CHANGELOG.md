@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.4.0](https://github.com/BambooFury/Auto-Claim/compare/v2.3.1...v2.4.0) (2026-11-07)
+
+
+### Features
+
+* drop settings panel from millennium sidebar ([605f200](https://github.com/BambooFury/Auto-Claim/commit/605f200fe2f443bd1d147bb4f1b382bb92764d98))
+* match manager window to design mockup ([b269202](https://github.com/BambooFury/Auto-Claim/commit/b269202f77c84a671fc763eb446c93a5c4b714df))
+* play button opens app page for free weekends ([9ed6dbc](https://github.com/BambooFury/Auto-Claim/commit/9ed6dbcc343620e83539d650af6cd41477ddbb8a))
+* redesign games manager with native steam components ([a17369f](https://github.com/BambooFury/Auto-Claim/commit/a17369fa5b645ee3d7785c83d5d8b3723dc253e2))
+* show countdown on game cards ([aecf726](https://github.com/BambooFury/Auto-Claim/commit/aecf726bb8bced0143180e2d65d78292a46bfe77))
+* show scan progress and completion state ([a0bced9](https://github.com/BambooFury/Auto-Claim/commit/a0bced939346fb5ff4bb9ca2dc0cf273a6299d7f))
+
+
+### Bug Fixes
+
+* group toolbar button with native icons ([671aea2](https://github.com/BambooFury/Auto-Claim/commit/671aea282a55924dc53c544ade0c601d47c477c2))
+* keep cached games when a scan yields none ([709730c](https://github.com/BambooFury/Auto-Claim/commit/709730c45b103dbb7c627ce0935e11c1ce01f362))
+* lift header tabs above steam drag region ([25135f1](https://github.com/BambooFury/Auto-Claim/commit/25135f1ad63fc25bc0582f99e9809d8e19a18a46))
+* polish empty state typography ([aaadcf1](https://github.com/BambooFury/Auto-Claim/commit/aaadcf1eed6db7803b33b93d9be476eab8f21d8e))
+* remove custom pill highlight backgrounds ([b1bf4bb](https://github.com/BambooFury/Auto-Claim/commit/b1bf4bbb58c95a73a963b9f4e860623978ce32bd))
+* reorder filter pills ([93b2174](https://github.com/BambooFury/Auto-Claim/commit/93b2174cbbbfaf37ced50bb409deb5f378480056))
+* restore native button sizing in manager layout ([592e317](https://github.com/BambooFury/Auto-Claim/commit/592e3170e16883e2c8c73e5e14f6f81473ed9bc6))
+* skip indicator update before seen owner is set ([1ff6e84](https://github.com/BambooFury/Auto-Claim/commit/1ff6e8467e7ca2007627c6bc8153a6c42959cdd5))
+* wait for steam services before startup tasks ([32db328](https://github.com/BambooFury/Auto-Claim/commit/32db328a35c14454feadf66d72bc5715f428c9a0))
+
+
+### Refactoring
+
+* inline svg icons without npm dependency ([6d54036](https://github.com/BambooFury/Auto-Claim/commit/6d54036fe311f5e6f0a7f7601783061391d74c04))
+
 ## [2.3.1](https://github.com/BambooFury/Auto-Claim/compare/v2.3.0...v2.3.1) (2026-10-08)
 
 
