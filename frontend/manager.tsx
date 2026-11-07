@@ -63,20 +63,17 @@ const PILL_STYLES = `
   border: none;
   color: var(--secondary-text-color, rgba(255, 255, 255, 0.5));
   padding: 8px 16px;
-  border-radius: 6px;
   font-size: 14px;
   font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease;
 }
 .autoclaim-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: var(--main-text-color, #ffffff);
 }
 .autoclaim-pill.is-active,
 .autoclaim-pill.is-active:hover {
-  background: rgba(255, 255, 255, 0.14);
   color: var(--main-text-color, #ffffff);
   font-weight: 700;
 }
