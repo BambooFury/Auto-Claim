@@ -838,8 +838,13 @@ async function startPolling(): Promise<void> {
 }
 
 export default definePlugin(() => {
-  void startPolling();
-  registerManager();
-  setupToolbar();
+  void (async () => {
+    try {
+      await (window as any).App?.WaitForServicesInitialized?.();
+    } catch {}
+    void startPolling();
+    registerManager();
+    setupToolbar();
+  })();
   return {};
 });
