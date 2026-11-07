@@ -1,6 +1,5 @@
 import { definePlugin, toaster } from 'millennium';
 import React, { useEffect } from 'react';
-import { SettingsTab } from './settings';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
 import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount, setScanBusyState } from './scanControl';
@@ -841,9 +840,5 @@ export default definePlugin(() => {
   void startPolling();
   registerManager();
   setupToolbar();
-  return {
-    title: 'Auto Claim',
-    icon: React.createElement('span', { style: { display: 'none' } }),
-    content: React.createElement(SettingsTab),
-  };
+  return {};
 });
