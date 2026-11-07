@@ -221,6 +221,16 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
           <DialogButton disabled style={{ padding: '10px 22px', whiteSpace: 'nowrap', opacity: 0.6, borderRadius: '6px' }}>
             {t('Claiming…')}
           </DialogButton>
+        ) : game.type === 'weekend' ? (
+          <DialogButton
+            style={{ padding: '10px 22px', whiteSpace: 'nowrap', borderRadius: '6px' }}
+            onClick={() => (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0)}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+              <MdSportsEsports size={14} />
+              {t('Play')}
+            </span>
+          </DialogButton>
         ) : (
           <DialogButton
             style={{ padding: '10px 22px', whiteSpace: 'nowrap', borderRadius: '6px' }}
