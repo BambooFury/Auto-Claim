@@ -28,9 +28,10 @@ export async function searchSteamSpecials(
     const res = await safeFetch(url, 25000, log);
     if (!res || res.status !== 200) continue;
 
-    anyOk = true;
     const data = safeParse<SteamSearchResponse>(res.body, log, `(search ${cc})`);
     if (!data || !Array.isArray(data.items)) continue;
+
+    anyOk = true;
 
     for (const item of data.items) {
       const logoUrl = typeof item.logo === 'string' ? item.logo.replace(/\\\//g, '/') : '';

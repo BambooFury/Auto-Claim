@@ -651,13 +651,17 @@ async function startPolling(): Promise<void> {
         dlog(summary);
       }
 
-      try {
-        await withTimeout(
-          saveFreeGamesCacheIPC({ payload: JSON.stringify(games) }),
-          3000,
-          0,
-        );
-      } catch {}
+      if (games.length > 0) {
+        try {
+          await withTimeout(
+            saveFreeGamesCacheIPC({ payload: JSON.stringify(games) }),
+            3000,
+            0,
+          );
+        } catch {}
+      } else {
+        dlog('Scan found no games — keeping previous cache');
+      }
 
       const apiOwned = await withTimeout(
         checkLibraryOwnership(games.map((g) => g.appid)),
