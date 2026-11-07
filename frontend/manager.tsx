@@ -240,16 +240,31 @@ function EmptyState(): React.JSX.Element {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '12px',
         padding: '40px 24px',
         textAlign: 'center',
       }}
     >
       <MdCheckCircle size={38} color="var(--color-online, #5dc26a)" />
-      <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
+      <div
+        style={{
+          fontSize: '17px',
+          fontWeight: 700,
+          letterSpacing: '0.3px',
+          color: 'var(--main-text-color, #ffffff)',
+          marginTop: '18px',
+        }}
+      >
         {t("You're all caught up")}
       </div>
-      <div style={{ fontSize: '12.5px', lineHeight: 1.6, color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', maxWidth: '340px' }}>
+      <div
+        style={{
+          fontSize: '12.5px',
+          lineHeight: 1.7,
+          color: 'var(--secondary-text-color, rgba(255,255,255,0.5))',
+          maxWidth: '360px',
+          marginTop: '8px',
+        }}
+      >
         {t('There are no free games to show right now.')}
         <br />
         {t('New giveaways appear all the time — run a scan anytime to check the store again.')}
