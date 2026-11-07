@@ -7,7 +7,7 @@ import { setClaiming, setClaimed, setClaimFailed } from './claimState';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
 import { clearOwnershipCache, setOwnershipOwner } from './ownership';
-import { isSeen, markSeen, resetSeenSet, setSeenOwner } from './seenSet';
+import { isSeen, isSeenOwnerReady, markSeen, resetSeenSet, setSeenOwner } from './seenSet';
 import {
   FreeGame,
   GrabbedEntry,
@@ -61,6 +61,7 @@ async function _reloadGlobalGrabbed(): Promise<void> {
 }
 
 async function _updateNewGamesIndicator(): Promise<void> {
+  if (!isSeenOwnerReady()) return;
   try {
     const [freeRaw, weekendRaw] = await Promise.all([
       withTimeout(loadFreeGamesCacheIPC(), 3000, '[]'),
