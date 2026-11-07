@@ -77,6 +77,20 @@ export function headerImageUrl(game: FreeGame): string {
   );
 }
 
+export function formatRemaining(unix: number): string {
+  const msLeft = unix * 1000 - Date.now();
+  if (msLeft <= 0) return '';
+  const totalMinutes = Math.floor(msLeft / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes - days * 1440) / 60);
+  const minutes = totalMinutes - days * 1440 - hours * 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days} ${t('d')}`);
+  if (hours > 0) parts.push(`${hours} ${t('h')}`);
+  if (days === 0 && minutes > 0) parts.push(`${minutes} ${t('min')}`);
+  return parts.slice(0, 2).join(' ');
+}
+
 export function formatUntil(unix?: number): string {
   if (!unix) return t('this weekend');
   try {

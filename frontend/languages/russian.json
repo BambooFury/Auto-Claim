@@ -10,7 +10,6 @@
   "Weekend": "Выходные",
   "In your library": "В вашей библиотеке",
   "Owned": "Есть",
-  "Free to play until {until}": "Бесплатна до {until}",
   "100% off — not in your library yet": "Скидка 100% — ещё не в вашей библиотеке",
   "Claiming…": "Получаем…",
   "View in Store": "В магазине",
@@ -25,9 +24,7 @@
   "Auto Claim — Free Games": "Auto Claim — бесплатные игры",
   "Free Games": "Бесплатные игры",
   "Settings": "Настройки",
-  "Filter: {mode}": "Фильтр: {mode}",
   "Reset to defaults": "Сбросить настройки",
-  "Open Games Manager": "Открыть менеджер игр",
   "Auto-add to library": "Автодобавление в библиотеку",
   "Claim free games automatically on scan. When off, you only get notifications.": "Автоматически получать бесплатные игры при проверке. Когда выключено — только уведомления.",
   "Notify on grab": "Уведомлять о получении",
@@ -45,5 +42,14 @@
   "Free weekend": "Бесплатные выходные",
   "Once a day": "Раз в день",
   "Every {min} min": "Каждые {min} мин",
-  "this weekend": "в эти выходные"
+  "this weekend": "в эти выходные",
+  "{count} Free Games": "Бесплатных игр: {count}",
+  "Checking giveaways…": "Проверяем раздачи…",
+  "Verifying games…": "Проверяем игры…",
+  "{time} left": "осталось {time}",
+  "d": "дн",
+  "h": "ч",
+  "min": "мин",
+  "Offer has ended": "Акция закончилась",
+  "Play": "Играть"
 }

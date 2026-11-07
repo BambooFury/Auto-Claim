@@ -2,18 +2,18 @@ import {
   ButtonItem,
   DialogButton,
   DialogButtonPrimary,
-  Field,
   Navigation,
   ProgressBar,
   Spinner,
   routerHook,
 } from 'millennium';
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { MdCheck, MdCheckCircle, MdFilterList, MdOpenInNew, MdRefresh, MdRadar, MdSettings, MdSportsEsports, MdStorefront } from 'react-icons/md';
+import { MdCheck, MdCheckCircle, MdOpenInNew, MdRadar, MdRefresh, MdSettings, MdSportsEsports, MdStorefront } from './icons';
 import {
   DEFAULT_SETTINGS,
   type FilterMode,
   FreeGame,
+  formatRemaining,
   formatUntil,
   isClaimableGame,
   normalizeSettings,
@@ -26,7 +26,7 @@ import {
   loadOwnedFromGrabbed,
   loadSettingsIPC,
 } from './ipc';
-import { isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanState } from './scanControl';
+import { getScanProgress, isScanBusy, requestManualScan, resetNewGamesCount, subscribeScanProgress, subscribeScanState, type ScanProgressState } from './scanControl';
 import { subscribeClaimState, getClaimSnapshot } from './claimState';
 import { SettingsRows, useLocalization, usePluginSettings } from './settingsRows';
 import { SteamDialog } from './steamDialog';
@@ -58,10 +58,43 @@ const FILTER_SHORT: Record<FilterMode, string> = {
   weekend: 'Weekend',
 };
 
+const PILL_STYLES = `
+.autoclaim-pill {
+  background: transparent;
+  border: none;
+  color: var(--secondary-text-color, rgba(255, 255, 255, 0.5));
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+.autoclaim-pill:hover {
+  color: var(--main-text-color, #ffffff);
+}
+.autoclaim-pill.is-active,
+.autoclaim-pill.is-active:hover {
+  color: var(--main-text-color, #ffffff);
+  font-weight: 700;
+}
+`;
+
+function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={`autoclaim-pill${active ? ' is-active' : ''}`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 function OwnedBadge(): React.JSX.Element {
   return (
     <div
-      title={t('In your library')}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -69,19 +102,12 @@ function OwnedBadge(): React.JSX.Element {
         height: '30px',
         padding: '0 12px 0 0',
         borderRadius: '4px',
-        background: 'rgba(85, 204, 85, 0.1)',
+        background: 'rgba(85, 204, 85, 0.12)',
         overflow: 'hidden',
         flexShrink: 0,
       }}
     >
-      <div
-        style={{
-          width: '3px',
-          height: '100%',
-          background: '#55cc55',
-          flexShrink: 0,
-        }}
-      />
+      <div style={{ width: '3px', height: '100%', background: '#55cc55', flexShrink: 0 }} />
       <MdCheck size={12} color="#55cc55" />
       <span
         style={{
@@ -115,89 +141,99 @@ function GameImage({ game }: { game: FreeGame }): React.JSX.Element {
   const src = candidates[failed];
 
   if (!src) {
-    return <div style={{ width: '120px', height: '45px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />;
+    return <div style={{ width: '120px', height: '45px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />;
   }
 
   return (
     <img
       src={src}
       onError={() => setFailed((f) => f + 1)}
-      style={{ width: '120px', height: '45px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, background: 'rgba(255,255,255,0.06)' }}
+      style={{ width: '120px', height: '45px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0, background: 'rgba(255,255,255,0.06)' }}
     />
   );
 }
 
-function gameStatus(game: FreeGame, owned: boolean): string {
-  if (owned) return t('In your library');
-  if (game.type === 'weekend') return t('Free to play until {until}', { until: formatUntil(game.until) });
-  return t('100% off — not in your library yet');
+function gameStatus(game: FreeGame, owned: boolean): { text: string; urgent: boolean } {
+  if (owned) return { text: t('In your library'), urgent: false };
+  if (game.until) {
+    const msLeft = game.until * 1000 - Date.now();
+    if (msLeft <= 0) return { text: t('Offer has ended'), urgent: false };
+    return { text: t('{time} left', { time: formatRemaining(game.until) }), urgent: msLeft < 24 * 60 * 60 * 1000 };
+  }
+  return { text: t('100% off — not in your library yet'), urgent: false };
 }
 
 function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean; claimStatus: 'idle' | 'claiming' | 'claimed' | 'failed' }): React.JSX.Element {
+  const status = gameStatus(game, owned);
   return (
-    <Field
-      label={game.name}
-      description={gameStatus(game, owned)}
-      icon={
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <GameImage game={game} />
-          {owned && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderRadius: '3px',
-                background: 'rgba(85, 204, 85, 0.12)',
-                border: '1px solid rgba(85, 204, 85, 0.35)',
-                pointerEvents: 'none',
-              }}
-            />
-          )}
-          {claimStatus === 'claiming' && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderRadius: '3px',
-                background: 'rgba(0, 0, 0, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <Spinner style={{ width: '20px', height: '20px' }} />
-            </div>
-          )}
-        </div>
-      }
-      childrenLayout="inline"
-      childrenContainerWidth="min"
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+        padding: '10px 12px',
+        background: 'rgba(255, 255, 255, 0.04)',
+        borderRadius: '8px',
+      }}
     >
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'stretch' }}>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <GameImage game={game} />
+        {claimStatus === 'claiming' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: '4px',
+              background: 'rgba(0, 0, 0, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <Spinner style={{ width: '20px', height: '20px' }} />
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {game.name}
+        </div>
+        <div style={{ fontSize: '12.5px', color: status.urgent ? '#e05252' : 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
+          {status.text}
+        </div>
+      </div>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         {owned ? (
           <>
             <OwnedBadge />
             <DialogButton
-              style={{ padding: '8px', minWidth: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ padding: '9px', minWidth: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
               onClick={() => Navigation.Navigate(`/library/app/${game.appid}`)}
             >
               <MdOpenInNew size={14} />
             </DialogButton>
           </>
         ) : claimStatus === 'claiming' ? (
-          <DialogButton disabled style={{ padding: '10px 22px', whiteSpace: 'nowrap', opacity: 0.6 }}>
+          <DialogButton disabled style={{ padding: '10px 22px', whiteSpace: 'nowrap', opacity: 0.6, borderRadius: '6px' }}>
             {t('Claiming…')}
+          </DialogButton>
+        ) : game.type === 'weekend' ? (
+          <DialogButton
+            style={{ padding: '10px 22px', whiteSpace: 'nowrap', borderRadius: '6px' }}
+            onClick={() => (window as any).SteamClient?.Apps?.ShowStore?.(game.appid, 0)}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+              <MdSportsEsports size={14} />
+              {t('Play')}
+            </span>
           </DialogButton>
         ) : (
           <DialogButton
-            style={{ padding: '10px 22px', whiteSpace: 'nowrap' }}
+            style={{ padding: '10px 22px', whiteSpace: 'nowrap', borderRadius: '6px' }}
             onClick={() => window.open(STORE_PAGE(game.appid))}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
@@ -207,7 +243,7 @@ function GameRow({ game, owned, claimStatus }: { game: FreeGame; owned: boolean;
           </DialogButton>
         )}
       </div>
-    </Field>
+    </div>
   );
 }
 
@@ -220,35 +256,47 @@ function EmptyState(): React.JSX.Element {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '14px',
         padding: '40px 24px',
         textAlign: 'center',
       }}
     >
+      <MdCheckCircle size={38} color="var(--color-online, #5dc26a)" />
       <div
         style={{
-          width: '72px',
-          height: '72px',
-          borderRadius: '50%',
-          background: 'rgba(85, 204, 85, 0.1)',
-          border: '1px solid rgba(85, 204, 85, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          fontSize: '17px',
+          fontWeight: 700,
+          letterSpacing: '0.3px',
+          color: 'var(--main-text-color, #ffffff)',
+          marginTop: '18px',
         }}
       >
-        <MdCheckCircle size={36} color="rgba(85, 204, 85, 0.7)" />
-      </div>
-      <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)' }}>
         {t("You're all caught up")}
       </div>
-      <div style={{ fontSize: '12.5px', lineHeight: 1.6, color: 'var(--secondary-text-color, rgba(255,255,255,0.5))', maxWidth: '340px' }}>
+      <div
+        style={{
+          fontSize: '12.5px',
+          lineHeight: 1.7,
+          color: 'var(--secondary-text-color, rgba(255,255,255,0.5))',
+          maxWidth: '360px',
+          marginTop: '8px',
+        }}
+      >
         {t('There are no free games to show right now.')}
         <br />
         {t('New giveaways appear all the time — run a scan anytime to check the store again.')}
       </div>
     </div>
   );
+}
+
+function scanOperationText(progress: ScanProgressState | null): string {
+  if (progress && progress.stage === 'verify' && progress.total > 0) {
+    return `${t('Verifying games…')} ${progress.current}/${progress.total}`;
+  }
+  if (progress && progress.stage === 'giveaways') {
+    return t('Checking giveaways…');
+  }
+  return t('Scanning the store…');
 }
 
 function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element {
@@ -259,6 +307,7 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   const [loaded, setLoaded] = useState(false);
   const [scanBusy, setScanBusy] = useState(isScanBusy());
   const [scanState, setScanState] = useState<'' | 'ok' | 'fail'>('');
+  const [progress, setProgress] = useState<ScanProgressState | null>(getScanProgress());
 
   const refresh = useCallback(async () => {
     try {
@@ -292,6 +341,13 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   useEffect(() => { void refresh(); }, [refresh]);
 
   useEffect(() => subscribeScanState(() => setScanBusy(isScanBusy())), []);
+
+  useEffect(() => subscribeScanProgress(() => setProgress(getScanProgress())), []);
+
+  useEffect(() => {
+    const timer = setInterval(() => forceUpdate((n) => n + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => subscribeScanState(() => { void refresh(); }), [refresh]);
 
@@ -329,13 +385,13 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px', flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '10px 24px 14px' }}>
       {!loaded ? (
         <Spinner />
       ) : visible.length === 0 ? (
         <EmptyState />
       ) : (
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}>
           {visible.map((g) => (
             <GameRow
               key={`${g.type ?? 'game'}-${g.appid}`}
@@ -347,28 +403,50 @@ function GamesTab({ filterMode }: { filterMode: FilterMode }): React.JSX.Element
         </div>
       )}
 
-      <DialogButtonPrimary
-        disabled={scanBusy}
-        onClick={async () => {
-          const ok = await requestManualScan();
-          setScanState(ok ? 'ok' : 'fail');
-          void refresh();
-        }}
-      >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-          <MdRadar size={16} />
-          {scanBusy ? t('Scanning…') : t('Scan Now')}
+      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', marginTop: '14px', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+        <span style={{ fontSize: '13px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
+          {t('{count} Free Games', { count: visible.length })}
         </span>
-      </DialogButtonPrimary>
+        <DialogButtonPrimary
+          disabled={scanBusy}
+          style={{ borderRadius: '8px', padding: '10px 22px', width: 'auto', flex: 'none' }}
+          onClick={async () => {
+            const ok = await requestManualScan();
+            setScanState(ok ? 'ok' : 'fail');
+            void refresh();
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            <MdRadar size={16} />
+            {scanBusy ? t('Scanning…') : t('Scan Now')}
+          </span>
+        </DialogButtonPrimary>
+      </div>
 
-      {scanBusy && <ProgressBar indeterminate />}
-      {scanState && !scanBusy && (
-        <Field
-          label={scanState === 'ok' ? t('Scan complete') : t('Scan failed — showing cached results')}
-          bottomSeparator="none"
-          padding="compact"
-          icon={<MdCheckCircle size={16} color={scanState === 'ok' ? '#5dc26a' : '#e05252'} />}
-        />
+      {scanBusy && (
+        <div style={{ marginTop: '14px' }}>
+          <ProgressBar
+            indeterminate={!(progress && progress.stage === 'verify' && progress.total > 0)}
+            nProgress={progress && progress.stage === 'verify' && progress.total > 0 ? (progress.current / progress.total) * 100 : undefined}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', paddingTop: '8px' }}>
+            <Spinner style={{ width: '13px', height: '13px' }} />
+            <span style={{ fontSize: '12.5px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
+              {scanOperationText(progress)}
+            </span>
+          </div>
+        </div>
+      )}
+      {scanState === 'ok' && !scanBusy && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '8px' }}>
+          <MdCheck size={16} color="var(--color-online, #5dc26a)" />
+          <span style={{ fontSize: '12.5px', color: 'var(--main-text-color, #ffffff)' }}>{t('Scan complete')}</span>
+        </div>
+      )}
+      {scanState === 'fail' && !scanBusy && (
+        <div style={{ fontSize: '12.5px', color: '#e05252', paddingTop: '8px' }}>
+          {t('Scan failed — showing cached results')}
+        </div>
       )}
     </div>
   );
@@ -380,7 +458,7 @@ function ManagerSettingsTab(): React.JSX.Element {
   if (!settings) return <Spinner />;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 24px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <SettingsRows settings={settings} update={update} />
       <ButtonItem
         layout="below"
@@ -404,16 +482,12 @@ function ManagerWindow(): React.JSX.Element | null {
   const [activeTab, setActiveTab] = useState<'games' | 'settings'>('games');
 
   const filterMode: FilterMode = settings?.filterMode ?? 'games';
-  const cycleFilter = (): void => {
-    const next: FilterMode = filterMode === 'games' ? 'all' : filterMode === 'all' ? 'weekend' : 'games';
-    update({ filterMode: next });
-  };
 
   if (!open) return null;
 
   return (
     <SteamDialog
-      strTitle={t('Auto Claim — Free Games')}
+      strTitle={t('Auto Claim')}
       onDismiss={() => setOpen(false)}
       popupWidth={860}
       popupHeight={560}
@@ -422,43 +496,48 @@ function ManagerWindow(): React.JSX.Element | null {
       resizable
       saveDimensionsKey="autoClaimManager"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, paddingTop: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        <style>{PILL_STYLES}</style>
         <div
           style={{
-            display: 'flex', gap: '6px', padding: '0 16px 4px',
+            display: 'flex', alignItems: 'center', padding: '10px 24px 0',
             position: 'relative', zIndex: 10, WebkitAppRegion: 'no-drag',
           } as React.CSSProperties}
         >
-          <DialogButton
-            style={{ padding: '10px 18px', fontWeight: activeTab === 'games' ? 700 : 400, opacity: activeTab === 'games' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            onClick={() => setActiveTab('games')}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-              <MdSportsEsports size={16} />
-              {t('Free Games')}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+            <span style={{ fontSize: '26px', fontWeight: 700, color: 'var(--main-text-color, #ffffff)', lineHeight: 1.15 }}>
+              {t('Auto Claim')}
             </span>
-          </DialogButton>
-          <DialogButton
-            style={{ padding: '10px 18px', fontWeight: activeTab === 'settings' ? 700 : 400, opacity: activeTab === 'settings' ? 1 : 0.6, position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            onClick={() => setActiveTab('settings')}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-              <MdSettings size={15} />
-              {t('Settings')}
+            <span style={{ fontSize: '14px', color: 'var(--secondary-text-color, rgba(255,255,255,0.5))' }}>
+              {activeTab === 'games' ? t('Free Games') : t('Settings')}
             </span>
-          </DialogButton>
-          <div style={{ marginLeft: 'auto', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-            <DialogButton
-              style={{ padding: '10px 18px', position: 'relative', zIndex: 2, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-              onClick={cycleFilter}
-            >
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <PillButton active={activeTab === 'games'} onClick={() => setActiveTab('games')}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-                <MdFilterList size={13} />
-                {t('Filter: {mode}', { mode: t(FILTER_SHORT[filterMode]) })}
+                <MdSportsEsports size={16} />
+                {t('Free Games')}
               </span>
-            </DialogButton>
+            </PillButton>
+            <PillButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+                <MdSettings size={15} />
+                {t('Settings')}
+              </span>
+            </PillButton>
           </div>
         </div>
+
+        <div style={{ display: 'flex', gap: '4px', padding: '12px 24px 0', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          {(['games', 'weekend', 'all'] as FilterMode[]).map((mode) => (
+            <PillButton key={mode} active={filterMode === mode} onClick={() => update({ filterMode: mode })}>
+              {t(FILTER_SHORT[mode])}
+            </PillButton>
+          ))}
+        </div>
+
+        <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', margin: '12px 24px 0' }} />
+
         {activeTab === 'games' ? <GamesTab filterMode={filterMode} /> : <ManagerSettingsTab />}
       </div>
     </SteamDialog>

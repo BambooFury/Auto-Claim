@@ -10,7 +10,6 @@
   "Weekend": "ウィークエンド",
   "In your library": "ライブラリにあります",
   "Owned": "所持済み",
-  "Free to play until {until}": "{until} まで無料",
   "100% off — not in your library yet": "100%オフ — まだライブラリにありません",
   "Claiming…": "獲得中…",
   "View in Store": "ストアで見る",
@@ -25,9 +24,7 @@
   "Auto Claim — Free Games": "Auto Claim — 無料ゲーム",
   "Free Games": "無料ゲーム",
   "Settings": "設定",
-  "Filter: {mode}": "フィルター: {mode}",
   "Reset to defaults": "デフォルトに戻す",
-  "Open Games Manager": "ゲームマネージャーを開く",
   "Auto-add to library": "ライブラリに自動追加",
   "Claim free games automatically on scan. When off, you only get notifications.": "スキャン時に無料ゲームを自動的に獲得します。オフの場合は通知のみ受け取ります。",
   "Notify on grab": "獲得時に通知",
@@ -45,5 +42,14 @@
   "Free weekend": "無料ウィークエンド",
   "Once a day": "1日1回",
   "Every {min} min": "{min} 分ごと",
-  "this weekend": "今週末"
+  "this weekend": "今週末",
+  "{count} Free Games": "無料ゲーム: {count}",
+  "Checking giveaways…": "無料ゲームを確認中…",
+  "Verifying games…": "ゲームを検証中…",
+  "{time} left": "あと {time}",
+  "d": "日",
+  "h": "時間",
+  "min": "分",
+  "Offer has ended": "キャンペーンは終了しました",
+  "Play": "プレイ"
 }

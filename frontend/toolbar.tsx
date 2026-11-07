@@ -1,6 +1,6 @@
 import { findModule } from 'millennium';
 import React, { useSyncExternalStore } from 'react';
-import { TbGift } from 'react-icons/tb';
+import { TbGift } from './icons';
 import { openManager } from './manager';
 import { logIPC } from './ipc';
 import { getNewGamesCount, subscribeScanState } from './scanControl';
@@ -15,7 +15,6 @@ const TOOLBAR_STYLES = `
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  margin-left: auto;
   order: 999;
   -webkit-app-region: no-drag;
 }

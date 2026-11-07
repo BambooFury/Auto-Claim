@@ -10,7 +10,6 @@
   "Weekend": "Weekend",
   "In your library": "W Twojej bibliotece",
   "Owned": "Posiadane",
-  "Free to play until {until}": "Darmowe do {until}",
   "100% off — not in your library yet": "100% taniej — jeszcze nie w Twojej bibliotece",
   "Claiming…": "Odbieranie…",
   "View in Store": "Zobacz w sklepie",
@@ -25,9 +24,7 @@
   "Auto Claim — Free Games": "Auto Claim — Darmowe gry",
   "Free Games": "Darmowe gry",
   "Settings": "Ustawienia",
-  "Filter: {mode}": "Filtr: {mode}",
   "Reset to defaults": "Przywróć domyślne",
-  "Open Games Manager": "Otwórz menedżer gier",
   "Auto-add to library": "Automatyczne dodawanie do biblioteki",
   "Claim free games automatically on scan. When off, you only get notifications.": "Automatycznie odbieraj darmowe gry podczas skanowania. Gdy wyłączone, otrzymujesz tylko powiadomienia.",
   "Notify on grab": "Powiadamiaj po odebraniu",
@@ -45,5 +42,14 @@
   "Free weekend": "Darmowy weekend",
   "Once a day": "Raz dziennie",
   "Every {min} min": "Co {min} min",
-  "this weekend": "w ten weekend"
+  "this weekend": "w ten weekend",
+  "{count} Free Games": "Darmowe gry: {count}",
+  "Checking giveaways…": "Sprawdzanie darmowych gier…",
+  "Verifying games…": "Weryfikacja gier…",
+  "{time} left": "zostało {time}",
+  "d": "d",
+  "h": "godz.",
+  "min": "min",
+  "Offer has ended": "Promocja zakończona",
+  "Play": "Graj"
 }

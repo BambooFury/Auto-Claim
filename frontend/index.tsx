@@ -1,14 +1,13 @@
 import { definePlugin, toaster } from 'millennium';
 import React, { useEffect } from 'react';
-import { SettingsTab } from './settings';
 import { runScan } from './scanner';
 import { scanFreeWeekend, WeekendGame } from './scanner/freeweekend';
-import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount, setScanBusyState } from './scanControl';
+import { registerScanTrigger, setIndicatorEnabled, setNewGamesCount, setScanBusyState, setScanProgress } from './scanControl';
 import { setClaiming, setClaimed, setClaimFailed } from './claimState';
 import { registerManager } from './manager';
 import { setupToolbar } from './toolbar';
 import { clearOwnershipCache, setOwnershipOwner } from './ownership';
-import { isSeen, markSeen, resetSeenSet, setSeenOwner } from './seenSet';
+import { isSeen, isSeenOwnerReady, markSeen, resetSeenSet, setSeenOwner } from './seenSet';
 import {
   FreeGame,
   GrabbedEntry,
@@ -62,6 +61,7 @@ async function _reloadGlobalGrabbed(): Promise<void> {
 }
 
 async function _updateNewGamesIndicator(): Promise<void> {
+  if (!isSeenOwnerReady()) return;
   try {
     const [freeRaw, weekendRaw] = await Promise.all([
       withTimeout(loadFreeGamesCacheIPC(), 3000, '[]'),
@@ -616,7 +616,7 @@ async function startPolling(): Promise<void> {
         warn: (m: string) => dlog(m),
       };
       const result = await withTimeout(
-        runScan(scannerLog),
+        runScan(scannerLog, (progress) => setScanProgress(progress)),
         120000,
         { games: [] as FreeGame[], anyOk: false } as { games: FreeGame[]; anyOk: boolean },
       );
@@ -651,13 +651,17 @@ async function startPolling(): Promise<void> {
         dlog(summary);
       }
 
-      try {
-        await withTimeout(
-          saveFreeGamesCacheIPC({ payload: JSON.stringify(games) }),
-          3000,
-          0,
-        );
-      } catch {}
+      if (games.length > 0) {
+        try {
+          await withTimeout(
+            saveFreeGamesCacheIPC({ payload: JSON.stringify(games) }),
+            3000,
+            0,
+          );
+        } catch {}
+      } else {
+        dlog('Scan found no games — keeping previous cache');
+      }
 
       const apiOwned = await withTimeout(
         checkLibraryOwnership(games.map((g) => g.appid)),
@@ -716,6 +720,7 @@ async function startPolling(): Promise<void> {
     } finally {
       scanInProgress = false;
       setScanBusyState(false);
+      setScanProgress(null);
     }
     if (scanQueued) {
       scanQueued = false;
@@ -838,12 +843,13 @@ async function startPolling(): Promise<void> {
 }
 
 export default definePlugin(() => {
-  void startPolling();
-  registerManager();
-  setupToolbar();
-  return {
-    title: 'Auto Claim',
-    icon: React.createElement('span', { style: { display: 'none' } }),
-    content: React.createElement(SettingsTab),
-  };
+  void (async () => {
+    try {
+      await (window as any).App?.WaitForServicesInitialized?.();
+    } catch {}
+    void startPolling();
+    registerManager();
+    setupToolbar();
+  })();
+  return {};
 });

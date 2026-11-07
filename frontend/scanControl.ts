@@ -59,3 +59,32 @@ export function resetNewGamesCount(): void {
   newGamesCount = 0;
   notify();
 }
+
+export interface ScanProgressState {
+  stage: 'search' | 'giveaways' | 'verify';
+  current: number;
+  total: number;
+}
+
+let scanProgress: ScanProgressState | null = null;
+const progressListeners = new Set<() => void>();
+
+function notifyProgress(): void {
+  for (const fn of Array.from(progressListeners)) {
+    try { fn(); } catch {}
+  }
+}
+
+export function setScanProgress(progress: ScanProgressState | null): void {
+  scanProgress = progress;
+  notifyProgress();
+}
+
+export function getScanProgress(): ScanProgressState | null {
+  return scanProgress;
+}
+
+export function subscribeScanProgress(fn: () => void): () => void {
+  progressListeners.add(fn);
+  return () => { progressListeners.delete(fn); };
+}

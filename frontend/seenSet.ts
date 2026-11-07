@@ -35,6 +35,10 @@ export function setSeenOwner(sid: string): void {
   _seenSet = loadSeenSet(_ownerSid);
 }
 
+export function isSeenOwnerReady(): boolean {
+  return _ownerSid !== '';
+}
+
 export function isSeen(appid: number): boolean {
   return _seenSet.has(appid);
 }

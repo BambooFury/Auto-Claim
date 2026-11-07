@@ -16,7 +16,5 @@
   "main": "./frontend/index.tsx",
   "author": "BambooFury",
   "license": "MIT",
-  "dependencies": {
-    "react-icons": "^5.7.0"
-  }
+  "dependencies": {}
 }

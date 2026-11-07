@@ -10,7 +10,6 @@
   "Weekend": "Вихідні",
   "In your library": "У вашій бібліотеці",
   "Owned": "Є у вас",
-  "Free to play until {until}": "Безкоштовна до {until}",
   "100% off — not in your library yet": "Знижка 100% — ще не у вашій бібліотеці",
   "Claiming…": "Отримуємо…",
   "View in Store": "Переглянути в крамниці",
@@ -25,9 +24,7 @@
   "Auto Claim — Free Games": "Auto Claim — безкоштовні ігри",
   "Free Games": "Безкоштовні ігри",
   "Settings": "Налаштування",
-  "Filter: {mode}": "Фільтр: {mode}",
   "Reset to defaults": "Скинути налаштування",
-  "Open Games Manager": "Відкрити менеджер ігор",
   "Auto-add to library": "Автододавання до бібліотеки",
   "Claim free games automatically on scan. When off, you only get notifications.": "Автоматично отримувати безкоштовні ігри під час перевірки. Коли вимкнено — лише сповіщення.",
   "Notify on grab": "Сповіщати про отримання",
@@ -45,5 +42,14 @@
   "Free weekend": "Безкоштовні вихідні",
   "Once a day": "Раз на день",
   "Every {min} min": "Кожні {min} хв",
-  "this weekend": "цими вихідними"
+  "this weekend": "цими вихідними",
+  "{count} Free Games": "Безкоштовних ігор: {count}",
+  "Checking giveaways…": "Перевіряємо роздачі…",
+  "Verifying games…": "Перевіряємо ігри…",
+  "{time} left": "залишилося {time}",
+  "d": "дн",
+  "h": "год",
+  "min": "хв",
+  "Offer has ended": "Акцію завершено",
+  "Play": "Грати"
 }
